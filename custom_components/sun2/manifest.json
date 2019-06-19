@@ -1,7 +1,7 @@
 {
   "domain": "sun2",
   "name": "Sun2",
-  "documentation": "https://github.com/pnbruckner/sun2",
+  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",
   "requirements": [],
   "dependencies": [],
   "codeowners": [
