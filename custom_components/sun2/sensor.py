@@ -118,12 +118,13 @@ class Sun2Sensor(Entity):
 
     def _get_astral_event(self, date):
         try:
-            if self._event in _DT_TYPES:
-                return getattr(self._location, self._event)(date)
-            start, end = getattr(self._location, self._event)(date)
-            return (end - start).total_seconds()/3600
+            result = getattr(self._location, self._event)(date)
         except AstralError:
-            return 'none'
+            return None
+        if self._event in _DT_TYPES:
+            return result
+        start, end = result
+        return (end - start).total_seconds()/3600
 
     async def async_update(self):
         """Update state."""
@@ -131,7 +132,9 @@ class Sun2Sensor(Entity):
         self._yesterday = self._get_astral_event(today-timedelta(days=1))
         self._today = self._get_astral_event(today)
         self._tomorrow = self._get_astral_event(today+timedelta(days=1))
-        if self._event in _DT_TYPES:
+        if self._today is None:
+            self._state = None
+        elif self._event in _DT_TYPES:
             self._state = self._today.isoformat()
         else:
             self._state = round(self._today, 3)
