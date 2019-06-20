@@ -54,6 +54,7 @@ class Sun2Sensor(Entity):
         self._location = None
         self._state = None
         self._yesterday = None
+        self._today = None
         self._tomorrow = None
 
     @property
@@ -76,6 +77,7 @@ class Sun2Sensor(Entity):
         """Return device specific state attributes."""
         return {
             'yesterday': self._yesterday,
+            'today': self._today,
             'tomorrow': self._tomorrow,
         }
 
@@ -117,15 +119,19 @@ class Sun2Sensor(Entity):
     def _get_astral_event(self, date):
         try:
             if self._event in _DT_TYPES:
-                return getattr(self._location, self._event)(date).isoformat()
+                return getattr(self._location, self._event)(date)
             start, end = getattr(self._location, self._event)(date)
-            return round((end - start).total_seconds()/3600, 2)
+            return (end - start).total_seconds()/3600
         except AstralError:
             return 'none'
 
     async def async_update(self):
         """Update state."""
         today = dt_util.now().date()
-        self._state = self._get_astral_event(today)
         self._yesterday = self._get_astral_event(today-timedelta(days=1))
+        self._today = self._get_astral_event(today)
         self._tomorrow = self._get_astral_event(today+timedelta(days=1))
+        if self._event in _DT_TYPES:
+            self._state = self._today.isoformat()
+        else:
+            self._state = round(self._today, 3)
