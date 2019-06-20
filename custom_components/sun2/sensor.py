@@ -58,20 +58,26 @@ class Sun2Sensor(Entity):
         """Return the icon to use in the frontend."""
         return self._icon
 
+    def _setup_fixed_updating(self):
+        # Default behavior is to update every local midnight.
+        # Override for sensor types that should update at a different time,
+        # or that have a more dynamic update schedule (in which case override
+        # with a method that does nothing and set up the update at the end of
+        # an override of _update instead.)
+        @callback
+        def async_update_at_midnight(now):
+            self.async_schedule_update_ha_state(True)
+        async_track_time_change(self.hass, async_update_at_midnight, 0, 0, 0)
+
     async def async_added_to_hass(self):
-        """Set up sensor."""
+        """Set up sensor and fixed updating."""
         @callback
         def async_update_location(event=None):
             self._location = get_astral_location(self.hass)
             self.async_schedule_update_ha_state(True)
         self.hass.bus.async_listen(
             EVENT_CORE_CONFIG_UPDATE, async_update_location)
-
-        @callback
-        def async_update_at_midnight(now):
-            self.async_schedule_update_ha_state(True)
-        async_track_time_change(self.hass, async_update_at_midnight, 0, 0, 0)
-
+        self._setup_fixed_updating()
         async_update_location()
 
     def _get_astral_event(self, date):
@@ -81,7 +87,7 @@ class Sun2Sensor(Entity):
         except AstralError:
             return None
 
-    def _async_update(self):
+    def _update(self):
         today = dt_util.now().date()
         self._yesterday = self._get_astral_event(today-timedelta(days=1))
         self._state = self._today = self._get_astral_event(today)
@@ -89,7 +95,7 @@ class Sun2Sensor(Entity):
 
     async def async_update(self):
         """Update state."""
-        self._async_update()
+        self._update()
 
 
 class Sun2Datetime(Sun2Sensor):
@@ -100,8 +106,8 @@ class Sun2Datetime(Sun2Sensor):
         """Return the class of this device."""
         return DEVICE_CLASS_TIMESTAMP
 
-    def _async_update(self):
-        super()._async_update()
+    def _update(self):
+        super()._update()
         if self._state is not None:
             self._state = self._state.isoformat()
 
@@ -121,8 +127,8 @@ class Sun2Hours(Sun2Sensor):
         start, end = result
         return (end - start).total_seconds()/3600
 
-    def _async_update(self):
-        super()._async_update()
+    def _update(self):
+        super()._update()
         if self._state is not None:
             self._state = round(self._state, 3)
 
