@@ -48,17 +48,17 @@ type | description
 `nautical_dusk` | The time in the evening when the sun is a 12 degrees below the horizon.
 `astronomical_dusk` | The time in the evening when the sun is a 18 degrees below the horizon.
 
-### Length of Time Sensors
+### Length of Time Sensors (in hours)
 type | description
 -|-
-`daylight` | The amount of time between sunrise and sunset, in hours.
-`civil_daylight` | The amount of time between dawn and dusk, in hours.
-`nautical_daylight` | The amount of time between nautical dawn and nautical dusk, in hours.
-`astronomical_daylight` | The amount of time between astronomical dawn and astronomical dusk, in hours.
-`night` | The amount of time between sunset and sunrise of the next day, in hours.
-`civil_night` | The amount of time between dusk and dawn of the next day, in hours.
-`nautical_night` | The amount of time between nautical dusk and nautical dawn of the next day, in hours.
-`astronomical_night` | The amount of time between astronomical dusk and astronomical dawn of the next day, in hours.
+`daylight` | The amount of time between sunrise and sunset.
+`civil_daylight` | The amount of time between dawn and dusk.
+`nautical_daylight` | The amount of time between nautical dawn and nautical dusk.
+`astronomical_daylight` | The amount of time between astronomical dawn and astronomical dusk.
+`night` | The amount of time between sunset and sunrise of the next day.
+`civil_night` | The amount of time between dusk and dawn of the next day.
+`nautical_night` | The amount of time between nautical dusk and nautical dawn of the next day.
+`astronomical_night` | The amount of time between astronomical dusk and astronomical dawn of the next day.
 
 ## Example Full Configuration
 
