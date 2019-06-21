@@ -36,13 +36,24 @@ where `<config>` is your Home Assistant configuration directory.
 
 type | description
 -|-
+`solar_midnight` | The time when the sun is at its lowest point closest to 00:00:00 of the specified date; i.e. it may be a time that is on the previous day.
+`astronomical_dawn` | The time in the morning when the sun is 18 degrees below the horizon.
+`nautical_dawn` | The time in the morning when the sun is 12 degrees below the horizon.
 `dawn` | The time in the morning when the sun is 6 degrees below the horizon.
-`daylight` | The amount of time between sunrise and sunset, in hours.
-`dusk` | The time in the evening when the sun is a 6 degrees below the horizon.
-`night` | The amount of time between astronomical dusk and astronomical dawn of the next day, in hours.
-`solar_noon` | The time when the sun is at its highest point.
 `sunrise` | The time in the morning when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+`solar_noon` | The time when the sun is at its highest point.
 `sunset` | The time in the evening when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+`dusk` | The time in the evening when the sun is a 6 degrees below the horizon.
+`nautical_dusk` | The time in the evening when the sun is a 12 degrees below the horizon.
+`astronomical_dusk` | The time in the evening when the sun is a 18 degrees below the horizon.
+`daylight` | The amount of time between sunrise and sunset, in hours.
+`civil_daylight` | The amount of time between dawn and dusk, in hours.
+`nautical_daylight` | The amount of time between nautical dawn and nautical dusk, in hours.
+`astronomical_daylight` | The amount of time between astronomical dawn and astronomical dusk, in hours.
+`night` | The amount of time between sunset and sunrise of the next day, in hours.
+`civil_night` | The amount of time between dusk and dawn of the next day, in hours.
+`nautical_night` | The amount of time between nautical dusk and nautical dawn of the next day, in hours.
+`astronomical_night` | The amount of time between astronomical dusk and astronomical dawn of the next day, in hours.
 
 ## Example Full Configuration
 
@@ -50,11 +61,22 @@ type | description
 sensor:
   - platform: sun2
     monitored_conditions:
+      - solar_midnight
+      - astronomical_dawn
+      - nautical_dawn
       - dawn
-      - daylight
-      - dusk
-      - night
-      - solar_noon
       - sunrise
+      - solar_noon
       - sunset
+      - dusk
+      - nautical_dusk
+      - astronomical_dusk
+      - daylight
+      - civil_daylight
+      - nautical_daylight
+      - astronomical_daylight
+      - night
+      - civil_night
+      - nautical_night
+      - astronomical_night
 ```
