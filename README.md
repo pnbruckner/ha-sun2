@@ -34,6 +34,7 @@ where `<config>` is your Home Assistant configuration directory.
 
 - **`monitored_conditions`**: A list of sensor types to create. One or more of the following:
 
+### Point in Time Sensors
 type | description
 -|-
 `solar_midnight` | The time when the sun is at its lowest point closest to 00:00:00 of the specified date; i.e. it may be a time that is on the previous day.
@@ -46,6 +47,10 @@ type | description
 `dusk` | The time in the evening when the sun is a 6 degrees below the horizon.
 `nautical_dusk` | The time in the evening when the sun is a 12 degrees below the horizon.
 `astronomical_dusk` | The time in the evening when the sun is a 18 degrees below the horizon.
+
+### Length of Time Sensors
+type | description
+-|-
 `daylight` | The amount of time between sunrise and sunset, in hours.
 `civil_daylight` | The amount of time between dawn and dusk, in hours.
 `nautical_daylight` | The amount of time between nautical dawn and nautical dusk, in hours.
