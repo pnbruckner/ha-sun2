@@ -90,10 +90,10 @@ class Sun2Sensor(Entity):
         self._setup_fixed_updating()
         async_update_location()
 
-    def _get_astral_event(self, event, date):
+    def _get_astral_event(self, event, date_or_dt):
         try:
             self._location.solar_depression = self._solar_depression
-            return getattr(self._location, event)(date)
+            return getattr(self._location, event)(date_or_dt)
         except AstralError:
             return 'none'
 
@@ -174,6 +174,28 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
             self._state = round(self._state, 3)
 
 
+class Sun2MaxElevationSensor(Sun2Sensor):
+    """Sun2 Max Elevation Sensor."""
+
+    def __init__(self, sensor_type, icon):
+        """Initialize sensor."""
+        super().__init__(sensor_type, icon, 0)
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return '°'
+
+    def _get_data(self, date):
+        solar_noon = self._get_astral_event('solar_noon', date)
+        return self._get_astral_event('solar_elevation', solar_noon)
+
+    def _update(self):
+        super()._update()
+        if self._state is not None:
+            self._state = round(self._state, 3)
+
+
 _SENSOR_TYPES = {
     # Points in time
     'solar_midnight': (Sun2PointInTimeSensor, 'mdi:weather-night'),
@@ -195,6 +217,8 @@ _SENSOR_TYPES = {
     'civil_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
     'nautical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
     'astronomical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
+    # Max elevation
+    'max_elevation': (Sun2MaxElevationSensor, 'mdi:weather-sunny'),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
