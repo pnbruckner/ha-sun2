@@ -51,14 +51,17 @@ class Sun2Sensor(Entity):
         """Return the state of the entity."""
         return self._state
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes."""
+    def _device_state_attributes(self):
         return {
             'yesterday': self._yesterday,
             'today': self._today,
             'tomorrow': self._tomorrow,
         }
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes."""
+        return self._device_state_attributes()
 
     @property
     def icon(self):
@@ -126,6 +129,13 @@ class Sun2PointInTimeSensor(Sun2Sensor):
             self._state = self._state.isoformat()
 
 
+def _hours_to_hms(hours):
+    try:
+        return str(timedelta(hours=hours)).split('.')[0]
+    except TypeError:
+        return None
+
+
 class Sun2PeriodOfTimeSensor(Sun2Sensor):
     """Sun2 Period of Time Sensor."""
 
@@ -137,6 +147,15 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return 'hr'
+
+    def _device_state_attributes(self):
+        data = super()._device_state_attributes()
+        data.update({
+            'yesterday_hms': _hours_to_hms(data['yesterday']),
+            'today_hms': _hours_to_hms(data['today']),
+            'tomorrow_hms': _hours_to_hms(data['tomorrow']),
+        })
+        return data
 
     def _get_data(self, date):
         if 'daylight' in self._event:
