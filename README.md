@@ -60,10 +60,11 @@ type | description
 `nautical_night` | The amount of time between nautical dusk and nautical dawn of the next day.
 `astronomical_night` | The amount of time between astronomical dusk and astronomical dawn of the next day.
 
-### Max Elevation Sensor (in degrees)
+### Other Sensors
 type | description
 -|-
-`max_elevation` | The sun's elevation at solar noon.
+`elevation` | The sun's elevation (degrees).
+`max_elevation` | The sun's elevation at solar noon (degrees).
 
 ## Example Full Configuration
 
@@ -89,5 +90,6 @@ sensor:
       - civil_night
       - nautical_night
       - astronomical_night
+      - elevation
       - max_elevation
 ```
