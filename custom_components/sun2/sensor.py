@@ -30,7 +30,7 @@ ATTR_NEXT_CHANGE = 'next_change'
 class Sun2Sensor(Entity):
     """Sun2 Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, default_solar_depression):
+    def __init__(self, hass, sensor_type, icon, default_solar_depression=0):
         """Initialize sensor."""
         if any(sol_dep in sensor_type for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = sensor_type.rsplit('_', 1)
@@ -39,7 +39,7 @@ class Sun2Sensor(Entity):
             self._event = sensor_type
         self._icon = icon
         self._name = sensor_type.replace('_', ' ').title()
-        self._loc = get_astral_location(hass)
+        self._new_loc(get_astral_location(hass))
         self._state = None
         self._yesterday = None
         self._today = None
@@ -77,6 +77,9 @@ class Sun2Sensor(Entity):
         """Return the icon to use in the frontend."""
         return self._icon
 
+    def _new_loc(self, loc):
+        self._loc = loc
+
     def _setup_fixed_updating(self):
         # Default behavior is to update every local midnight.
         # Override for sensor types that should update at a different time,
@@ -92,7 +95,7 @@ class Sun2Sensor(Entity):
         """Set up sensor and fixed updating."""
         @callback
         def async_update_location(event=None):
-            self._loc = get_astral_location(self.hass)
+            self._new_loc(get_astral_location(self.hass))
             self.async_schedule_update_ha_state(True)
         self.hass.bus.async_listen(
             EVENT_CORE_CONFIG_UPDATE, async_update_location)
@@ -185,10 +188,6 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
 class Sun2MaxElevationSensor(Sun2Sensor):
     """Sun2 Max Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
-        """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, 0)
-
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""
@@ -221,17 +220,6 @@ def _calc_nxt_time(time0, elev0, time1, elev1, trg_elev):
 class Sun2ElevationSensor(Sun2Sensor):
     """Sun2 Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
-        """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, 0)
-        self._event = 'solar_elevation'
-        self._next_change = None
-        self._sol_noon = None
-        self._sol_midn = None
-        self._nxt_nxt_time = None
-        self._prv_time = None
-        self._prv_elev = None
-
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
@@ -241,6 +229,15 @@ class Sun2ElevationSensor(Sun2Sensor):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return '°'
+
+    def _new_loc(self, loc):
+        super()._new_loc(loc)
+        self._sol_noon = None
+        self._sol_midn = None
+        self._nxt_nxt_time = None
+        self._prv_time = None
+        self._prv_elev = None
+        self._next_change = None
 
     def _setup_fixed_updating(self):
         pass
