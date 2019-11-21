@@ -24,6 +24,8 @@ _ELEV_MAX_ERR = 0.02
 _PEAK_MARGIN = timedelta(minutes=15)
 _ONE_DAY = timedelta(days=1)
 
+ATTR_NEXT_CHANGE = 'next_change'
+
 
 class Sun2Sensor(Entity):
     """Sun2 Sensor."""
@@ -223,6 +225,7 @@ class Sun2ElevationSensor(Sun2Sensor):
         """Initialize sensor."""
         super().__init__(hass, sensor_type, icon, 0)
         self._event = 'solar_elevation'
+        self._next_change = None
         self._sol_noon = None
         self._sol_midn = None
         self._nxt_nxt_time = None
@@ -232,7 +235,7 @@ class Sun2ElevationSensor(Sun2Sensor):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        return None
+        return {ATTR_NEXT_CHANGE: self._next_change}
 
     @property
     def unit_of_measurement(self):
@@ -340,6 +343,8 @@ class Sun2ElevationSensor(Sun2Sensor):
 
         self._prv_time = cur_time
         self._prv_elev = cur_elev
+
+        self._next_change = nxt_time
 
         @callback
         def async_update(now):
