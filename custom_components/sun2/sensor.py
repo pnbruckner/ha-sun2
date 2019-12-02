@@ -247,14 +247,25 @@ class Sun2ElevationSensor(Sun2Sensor):
         elev0 = self._prv_elev
         nxt_elev = trg_elev + 1.5 * _ELEV_MAX_ERR
         while abs(nxt_elev - trg_elev) >= _ELEV_MAX_ERR:
+            if elev1 == elev0:
+                return None
             nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
+            if nxt_time in (time0, time1):
+                break
             if nxt_time > max_time:
                 return None
             nxt_elev = self._loc.solar_elevation(nxt_time)
-            time0 = time1
-            elev0 = elev1
-            time1 = nxt_time
-            elev1 = nxt_elev
+            if nxt_time > time1:
+                time0 = time1
+                elev0 = elev1
+                time1 = nxt_time
+                elev1 = nxt_elev
+            elif elev0 < trg_elev < nxt_elev or elev0 > trg_elev > nxt_elev:
+                time1 = nxt_time
+                elev1 = nxt_elev
+            else:
+                time0 = nxt_time
+                elev0 = nxt_elev
         return nxt_time
 
     def _update(self):
