@@ -12,6 +12,10 @@ sensor:
     monitored_conditions:
       - sunrise
       - sunset
+binary_sensor:
+  - platform: sun2
+    monitored_conditions:
+      - elevation
 ```
 
 ### HACS
