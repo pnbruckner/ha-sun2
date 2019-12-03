@@ -23,6 +23,8 @@ See [HACS](https://github.com/custom-components/hacs).
 Alternatively, place a copy of:
 
 [`__init__.py`](custom_components/sun2/__init__.py) at `<config>/custom_components/sun2/__init__.py`  
+[`binary_sensor.py`](custom_components/sun2/binary_sensor.py) at `<config>/custom_components/sun2/binary_sensor.py`  
+[`helpers.py`](custom_components/sun2/helpers.py) at `<config>/custom_components/sun2/helpers.py`  
 [`sensor.py`](custom_components/sun2/sensor.py) at `<config>/custom_components/sun2/sensor.py`  
 [`manifest.json`](custom_components/sun2/manifest.json) at `<config>/custom_components/sun2/manifest.json`
 
