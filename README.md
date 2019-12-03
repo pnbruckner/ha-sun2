@@ -16,7 +16,7 @@ sensor:
 
 ### HACS
 
-See [HACS](https://github.com/custom-components/hacs), especially the **Add custom repositories** section on [this page](https://custom-components.github.io/hacs/usage/settings/).
+See [HACS](https://github.com/custom-components/hacs).
 
 ### Manual
 
