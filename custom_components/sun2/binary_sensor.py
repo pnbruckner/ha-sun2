@@ -7,15 +7,15 @@ import voluptuous as vol
 from homeassistant.components.binary_sensor import (
     BinarySensorDevice, PLATFORM_SCHEMA)
 from homeassistant.const import (
-    CONF_ABOVE, CONF_ELEVATION, CONF_MONITORED_CONDITIONS, CONF_NAME,
-    EVENT_CORE_CONFIG_UPDATE)
+    CONF_ABOVE, CONF_ELEVATION, CONF_MONITORED_CONDITIONS, CONF_NAME)
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from . import helpers
+from .helpers import (
+    async_init_astral_loc, astral_loc, nearest_second, SIG_LOC_UPDATED)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,11 +89,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 
-def _nearest_second(time):
-    return time.replace(microsecond=0) + timedelta(seconds=
-        0 if time.microsecond < 500000 else 1)
-
-
 class Sun2ElevationSensor(BinarySensorDevice):
     """Sun2 Elevation Sensor."""
 
@@ -103,7 +98,7 @@ class Sun2ElevationSensor(BinarySensorDevice):
         self._threshold = above
         self._state = None
         self._next_change = None
-        helpers.async_init_astral_loc(hass)
+        async_init_astral_loc(hass)
         self._unsub_dispatcher = None
 
     @property
@@ -133,7 +128,7 @@ class Sun2ElevationSensor(BinarySensorDevice):
     async def async_added_to_hass(self):
         """Subscribe to update signal."""
         self._unsub_dispatcher = async_dispatcher_connect(
-            self.hass, helpers.SIG_LOC_UPDATED, self.async_loc_updated)
+            self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
 
     async def async_will_remove_from_hass(self):
         """Disconnect from update signal."""
@@ -150,8 +145,8 @@ class Sun2ElevationSensor(BinarySensorDevice):
 
         # Find mid point and throw away fractional seconds since astral package
         # ignores microseconds.
-        tn_dttm = _nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-        tn_elev = helpers.loc.solar_elevation(tn_dttm)
+        tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
+        tn_elev = astral_loc().solar_elevation(tn_dttm)
 
         while not (
                 (self._state and tn_elev <= self._threshold
@@ -166,17 +161,17 @@ class Sun2ElevationSensor(BinarySensorDevice):
                 if t0_dttm == tn_dttm:
                     break
                 t0_dttm = tn_dttm
-            tn_dttm = _nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-            tn_elev = helpers.loc.solar_elevation(tn_dttm)
+            tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
+            tn_elev = astral_loc().solar_elevation(tn_dttm)
 
         # Did we go too far?
         if self._state and tn_elev > self._threshold:
             tn_dttm -= slope * _ONE_SEC
-            if helpers.loc.solar_elevation(tn_dttm) > self._threshold:
+            if astral_loc().solar_elevation(tn_dttm) > self._threshold:
                 raise RuntimeError("Couldn't find next update time")
         elif not self._state and tn_elev <= self._threshold:
             tn_dttm += slope * _ONE_SEC
-            if helpers.loc.solar_elevation(tn_dttm) <= self._threshold:
+            if astral_loc().solar_elevation(tn_dttm) <= self._threshold:
                 raise RuntimeError("Couldn't find next update time")
 
         return tn_dttm
@@ -193,11 +188,11 @@ class Sun2ElevationSensor(BinarySensorDevice):
         # midnight (if it is this morning) to after tomorrow's solar midnight
         # (if it is this evening.)
         date = cur_dttm.date()
-        evt_dttm1 = helpers.loc.solar_midnight(date)
-        evt_dttm2 = helpers.loc.solar_noon(date)
-        evt_dttm3 = helpers.loc.solar_midnight(date + _ONE_DAY)
-        evt_dttm4 = helpers.loc.solar_noon(date + _ONE_DAY)
-        evt_dttm5 = helpers.loc.solar_midnight(date + 2 * _ONE_DAY)
+        evt_dttm1 = astral_loc().solar_midnight(date)
+        evt_dttm2 = astral_loc().solar_noon(date)
+        evt_dttm3 = astral_loc().solar_midnight(date + _ONE_DAY)
+        evt_dttm4 = astral_loc().solar_noon(date + _ONE_DAY)
+        evt_dttm5 = astral_loc().solar_midnight(date + 2 * _ONE_DAY)
 
         # See if segment we're looking for falls between any of these events.
         # If not move ahead a day and try again, but don't look more than a
@@ -233,8 +228,8 @@ class Sun2ElevationSensor(BinarySensorDevice):
                     t0_dttm = evt_dttm4
                     t1_dttm = evt_dttm5
 
-            t0_elev = helpers.loc.solar_elevation(t0_dttm)
-            t1_elev = helpers.loc.solar_elevation(t1_dttm)
+            t0_elev = astral_loc().solar_elevation(t0_dttm)
+            t1_elev = astral_loc().solar_elevation(t1_dttm)
 
             # Did we find it?
             # Note, if t1_elev > t0_elev, then we're looking for an elevation
@@ -259,23 +254,20 @@ class Sun2ElevationSensor(BinarySensorDevice):
             evt_dttm1 = evt_dttm3
             evt_dttm2 = evt_dttm4
             evt_dttm3 = evt_dttm5
-            evt_dttm4 = helpers.loc.solar_noon(date + _ONE_DAY)
-            evt_dttm5 = helpers.loc.solar_midnight(date + 2 * _ONE_DAY)
+            evt_dttm4 = astral_loc().solar_noon(date + _ONE_DAY)
+            evt_dttm5 = astral_loc().solar_midnight(date + 2 * _ONE_DAY)
 
         # Didn't find one.
         return None
 
-
     async def async_update(self):
         """Update state."""
         cur_dttm = dt_util.now()
-        cur_elev = helpers.loc.solar_elevation(cur_dttm)
+        cur_elev = astral_loc().solar_elevation(cur_dttm)
         self._state = cur_elev > self._threshold
         _LOGGER.debug(
-            f'name={self._name}, '
-            f'above={self._threshold}, '
-            f'elevation={cur_elev}'
-        )
+            'name=%s, above=%f, elevation=%f',
+            self._name, self._threshold, cur_elev)
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
         self._next_change = nxt_dttm

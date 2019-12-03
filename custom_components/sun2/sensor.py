@@ -16,7 +16,8 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import (
     async_track_time_change, async_track_point_in_time)
 
-from . import helpers
+from .helpers import (
+    async_init_astral_loc, astral_loc, nearest_second, SIG_LOC_UPDATED)
 
 _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
@@ -44,7 +45,7 @@ class Sun2Sensor(Entity):
         self._yesterday = None
         self._today = None
         self._tomorrow = None
-        helpers.async_init_astral_loc(hass)
+        async_init_astral_loc(hass)
         self._unsub_dispatcher = None
         self._unsub_fixed_update = None
 
@@ -99,7 +100,7 @@ class Sun2Sensor(Entity):
     async def async_added_to_hass(self):
         """Subscribe to update signal and set up fixed updating."""
         self._unsub_dispatcher = async_dispatcher_connect(
-            self.hass, helpers.SIG_LOC_UPDATED, self.async_loc_updated)
+            self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
         self._unsub_fixed_update = self._setup_fixed_updating()
 
     async def async_will_remove_from_hass(self):
@@ -110,8 +111,8 @@ class Sun2Sensor(Entity):
 
     def _get_astral_event(self, event, date_or_dt):
         try:
-            helpers.loc.solar_depression = self._solar_depression
-            return getattr(helpers.loc, event)(date_or_dt)
+            astral_loc().solar_depression = self._solar_depression
+            return getattr(astral_loc(), event)(date_or_dt)
         except AstralError:
             return 'none'
 
@@ -181,7 +182,7 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
             end = self._get_astral_event('dusk', date_or_dt)
         else:
             start = self._get_astral_event('dusk', date_or_dt)
-            end = self._get_astral_event('dawn', date_or_dt + timedelta(days=1))
+            end = self._get_astral_event('dawn', date_or_dt+timedelta(days=1))
         if 'none' in (start, end):
             return None
         return (end - start).total_seconds()/3600
@@ -210,17 +211,12 @@ class Sun2MaxElevationSensor(Sun2Sensor):
             self._state = round(self._state, 3)
 
 
-def _nearest_multiple(x, multiple):
-    return int(round(x / multiple)) * multiple
-
-
-def _nearest_second(time):
-    return time.replace(microsecond=0) + timedelta(seconds=
-        0 if time.microsecond < 500000 else 1)
+def _nearest_multiple(value, multiple):
+    return int(round(value / multiple)) * multiple
 
 
 def _calc_nxt_time(time0, elev0, time1, elev1, trg_elev):
-    return _nearest_second(
+    return nearest_second(
         time0 + (time1 - time0) * ((trg_elev - elev0) / (elev1 - elev0)))
 
 
@@ -270,7 +266,7 @@ class Sun2ElevationSensor(Sun2Sensor):
                 break
             if nxt_time > max_time:
                 return None
-            nxt_elev = helpers.loc.solar_elevation(nxt_time)
+            nxt_elev = astral_loc().solar_elevation(nxt_time)
             if nxt_time > time1:
                 time0 = time1
                 elev0 = elev1
@@ -287,8 +283,8 @@ class Sun2ElevationSensor(Sun2Sensor):
     def _update(self):
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
-        cur_time = _nearest_second(dt_util.now())
-        cur_elev = helpers.loc.solar_elevation(cur_time)
+        cur_time = nearest_second(dt_util.now())
+        cur_elev = astral_loc().solar_elevation(cur_time)
         self._state = f'{cur_elev:0.1f}'
         _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
 
@@ -300,17 +296,11 @@ class Sun2ElevationSensor(Sun2Sensor):
             # solar_midnight() returns the solar midnight (which is when the
             # sun reaches its lowest point) nearest to the start of today. Note
             # that it may have occurred yesterday.
-            self._sol_midn = helpers.loc.solar_midnight(date)
-            if self._sol_midn > cur_time:
-                self._sol_noon = helpers.loc.solar_noon(date - _ONE_DAY)
-            else:
-                self._sol_midn = helpers.loc.solar_midnight(date + _ONE_DAY)
-                if self._sol_midn > cur_time:
-                    self._sol_noon = helpers.loc.solar_noon(date)
-                else:
-                    self._sol_midn = helpers.loc.solar_midnight(
-                        date + 2 * _ONE_DAY)
-                    self._sol_noon = helpers.loc.solar_noon(date + _ONE_DAY)
+            self._sol_midn = astral_loc().solar_midnight(date)
+            while self._sol_midn <= cur_time:
+                date += _ONE_DAY
+                self._sol_midn = astral_loc().solar_midnight(date)
+            self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
 
         if self._nxt_nxt_time:
             # We hit the special case of being too near solar noon or solar
