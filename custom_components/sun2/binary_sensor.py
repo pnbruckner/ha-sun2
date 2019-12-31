@@ -22,6 +22,9 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_ELEVATION_ABOVE = -0.833
 DEFAULT_ELEVATION_NAME = 'Above Horizon'
 
+ABOVE_ICON = 'mdi:white-balance-sunny'
+BELOW_ICON = 'mdi:moon-waxing-crescent'
+
 _ONE_DAY = timedelta(days=1)
 _ONE_SEC = timedelta(seconds=1)
 
@@ -115,6 +118,11 @@ class Sun2ElevationSensor(BinarySensorDevice):
     def device_state_attributes(self):
         """Return device specific state attributes."""
         return {ATTR_NEXT_CHANGE: self._next_change}
+
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return ABOVE_ICON if self.is_on else BELOW_ICON
 
     @property
     def is_on(self):
