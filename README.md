@@ -19,6 +19,11 @@ binary_sensor:
 ```
 
 ### HACS
+- *'Select the settings tab'*
+- *In the field 'ADD CUSTOM REPOSITORY' enter "https://github.com/pnbruckner/ha-sun2"*
+- *In the category field select 'Integration' and select the save icon*
+- *Once installed you will need to restart Home Assistant*
+- *Add the desired configuration*
 
 See [HACS](https://github.com/custom-components/hacs).
 
