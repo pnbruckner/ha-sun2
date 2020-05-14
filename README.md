@@ -2,9 +2,7 @@
 
 Creates sensors that provide information about various sun related events.
 
-## Installation
-
-Follow either the HACS or manual installation instructions below.
+Follow the installation instructions below.
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
 sensor:
@@ -18,13 +16,9 @@ binary_sensor:
       - elevation
 ```
 
-### HACS
+## Installation
 
-See [HACS](https://github.com/custom-components/hacs).
-
-### Manual
-
-Alternatively, place a copy of:
+Place a copy of:
 
 [`__init__.py`](custom_components/sun2/__init__.py) at `<config>/custom_components/sun2/__init__.py`  
 [`binary_sensor.py`](custom_components/sun2/binary_sensor.py) at `<config>/custom_components/sun2/binary_sensor.py`  

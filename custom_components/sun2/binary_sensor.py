@@ -4,8 +4,12 @@ import logging
 
 import voluptuous as vol
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDevice, PLATFORM_SCHEMA)
+try:
+    from homeassistant.components.binary_sensor import BinarySensorEntity
+except ImportError:
+    from homeassistant.components.binary_sensor import BinarySensorDevice
+    BinarySensorEntity = BinarySensorDevice
+from homeassistant.components.binary_sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
     CONF_ABOVE, CONF_ELEVATION, CONF_MONITORED_CONDITIONS, CONF_NAME)
 from homeassistant.core import callback
@@ -92,7 +96,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 
-class Sun2ElevationSensor(BinarySensorDevice):
+class Sun2ElevationSensor(BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(self, hass, name, above):
