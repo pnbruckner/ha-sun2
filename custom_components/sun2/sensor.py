@@ -193,8 +193,13 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
             self._state = round(self._state, 3)
 
 
-class Sun2MaxElevationSensor(Sun2Sensor):
-    """Sun2 Max Elevation Sensor."""
+class Sun2MinMaxElevationSensor(Sun2Sensor):
+    """Sun2 Min/Max Elevation Sensor."""
+
+    def __init__(self, hass, sensor_type, icon, is_min):
+        """Initialize sensor."""
+        super().__init__(hass, sensor_type, icon)
+        self._event = 'solar_midnight' if is_min else 'solar_noon'
 
     @property
     def unit_of_measurement(self):
@@ -202,13 +207,29 @@ class Sun2MaxElevationSensor(Sun2Sensor):
         return '°'
 
     def _get_data(self, date_or_dt):
-        solar_noon = self._get_astral_event('solar_noon', date_or_dt)
-        return self._get_astral_event('solar_elevation', solar_noon)
+        event_time = self._get_astral_event(self._event, date_or_dt)
+        return self._get_astral_event('solar_elevation', event_time)
 
     def _update(self):
         super()._update()
         if self._state is not None:
             self._state = round(self._state, 3)
+
+
+class Sun2MinElevationSensor(Sun2MinMaxElevationSensor):
+    """Sun2 Min Elevation Sensor."""
+
+    def __init__(self, hass, sensor_type, icon):
+        """Initialize sensor."""
+        super().__init__(hass, sensor_type, icon, is_min=True)
+
+
+class Sun2MaxElevationSensor(Sun2MinMaxElevationSensor):
+    """Sun2 Max Elevation Sensor."""
+
+    def __init__(self, hass, sensor_type, icon):
+        """Initialize sensor."""
+        super().__init__(hass, sensor_type, icon, is_min=False)
 
 
 def _nearest_multiple(value, multiple):
@@ -376,7 +397,8 @@ _SENSOR_TYPES = {
     'civil_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
     'nautical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
     'astronomical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
-    # Max elevation
+    # Min/Max elevation
+    'min_elevation': (Sun2MinElevationSensor, 'mdi:weather-night'),
     'max_elevation': (Sun2MaxElevationSensor, 'mdi:weather-sunny'),
     # Elevation
     'elevation': (Sun2ElevationSensor, 'mdi:weather-sunny'),
