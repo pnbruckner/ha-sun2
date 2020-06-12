@@ -65,6 +65,7 @@ type | description
 type | description
 -|-
 `elevation` | The sun's elevation (degrees).
+`min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
 
 ## Binary Sensors
@@ -117,6 +118,7 @@ sensor:
       - nautical_night
       - astronomical_night
       - elevation
+      - min_elevation
       - max_elevation
 binary_sensor:
   - platform: sun2
