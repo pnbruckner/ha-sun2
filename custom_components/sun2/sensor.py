@@ -47,7 +47,7 @@ class Sun2Sensor(Entity):
         self._tomorrow = None
         async_init_astral_loc(hass)
         self._unsub_dispatcher = None
-        self._unsub_fixed_update = None
+        self._unsub_update = None
 
     @property
     def should_poll(self):
@@ -90,7 +90,7 @@ class Sun2Sensor(Entity):
         @callback
         def async_update_at_midnight(now):
             self.async_schedule_update_ha_state(True)
-        return async_track_time_change(
+        self._unsub_update = async_track_time_change(
             self.hass, async_update_at_midnight, 0, 0, 0)
 
     async def async_loc_updated(self):
@@ -101,13 +101,13 @@ class Sun2Sensor(Entity):
         """Subscribe to update signal and set up fixed updating."""
         self._unsub_dispatcher = async_dispatcher_connect(
             self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
-        self._unsub_fixed_update = self._setup_fixed_updating()
+        self._setup_fixed_updating()
 
     async def async_will_remove_from_hass(self):
         """Disconnect from update signal and cancel fixed updating."""
         self._unsub_dispatcher()
-        if self._unsub_fixed_update:
-            self._unsub_fixed_update()
+        if self._unsub_update:
+            self._unsub_update()
 
     def _get_astral_event(self, event, date_or_dt):
         try:
@@ -270,10 +270,13 @@ class Sun2ElevationSensor(Sun2Sensor):
     async def async_loc_updated(self):
         """Location updated."""
         self._reset()
+        if self._unsub_update:
+            self._unsub_update()
+            self._unsub_update = None
         self.async_schedule_update_ha_state(True)
 
     def _setup_fixed_updating(self):
-        return None
+        pass
 
     def _get_nxt_time(self, time1, elev1, trg_elev, max_time):
         time0 = self._prv_time
@@ -372,8 +375,10 @@ class Sun2ElevationSensor(Sun2Sensor):
 
         @callback
         def async_update(now):
+            self._unsub_update = None
             self.async_schedule_update_ha_state(True)
-        async_track_point_in_time(self.hass, async_update, nxt_time)
+
+        self._unsub_update = async_track_point_in_time(self.hass, async_update, nxt_time)
 
 
 _SENSOR_TYPES = {
