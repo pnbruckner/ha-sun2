@@ -107,6 +107,7 @@ class Sun2ElevationSensor(BinarySensorEntity):
         self._next_change = None
         async_init_astral_loc(hass)
         self._unsub_dispatcher = None
+        self._unsub_update = None
 
     @property
     def should_poll(self):
@@ -135,6 +136,9 @@ class Sun2ElevationSensor(BinarySensorEntity):
 
     async def async_loc_updated(self):
         """Location updated."""
+        if self._unsub_update:
+            self._unsub_update()
+            self._unsub_update = None
         self.async_schedule_update_ha_state(True)
 
     async def async_added_to_hass(self):
@@ -145,6 +149,8 @@ class Sun2ElevationSensor(BinarySensorEntity):
     async def async_will_remove_from_hass(self):
         """Disconnect from update signal."""
         self._unsub_dispatcher()
+        if self._unsub_update:
+            self._unsub_update()
 
     def _find_nxt_dttm(self, t0_dttm, t0_elev, t1_dttm, t1_elev):
         # Do a binary search for time between t0 & t1 where elevation is
@@ -286,10 +292,11 @@ class Sun2ElevationSensor(BinarySensorEntity):
 
         @callback
         def async_update(now):
+            self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
         if nxt_dttm:
-            async_track_point_in_time(self.hass, async_update, nxt_dttm)
+            self._unsub_update = async_track_point_in_time(self.hass, async_update, nxt_dttm)
         else:
             _LOGGER.error(
                 'Sun elevation never reaches %f at this location',
