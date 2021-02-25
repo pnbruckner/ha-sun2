@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
 _ELEV_RND = 0.5
 _ELEV_MAX_ERR = 0.02
-_PEAK_MARGIN = timedelta(minutes=15)
+_PEAK_MARGIN = timedelta(minutes=30)
 _ONE_DAY = timedelta(days=1)
 
 ATTR_NEXT_CHANGE = 'next_change'
@@ -283,9 +283,10 @@ class Sun2ElevationSensor(Sun2Sensor):
         elev0 = self._prv_elev
         nxt_elev = trg_elev + 1.5 * _ELEV_MAX_ERR
         while abs(nxt_elev - trg_elev) >= _ELEV_MAX_ERR:
-            if elev1 == elev0:
+            try:
+                nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
+            except ZeroDivisionError:
                 return None
-            nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
             if nxt_time in (time0, time1):
                 break
             if nxt_time > max_time:
@@ -303,6 +304,16 @@ class Sun2ElevationSensor(Sun2Sensor):
                 time0 = nxt_time
                 elev0 = nxt_elev
         return nxt_time
+
+    def _set_nxt_times(self, cur_time):
+        if self._sol_noon - _PEAK_MARGIN <= cur_time < self._sol_noon:
+            return self._sol_noon, self._sol_noon + _PEAK_MARGIN
+        elif self._sol_noon <= cur_time < self._sol_noon + _PEAK_MARGIN:
+            return cur_time + _PEAK_MARGIN, None
+        elif self._sol_midn - _PEAK_MARGIN <= cur_time:
+            return self._sol_midn, self._sol_midn + _PEAK_MARGIN
+        else:
+            return cur_time + timedelta(minutes=4), None
 
     def _update(self):
         # Astral package ignores microseconds, so round to nearest second
@@ -331,42 +342,23 @@ class Sun2ElevationSensor(Sun2Sensor):
             # midnight.
             nxt_time = self._nxt_nxt_time
             self._nxt_nxt_time = None
-        elif not self._prv_time:
-            # We don't have a previous point yet, so figure out when next
-            # update should be based on where we are relative to the next
-            # solar noon or solar midnight.
-            if self._sol_noon - _PEAK_MARGIN <= cur_time <= self._sol_noon:
-                nxt_time = self._sol_noon
-                self._nxt_nxt_time = self._sol_noon + _PEAK_MARGIN
-            elif self._sol_midn - _PEAK_MARGIN <= cur_time <= self._sol_midn:
-                nxt_time = self._sol_midn
-                self._nxt_nxt_time = self._sol_midn + _PEAK_MARGIN
-            else:
-                nxt_time = cur_time + timedelta(minutes=4)
-        else:
+        elif self._prv_time:
             # Extrapolate based on previous point and current point to find
-            # next point. When we get too near the next peak (at solar noon or
-            # solar midnight), the slope will be too shallow to extrapolate. In
-            # this case just make the next point the peak, and the point after
-            # it the same amount of time after the peak as we are now before
-            # the peak.
+            # next point.
             rnd_elev = _nearest_multiple(cur_elev, _ELEV_RND)
             if cur_time < self._sol_noon:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
                     rnd_elev + _ELEV_RND, self._sol_noon - _PEAK_MARGIN)
-                if not nxt_time:
-                    nxt_time = self._sol_noon
-                    self._nxt_nxt_time = self._sol_noon + (self._sol_noon
-                                                           - cur_time)
             else:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
                     rnd_elev - _ELEV_RND, self._sol_midn - _PEAK_MARGIN)
-                if not nxt_time:
-                    nxt_time = self._sol_midn
-                    self._nxt_nxt_time = self._sol_midn + (self._sol_midn
-                                                           - cur_time)
+        else:
+            nxt_time = None
+
+        if not nxt_time:
+            nxt_time, self._nxt_nxt_time = self._set_nxt_times(cur_time)
 
         self._prv_time = cur_time
         self._prv_elev = cur_elev
