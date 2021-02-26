@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
 _ELEV_RND = 0.5
 _ELEV_MAX_ERR = 0.02
-_PEAK_MARGIN = timedelta(minutes=30)
+_DELTA = timedelta(minutes=5)
 _ONE_DAY = timedelta(days=1)
 
 ATTR_NEXT_CHANGE = 'next_change'
@@ -252,7 +252,6 @@ class Sun2ElevationSensor(Sun2Sensor):
     def _reset(self):
         self._sol_noon = None
         self._sol_midn = None
-        self._nxt_nxt_time = None
         self._prv_time = None
         self._prv_elev = None
         self._next_change = None
@@ -305,15 +304,13 @@ class Sun2ElevationSensor(Sun2Sensor):
                 elev0 = nxt_elev
         return nxt_time
 
-    def _set_nxt_times(self, cur_time):
-        if self._sol_noon - _PEAK_MARGIN <= cur_time < self._sol_noon:
-            return self._sol_noon, self._sol_noon + _PEAK_MARGIN
-        elif self._sol_noon <= cur_time < self._sol_noon + _PEAK_MARGIN:
-            return cur_time + _PEAK_MARGIN, None
-        elif self._sol_midn - _PEAK_MARGIN <= cur_time:
-            return self._sol_midn, self._sol_midn + _PEAK_MARGIN
+    def _set_nxt_time(self, cur_time):
+        if self._sol_noon - _DELTA <= cur_time < self._sol_noon:
+            return self._sol_noon
+        elif self._sol_midn - _DELTA <= cur_time:
+            return self._sol_midn
         else:
-            return cur_time + timedelta(minutes=4), None
+            return cur_time + _DELTA
 
     def _update(self):
         # Astral package ignores microseconds, so round to nearest second
@@ -337,28 +334,23 @@ class Sun2ElevationSensor(Sun2Sensor):
                 self._sol_midn = astral_loc().solar_midnight(date)
             self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
 
-        if self._nxt_nxt_time:
-            # We hit the special case of being too near solar noon or solar
-            # midnight.
-            nxt_time = self._nxt_nxt_time
-            self._nxt_nxt_time = None
-        elif self._prv_time:
+        if self._prv_time:
             # Extrapolate based on previous point and current point to find
             # next point.
             rnd_elev = _nearest_multiple(cur_elev, _ELEV_RND)
             if cur_time < self._sol_noon:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev + _ELEV_RND, self._sol_noon - _PEAK_MARGIN)
+                    rnd_elev + _ELEV_RND, self._sol_noon)
             else:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev - _ELEV_RND, self._sol_midn - _PEAK_MARGIN)
+                    rnd_elev - _ELEV_RND, self._sol_midn)
         else:
             nxt_time = None
 
         if not nxt_time:
-            nxt_time, self._nxt_nxt_time = self._set_nxt_times(cur_time)
+            nxt_time = self._set_nxt_time(cur_time)
 
         self._prv_time = cur_time
         self._prv_elev = cur_elev
