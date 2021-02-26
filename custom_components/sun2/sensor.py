@@ -333,6 +333,13 @@ class Sun2ElevationSensor(Sun2Sensor):
                 date += _ONE_DAY
                 self._sol_midn = astral_loc().solar_midnight(date)
             self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
+            _LOGGER.debug(
+                "Solar noon: %s/%0.2f, Solar midnight: %s/%0.2f",
+                self._sol_noon,
+                astral_loc().solar_elevation(self._sol_noon),
+                self._sol_midn,
+                astral_loc().solar_elevation(self._sol_midn),
+            )
 
         if self._prv_time:
             # Extrapolate based on previous point and current point to find
