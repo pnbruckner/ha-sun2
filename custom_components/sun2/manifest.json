@@ -1,10 +1,10 @@
 {
   "domain": "sun2",
   "name": "Sun2",
+  "version": "1.8.2",
   "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",
+  "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
   "dependencies": [],
-  "codeowners": [
-    "@pnbruckner"
-  ]
+  "codeowners": ["@pnbruckner"]
 }

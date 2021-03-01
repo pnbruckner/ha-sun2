@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
 _ELEV_RND = 0.5
 _ELEV_MAX_ERR = 0.02
-_PEAK_MARGIN = timedelta(minutes=15)
+_DELTA = timedelta(minutes=5)
 _ONE_DAY = timedelta(days=1)
 
 ATTR_NEXT_CHANGE = 'next_change'
@@ -250,9 +250,9 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._reset()
 
     def _reset(self):
+        self._prv_sol_midn = None
         self._sol_noon = None
         self._sol_midn = None
-        self._nxt_nxt_time = None
         self._prv_time = None
         self._prv_elev = None
         self._next_change = None
@@ -278,18 +278,21 @@ class Sun2ElevationSensor(Sun2Sensor):
     def _setup_fixed_updating(self):
         pass
 
-    def _get_nxt_time(self, time1, elev1, trg_elev, max_time):
+    def _get_nxt_time(self, time1, elev1, trg_elev, min_time, max_time):
+        if self._prv_time < min_time:
+            return None
         time0 = self._prv_time
         elev0 = self._prv_elev
         nxt_elev = trg_elev + 1.5 * _ELEV_MAX_ERR
         while abs(nxt_elev - trg_elev) >= _ELEV_MAX_ERR:
-            if elev1 == elev0:
+            try:
+                nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
+            except ZeroDivisionError:
                 return None
-            nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
+            if nxt_time < min_time or nxt_time > max_time:
+                return None
             if nxt_time in (time0, time1):
                 break
-            if nxt_time > max_time:
-                return None
             nxt_elev = astral_loc().solar_elevation(nxt_time)
             if nxt_time > time1:
                 time0 = time1
@@ -304,6 +307,14 @@ class Sun2ElevationSensor(Sun2Sensor):
                 elev0 = nxt_elev
         return nxt_time
 
+    def _set_nxt_time(self, cur_time):
+        if self._sol_noon - _DELTA <= cur_time < self._sol_noon:
+            return self._sol_noon
+        elif self._sol_midn - _DELTA <= cur_time:
+            return self._sol_midn
+        else:
+            return cur_time + _DELTA
+
     def _update(self):
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
@@ -312,8 +323,8 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._state = f'{cur_elev:0.1f}'
         _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
 
-        # Find the next solar midnight AFTER the current time, and the solar
-        # noon that precedes it. This only needs to be done once a day when we
+        # Find the next solar midnight AFTER the current time, and the solar noon and
+        # solar midnight that precede it. This only needs to be done once a day when we
         # reach or pass the previously determined solar midnight.
         if not self._sol_midn or cur_time >= self._sol_midn:
             date = cur_time.date()
@@ -325,48 +336,34 @@ class Sun2ElevationSensor(Sun2Sensor):
                 date += _ONE_DAY
                 self._sol_midn = astral_loc().solar_midnight(date)
             self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
+            self._prv_sol_midn = astral_loc().solar_midnight(date - _ONE_DAY)
+            _LOGGER.debug(
+                "Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
+                self._prv_sol_midn,
+                astral_loc().solar_elevation(self._prv_sol_midn),
+                self._sol_noon,
+                astral_loc().solar_elevation(self._sol_noon),
+                self._sol_midn,
+                astral_loc().solar_elevation(self._sol_midn),
+            )
 
-        if self._nxt_nxt_time:
-            # We hit the special case of being too near solar noon or solar
-            # midnight.
-            nxt_time = self._nxt_nxt_time
-            self._nxt_nxt_time = None
-        elif not self._prv_time:
-            # We don't have a previous point yet, so figure out when next
-            # update should be based on where we are relative to the next
-            # solar noon or solar midnight.
-            if self._sol_noon - _PEAK_MARGIN <= cur_time <= self._sol_noon:
-                nxt_time = self._sol_noon
-                self._nxt_nxt_time = self._sol_noon + _PEAK_MARGIN
-            elif self._sol_midn - _PEAK_MARGIN <= cur_time <= self._sol_midn:
-                nxt_time = self._sol_midn
-                self._nxt_nxt_time = self._sol_midn + _PEAK_MARGIN
-            else:
-                nxt_time = cur_time + timedelta(minutes=4)
-        else:
+        if self._prv_time:
             # Extrapolate based on previous point and current point to find
-            # next point. When we get too near the next peak (at solar noon or
-            # solar midnight), the slope will be too shallow to extrapolate. In
-            # this case just make the next point the peak, and the point after
-            # it the same amount of time after the peak as we are now before
-            # the peak.
+            # next point.
             rnd_elev = _nearest_multiple(cur_elev, _ELEV_RND)
             if cur_time < self._sol_noon:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev + _ELEV_RND, self._sol_noon - _PEAK_MARGIN)
-                if not nxt_time:
-                    nxt_time = self._sol_noon
-                    self._nxt_nxt_time = self._sol_noon + (self._sol_noon
-                                                           - cur_time)
+                    rnd_elev + _ELEV_RND, self._prv_sol_midn, self._sol_noon)
             else:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev - _ELEV_RND, self._sol_midn - _PEAK_MARGIN)
-                if not nxt_time:
-                    nxt_time = self._sol_midn
-                    self._nxt_nxt_time = self._sol_midn + (self._sol_midn
-                                                           - cur_time)
+                    rnd_elev - _ELEV_RND, self._sol_noon, self._sol_midn)
+        else:
+            nxt_time = None
+
+        if not nxt_time:
+            nxt_time = self._set_nxt_time(cur_time)
 
         self._prv_time = cur_time
         self._prv_elev = cur_elev
