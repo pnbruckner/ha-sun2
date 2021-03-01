@@ -250,6 +250,7 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._reset()
 
     def _reset(self):
+        self._prv_sol_midn = None
         self._sol_noon = None
         self._sol_midn = None
         self._prv_time = None
@@ -277,7 +278,9 @@ class Sun2ElevationSensor(Sun2Sensor):
     def _setup_fixed_updating(self):
         pass
 
-    def _get_nxt_time(self, time1, elev1, trg_elev, max_time):
+    def _get_nxt_time(self, time1, elev1, trg_elev, min_time, max_time):
+        if self._prv_time < min_time:
+            return None
         time0 = self._prv_time
         elev0 = self._prv_elev
         nxt_elev = trg_elev + 1.5 * _ELEV_MAX_ERR
@@ -286,10 +289,10 @@ class Sun2ElevationSensor(Sun2Sensor):
                 nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
             except ZeroDivisionError:
                 return None
+            if nxt_time < min_time or nxt_time > max_time:
+                return None
             if nxt_time in (time0, time1):
                 break
-            if nxt_time > max_time:
-                return None
             nxt_elev = astral_loc().solar_elevation(nxt_time)
             if nxt_time > time1:
                 time0 = time1
@@ -320,8 +323,8 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._state = f'{cur_elev:0.1f}'
         _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
 
-        # Find the next solar midnight AFTER the current time, and the solar
-        # noon that precedes it. This only needs to be done once a day when we
+        # Find the next solar midnight AFTER the current time, and the solar noon and
+        # solar midnight that precede it. This only needs to be done once a day when we
         # reach or pass the previously determined solar midnight.
         if not self._sol_midn or cur_time >= self._sol_midn:
             date = cur_time.date()
@@ -333,8 +336,11 @@ class Sun2ElevationSensor(Sun2Sensor):
                 date += _ONE_DAY
                 self._sol_midn = astral_loc().solar_midnight(date)
             self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
+            self._prv_sol_midn = astral_loc().solar_midnight(date - _ONE_DAY)
             _LOGGER.debug(
-                "Solar noon: %s/%0.2f, Solar midnight: %s/%0.2f",
+                "Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
+                self._prv_sol_midn,
+                astral_loc().solar_elevation(self._prv_sol_midn),
                 self._sol_noon,
                 astral_loc().solar_elevation(self._sol_noon),
                 self._sol_midn,
@@ -348,11 +354,11 @@ class Sun2ElevationSensor(Sun2Sensor):
             if cur_time < self._sol_noon:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev + _ELEV_RND, self._sol_noon)
+                    rnd_elev + _ELEV_RND, self._prv_sol_midn, self._sol_noon)
             else:
                 nxt_time = self._get_nxt_time(
                     cur_time, cur_elev,
-                    rnd_elev - _ELEV_RND, self._sol_midn)
+                    rnd_elev - _ELEV_RND, self._sol_noon, self._sol_midn)
         else:
             nxt_time = None
 
