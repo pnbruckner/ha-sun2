@@ -2,7 +2,6 @@
 from datetime import timedelta
 import logging
 
-from astral import AstralError
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
@@ -17,7 +16,7 @@ from homeassistant.helpers.event import (
     async_track_time_change, async_track_point_in_time)
 
 from .helpers import (
-    async_init_astral_loc, astral_loc, nearest_second, SIG_LOC_UPDATED)
+    async_init_astral_loc, astral_event, nearest_second, SIG_LOC_UPDATED)
 
 _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
@@ -110,11 +109,7 @@ class Sun2Sensor(Entity):
             self._unsub_update()
 
     def _get_astral_event(self, event, date_or_dt):
-        try:
-            astral_loc().solar_depression = self._solar_depression
-            return getattr(astral_loc(), event)(date_or_dt)
-        except AstralError:
-            return 'none'
+        return astral_event(event, date_or_dt, self._solar_depression)
 
     def _get_data(self, date_or_dt):
         return self._get_astral_event(self._event, date_or_dt)
@@ -293,7 +288,7 @@ class Sun2ElevationSensor(Sun2Sensor):
                 return None
             if nxt_time in (time0, time1):
                 break
-            nxt_elev = astral_loc().solar_elevation(nxt_time)
+            nxt_elev = astral_event("solar_elevation", nxt_time)
             if nxt_time > time1:
                 time0 = time1
                 elev0 = elev1
@@ -319,7 +314,7 @@ class Sun2ElevationSensor(Sun2Sensor):
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
         cur_time = nearest_second(dt_util.now())
-        cur_elev = astral_loc().solar_elevation(cur_time)
+        cur_elev = astral_event("solar_elevation", cur_time)
         self._state = f'{cur_elev:0.1f}'
         _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
 
@@ -331,20 +326,20 @@ class Sun2ElevationSensor(Sun2Sensor):
             # solar_midnight() returns the solar midnight (which is when the
             # sun reaches its lowest point) nearest to the start of today. Note
             # that it may have occurred yesterday.
-            self._sol_midn = astral_loc().solar_midnight(date)
+            self._sol_midn = astral_event("solar_midnight", date)
             while self._sol_midn <= cur_time:
                 date += _ONE_DAY
-                self._sol_midn = astral_loc().solar_midnight(date)
-            self._sol_noon = astral_loc().solar_noon(date - _ONE_DAY)
-            self._prv_sol_midn = astral_loc().solar_midnight(date - _ONE_DAY)
+                self._sol_midn = astral_event("solar_midnight", date)
+            self._sol_noon = astral_event("solar_noon", date - _ONE_DAY)
+            self._prv_sol_midn = astral_event("solar_midnight", date - _ONE_DAY)
             _LOGGER.debug(
                 "Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
                 self._prv_sol_midn,
-                astral_loc().solar_elevation(self._prv_sol_midn),
+                astral_event("solar_elevation", self._prv_sol_midn),
                 self._sol_noon,
-                astral_loc().solar_elevation(self._sol_noon),
+                astral_event("solar_elevation", self._sol_noon),
                 self._sol_midn,
-                astral_loc().solar_elevation(self._sol_midn),
+                astral_event("solar_elevation", self._sol_midn),
             )
 
         if self._prv_time:
