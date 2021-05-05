@@ -8,10 +8,15 @@ try:
     from homeassistant.components.binary_sensor import BinarySensorEntity
 except ImportError:
     from homeassistant.components.binary_sensor import BinarySensorDevice
+
     BinarySensorEntity = BinarySensorDevice
 from homeassistant.components.binary_sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
-    CONF_ABOVE, CONF_ELEVATION, CONF_MONITORED_CONDITIONS, CONF_NAME)
+    CONF_ABOVE,
+    CONF_ELEVATION,
+    CONF_MONITORED_CONDITIONS,
+    CONF_NAME,
+)
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -19,22 +24,27 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
 from .helpers import (
-    async_init_astral_loc, astral_event, get_local_info, nearest_second, SIG_LOC_UPDATED)
+    async_init_astral_loc,
+    astral_event,
+    get_local_info,
+    nearest_second,
+    SIG_LOC_UPDATED,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_ELEVATION_ABOVE = -0.833
-DEFAULT_ELEVATION_NAME = 'Above Horizon'
+DEFAULT_ELEVATION_NAME = "Above Horizon"
 
-ABOVE_ICON = 'mdi:white-balance-sunny'
-BELOW_ICON = 'mdi:moon-waxing-crescent'
+ABOVE_ICON = "mdi:white-balance-sunny"
+BELOW_ICON = "mdi:moon-waxing-crescent"
 
 _ONE_DAY = timedelta(days=1)
 _ONE_SEC = timedelta(seconds=1)
 
 _SENSOR_TYPES = [CONF_ELEVATION]
 
-ATTR_NEXT_CHANGE = 'next_change'
+ATTR_NEXT_CHANGE = "next_change"
 
 
 # elevation
@@ -56,8 +66,7 @@ def _val_cfg(config):
         options = config[CONF_ELEVATION]
         for key in options:
             if key not in [CONF_ELEVATION, CONF_ABOVE, CONF_NAME]:
-                raise vol.Invalid(
-                    f'{key} not allowed for {CONF_ELEVATION}')
+                raise vol.Invalid(f"{key} not allowed for {CONF_ELEVATION}")
         if CONF_ABOVE not in options:
             options[CONF_ABOVE] = DEFAULT_ELEVATION_ABOVE
         if CONF_NAME not in options:
@@ -65,11 +74,11 @@ def _val_cfg(config):
             if above == DEFAULT_ELEVATION_ABOVE:
                 name = DEFAULT_ELEVATION_NAME
             else:
-                name = 'Above '
+                name = "Above "
                 if above < 0:
-                    name += f'minus {-above}'
+                    name += f"minus {-above}"
                 else:
-                    name += f'{above}'
+                    name += f"{above}"
             options[CONF_NAME] = name
     return config
 
@@ -77,23 +86,30 @@ def _val_cfg(config):
 _BINARY_SENSOR_SCHEMA = vol.All(
     vol.Any(
         vol.In(_SENSOR_TYPES),
-        vol.Schema({
-            vol.Required(vol.In(_SENSOR_TYPES)): vol.Any(
-                vol.Coerce(float),
-                vol.Schema({
-                    vol.Optional(CONF_ABOVE): vol.Coerce(float),
-                    vol.Optional(CONF_NAME): cv.string,
-                }),
-            ),
-        }),
+        vol.Schema(
+            {
+                vol.Required(vol.In(_SENSOR_TYPES)): vol.Any(
+                    vol.Coerce(float),
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_ABOVE): vol.Coerce(float),
+                            vol.Optional(CONF_NAME): cv.string,
+                        }
+                    ),
+                ),
+            }
+        ),
     ),
     _val_cfg,
 )
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-        cv.ensure_list, [_BINARY_SENSOR_SCHEMA]),
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
+            cv.ensure_list, [_BINARY_SENSOR_SCHEMA]
+        ),
+    }
+)
 
 
 class Sun2ElevationSensor(BinarySensorEntity):
@@ -112,7 +128,7 @@ class Sun2ElevationSensor(BinarySensorEntity):
             self._info = get_local_info(hass)
         else:
             latitude = 40.760866
-            longitude =-86.762332
+            longitude = -86.762332
             timezone = "America/Indiana/Indianapolis"
             elevation = 209
             self._info = latitude, longitude, timezone, elevation
@@ -167,7 +183,8 @@ class Sun2ElevationSensor(BinarySensorEntity):
         """Subscribe to update signal."""
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
-                self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
+                self.hass, SIG_LOC_UPDATED, self.async_loc_updated
+            )
 
     async def async_will_remove_from_hass(self):
         """Disconnect from update signal."""
@@ -191,9 +208,14 @@ class Sun2ElevationSensor(BinarySensorEntity):
         tn_elev = astral_event(self._info, "solar_elevation", tn_dttm)
 
         while not (
-                (self._state and tn_elev <= self._threshold
-                 or not self._state and tn_elev > self._threshold)
-                and abs(tn_elev - self._threshold) <= 0.01):
+            (
+                self._state
+                and tn_elev <= self._threshold
+                or not self._state
+                and tn_elev > self._threshold
+            )
+            and abs(tn_elev - self._threshold) <= 0.01
+        ):
 
             if (tn_elev - self._threshold) * slope > 0:
                 if t1_dttm == tn_dttm:
@@ -280,15 +302,18 @@ class Sun2ElevationSensor(BinarySensorEntity):
             # does NOT include any points with a higher elevation value. For
             # all other cases it's ok for the threshold to equal the elevation
             # at t0 or t1.
-            if (t0_elev <= self._threshold < t1_elev
-                    or t1_elev <= self._threshold <= t0_elev):
+            if (
+                t0_elev <= self._threshold < t1_elev
+                or t1_elev <= self._threshold <= t0_elev
+            ):
 
-                nxt_dttm = self._find_nxt_dttm(
-                    t0_dttm, t0_elev, t1_dttm, t1_elev)
+                nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
                 if nxt_dttm - cur_dttm > _ONE_DAY:
                     _LOGGER.warning(
-                        'Sun elevation will not reach %f again until %s',
-                        self._threshold, nxt_dttm.date())
+                        "Sun elevation will not reach %f again until %s",
+                        self._threshold,
+                        nxt_dttm.date(),
+                    )
                 return nxt_dttm
 
             # Shift one day ahead.
@@ -308,8 +333,8 @@ class Sun2ElevationSensor(BinarySensorEntity):
         cur_elev = astral_event(self._info, "solar_elevation", cur_dttm)
         self._state = cur_elev > self._threshold
         _LOGGER.debug(
-            'name=%s, above=%f, elevation=%f',
-            self._name, self._threshold, cur_elev)
+            "name=%s, above=%f, elevation=%f", self._name, self._threshold, cur_elev
+        )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
         self._next_change = dt_util.as_local(nxt_dttm)
@@ -320,20 +345,22 @@ class Sun2ElevationSensor(BinarySensorEntity):
             self.async_schedule_update_ha_state(True)
 
         if nxt_dttm:
-            self._unsub_update = async_track_point_in_utc_time(self.hass, async_update, nxt_dttm)
+            self._unsub_update = async_track_point_in_utc_time(
+                self.hass, async_update, nxt_dttm
+            )
         else:
             _LOGGER.error(
-                'Sun elevation never reaches %f at this location',
-                self._threshold)
+                "Sun elevation never reaches %f at this location", self._threshold
+            )
 
 
-async def async_setup_platform(
-        hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up sensors."""
     sensors = []
     for cfg in config[CONF_MONITORED_CONDITIONS]:
         if CONF_ELEVATION in cfg:
             options = cfg[CONF_ELEVATION]
-            sensors.append(Sun2ElevationSensor(
-                hass, options[CONF_NAME], options[CONF_ABOVE]))
+            sensors.append(
+                Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE])
+            )
     async_add_entities(sensors, True)

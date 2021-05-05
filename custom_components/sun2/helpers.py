@@ -74,5 +74,6 @@ def astral_event(info, event, date_or_dt, depression=None):
 
 def nearest_second(time):
     """Round time to nearest second."""
-    return (time.replace(microsecond=0) +
-            timedelta(seconds=0 if time.microsecond < 500000 else 1))
+    return time.replace(microsecond=0) + timedelta(
+        seconds=0 if time.microsecond < 500000 else 1
+    )

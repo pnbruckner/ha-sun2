@@ -5,8 +5,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (
-    CONF_MONITORED_CONDITIONS, DEVICE_CLASS_TIMESTAMP)
+from homeassistant.const import CONF_MONITORED_CONDITIONS, DEVICE_CLASS_TIMESTAMP
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers import config_validation as cv
@@ -15,16 +14,21 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_utc_time
 
 from .helpers import (
-    async_init_astral_loc, astral_event, get_local_info, nearest_second, SIG_LOC_UPDATED)
+    async_init_astral_loc,
+    astral_event,
+    get_local_info,
+    nearest_second,
+    SIG_LOC_UPDATED,
+)
 
 _LOGGER = logging.getLogger(__name__)
-_SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
+_SOLAR_DEPRESSIONS = ("astronomical", "civil", "nautical")
 _ELEV_RND = 0.5
 _ELEV_MAX_ERR = 0.02
 _DELTA = timedelta(minutes=5)
 _ONE_DAY = timedelta(days=1)
 
-ATTR_NEXT_CHANGE = 'next_change'
+ATTR_NEXT_CHANGE = "next_change"
 
 
 def next_midnight(dt):
@@ -38,12 +42,12 @@ class Sun2Sensor(Entity):
         """Initialize sensor."""
         self.hass = hass
         if any(sol_dep in sensor_type for sol_dep in _SOLAR_DEPRESSIONS):
-            self._solar_depression, self._event = sensor_type.rsplit('_', 1)
+            self._solar_depression, self._event = sensor_type.rsplit("_", 1)
         else:
             self._solar_depression = default_solar_depression
             self._event = sensor_type
         self._icon = icon
-        self._name = sensor_type.replace('_', ' ').title()
+        self._name = sensor_type.replace("_", " ").title()
         self._state = None
         self._yesterday = None
         self._today = None
@@ -54,7 +58,7 @@ class Sun2Sensor(Entity):
             self._info = get_local_info(hass)
         else:
             latitude = 40.760866
-            longitude =-86.762332
+            longitude = -86.762332
             timezone = "America/Indiana/Indianapolis"
             elevation = 209
             self._info = latitude, longitude, timezone, elevation
@@ -89,9 +93,9 @@ class Sun2Sensor(Entity):
 
     def _device_state_attributes(self):
         return {
-            'yesterday': self._yesterday,
-            'today': self._today,
-            'tomorrow': self._tomorrow,
+            "yesterday": self._yesterday,
+            "today": self._today,
+            "tomorrow": self._tomorrow,
         }
 
     @property
@@ -115,12 +119,14 @@ class Sun2Sensor(Entity):
         def async_update_at_midnight(now):
             next_midn = next_midnight(now.astimezone(self._tzinfo))
             self._unsub_update = async_track_point_in_utc_time(
-                self.hass, async_update_at_midnight, next_midn)
+                self.hass, async_update_at_midnight, next_midn
+            )
             self.async_schedule_update_ha_state(True)
 
         next_midn = next_midnight(dt_util.now(self._tzinfo))
         self._unsub_update = async_track_point_in_utc_time(
-            self.hass, async_update_at_midnight, next_midn)
+            self.hass, async_update_at_midnight, next_midn
+        )
 
     def _loc_updated(self):
         if self._unsub_update:
@@ -138,7 +144,8 @@ class Sun2Sensor(Entity):
         """Subscribe to update signal and set up fixed updating."""
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
-                self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
+                self.hass, SIG_LOC_UPDATED, self.async_loc_updated
+            )
         self._setup_fixed_updating()
 
     async def async_will_remove_from_hass(self):
@@ -156,9 +163,9 @@ class Sun2Sensor(Entity):
 
     def _update(self):
         today = dt_util.now(self._tzinfo).date()
-        self._yesterday = self._get_data(today-_ONE_DAY)
+        self._yesterday = self._get_data(today - _ONE_DAY)
         self._state = self._today = self._get_data(today)
-        self._tomorrow = self._get_data(today+_ONE_DAY)
+        self._tomorrow = self._get_data(today + _ONE_DAY)
 
     async def async_update(self):
         """Update state."""
@@ -170,7 +177,7 @@ class Sun2PointInTimeSensor(Sun2Sensor):
 
     def __init__(self, hass, sensor_type, icon):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, 'civil')
+        super().__init__(hass, sensor_type, icon, "civil")
 
     @property
     def device_class(self):
@@ -179,13 +186,13 @@ class Sun2PointInTimeSensor(Sun2Sensor):
 
     def _update(self):
         super()._update()
-        if self._state != 'none':
+        if self._state != "none":
             self._state = self._state.isoformat()
 
 
 def _hours_to_hms(hours):
     try:
-        return str(timedelta(hours=hours)).split('.')[0]
+        return str(timedelta(hours=hours)).split(".")[0]
     except TypeError:
         return None
 
@@ -200,27 +207,29 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""
-        return 'hr'
+        return "hr"
 
     def _device_state_attributes(self):
         data = super()._device_state_attributes()
-        data.update({
-            'yesterday_hms': _hours_to_hms(data['yesterday']),
-            'today_hms': _hours_to_hms(data['today']),
-            'tomorrow_hms': _hours_to_hms(data['tomorrow']),
-        })
+        data.update(
+            {
+                "yesterday_hms": _hours_to_hms(data["yesterday"]),
+                "today_hms": _hours_to_hms(data["today"]),
+                "tomorrow_hms": _hours_to_hms(data["tomorrow"]),
+            }
+        )
         return data
 
     def _get_data(self, date_or_dt):
-        if 'daylight' in self._event:
-            start = self._get_astral_event('dawn', date_or_dt)
-            end = self._get_astral_event('dusk', date_or_dt)
+        if "daylight" in self._event:
+            start = self._get_astral_event("dawn", date_or_dt)
+            end = self._get_astral_event("dusk", date_or_dt)
         else:
-            start = self._get_astral_event('dusk', date_or_dt)
-            end = self._get_astral_event('dawn', date_or_dt+_ONE_DAY)
-        if 'none' in (start, end):
+            start = self._get_astral_event("dusk", date_or_dt)
+            end = self._get_astral_event("dawn", date_or_dt + _ONE_DAY)
+        if "none" in (start, end):
             return None
-        return (end - start).total_seconds()/3600
+        return (end - start).total_seconds() / 3600
 
     def _update(self):
         super()._update()
@@ -234,16 +243,16 @@ class Sun2MinMaxElevationSensor(Sun2Sensor):
     def __init__(self, hass, sensor_type, icon, is_min):
         """Initialize sensor."""
         super().__init__(hass, sensor_type, icon)
-        self._event = 'solar_midnight' if is_min else 'solar_noon'
+        self._event = "solar_midnight" if is_min else "solar_noon"
 
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""
-        return '°'
+        return "°"
 
     def _get_data(self, date_or_dt):
         event_time = self._get_astral_event(self._event, date_or_dt)
-        return self._get_astral_event('solar_elevation', event_time)
+        return self._get_astral_event("solar_elevation", event_time)
 
     def _update(self):
         super()._update()
@@ -273,7 +282,8 @@ def _nearest_multiple(value, multiple):
 
 def _calc_nxt_time(time0, elev0, time1, elev1, trg_elev):
     return nearest_second(
-        time0 + (time1 - time0) * ((trg_elev - elev0) / (elev1 - elev0)))
+        time0 + (time1 - time0) * ((trg_elev - elev0) / (elev1 - elev0))
+    )
 
 
 class Sun2ElevationSensor(Sun2Sensor):
@@ -300,7 +310,7 @@ class Sun2ElevationSensor(Sun2Sensor):
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""
-        return '°'
+        return "°"
 
     def _loc_updated(self):
         """Location updated."""
@@ -352,8 +362,8 @@ class Sun2ElevationSensor(Sun2Sensor):
         # before continuing.
         cur_time = nearest_second(dt_util.now(self._tzinfo))
         cur_elev = astral_event(self._info, "solar_elevation", cur_time)
-        self._state = f'{cur_elev:0.1f}'
-        _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
+        self._state = f"{cur_elev:0.1f}"
+        _LOGGER.debug("Raw elevation = %f -> %s", cur_elev, self._state)
 
         # Find the next solar midnight AFTER the current time, and the solar noon and
         # solar midnight that precede it. This only needs to be done once a day when we
@@ -368,7 +378,9 @@ class Sun2ElevationSensor(Sun2Sensor):
                 date += _ONE_DAY
                 self._sol_midn = astral_event(self._info, "solar_midnight", date)
             self._sol_noon = astral_event(self._info, "solar_noon", date - _ONE_DAY)
-            self._prv_sol_midn = astral_event(self._info, "solar_midnight", date - _ONE_DAY)
+            self._prv_sol_midn = astral_event(
+                self._info, "solar_midnight", date - _ONE_DAY
+            )
             _LOGGER.debug(
                 "Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
                 self._prv_sol_midn,
@@ -385,12 +397,20 @@ class Sun2ElevationSensor(Sun2Sensor):
             rnd_elev = _nearest_multiple(cur_elev, _ELEV_RND)
             if cur_time < self._sol_noon:
                 nxt_time = self._get_nxt_time(
-                    cur_time, cur_elev,
-                    rnd_elev + _ELEV_RND, self._prv_sol_midn, self._sol_noon)
+                    cur_time,
+                    cur_elev,
+                    rnd_elev + _ELEV_RND,
+                    self._prv_sol_midn,
+                    self._sol_noon,
+                )
             else:
                 nxt_time = self._get_nxt_time(
-                    cur_time, cur_elev,
-                    rnd_elev - _ELEV_RND, self._sol_noon, self._sol_midn)
+                    cur_time,
+                    cur_elev,
+                    rnd_elev - _ELEV_RND,
+                    self._sol_noon,
+                    self._sol_midn,
+                )
         else:
             nxt_time = None
 
@@ -407,46 +427,54 @@ class Sun2ElevationSensor(Sun2Sensor):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
-        self._unsub_update = async_track_point_in_utc_time(self.hass, async_update, nxt_time)
+        self._unsub_update = async_track_point_in_utc_time(
+            self.hass, async_update, nxt_time
+        )
 
 
 _SENSOR_TYPES = {
     # Points in time
-    'solar_midnight': (Sun2PointInTimeSensor, 'mdi:weather-night'),
-    'astronomical_dawn': (Sun2PointInTimeSensor, 'mdi:weather-sunset-up'),
-    'nautical_dawn': (Sun2PointInTimeSensor, 'mdi:weather-sunset-up'),
-    'dawn': (Sun2PointInTimeSensor, 'mdi:weather-sunset-up'),
-    'sunrise': (Sun2PointInTimeSensor, 'mdi:weather-sunset-up'),
-    'solar_noon': (Sun2PointInTimeSensor, 'mdi:weather-sunny'),
-    'sunset': (Sun2PointInTimeSensor, 'mdi:weather-sunset-down'),
-    'dusk': (Sun2PointInTimeSensor, 'mdi:weather-sunset-down'),
-    'nautical_dusk': (Sun2PointInTimeSensor, 'mdi:weather-sunset-down'),
-    'astronomical_dusk': (Sun2PointInTimeSensor, 'mdi:weather-sunset-down'),
+    "solar_midnight": (Sun2PointInTimeSensor, "mdi:weather-night"),
+    "astronomical_dawn": (Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
+    "nautical_dawn": (Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
+    "dawn": (Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
+    "sunrise": (Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
+    "solar_noon": (Sun2PointInTimeSensor, "mdi:weather-sunny"),
+    "sunset": (Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
+    "dusk": (Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
+    "nautical_dusk": (Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
+    "astronomical_dusk": (Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
     # Time periods
-    'daylight': (Sun2PeriodOfTimeSensor, 'mdi:weather-sunny'),
-    'civil_daylight': (Sun2PeriodOfTimeSensor, 'mdi:weather-sunny'),
-    'nautical_daylight': (Sun2PeriodOfTimeSensor, 'mdi:weather-sunny'),
-    'astronomical_daylight': (Sun2PeriodOfTimeSensor, 'mdi:weather-sunny'),
-    'night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
-    'civil_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
-    'nautical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
-    'astronomical_night': (Sun2PeriodOfTimeSensor, 'mdi:weather-night'),
+    "daylight": (Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
+    "civil_daylight": (Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
+    "nautical_daylight": (Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
+    "astronomical_daylight": (Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
+    "night": (Sun2PeriodOfTimeSensor, "mdi:weather-night"),
+    "civil_night": (Sun2PeriodOfTimeSensor, "mdi:weather-night"),
+    "nautical_night": (Sun2PeriodOfTimeSensor, "mdi:weather-night"),
+    "astronomical_night": (Sun2PeriodOfTimeSensor, "mdi:weather-night"),
     # Min/Max elevation
-    'min_elevation': (Sun2MinElevationSensor, 'mdi:weather-night'),
-    'max_elevation': (Sun2MaxElevationSensor, 'mdi:weather-sunny'),
+    "min_elevation": (Sun2MinElevationSensor, "mdi:weather-night"),
+    "max_elevation": (Sun2MaxElevationSensor, "mdi:weather-sunny"),
     # Elevation
-    'elevation': (Sun2ElevationSensor, 'mdi:weather-sunny'),
+    "elevation": (Sun2ElevationSensor, "mdi:weather-sunny"),
 }
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-        cv.ensure_list, [vol.In(_SENSOR_TYPES)]),
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
+            cv.ensure_list, [vol.In(_SENSOR_TYPES)]
+        ),
+    }
+)
 
 
-async def async_setup_platform(
-        hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up sensors."""
-    async_add_entities([_SENSOR_TYPES[event][0](hass, event,
-                                                _SENSOR_TYPES[event][1])
-                        for event in config[CONF_MONITORED_CONDITIONS]], True)
+    async_add_entities(
+        [
+            _SENSOR_TYPES[event][0](hass, event, _SENSOR_TYPES[event][1])
+            for event in config[CONF_MONITORED_CONDITIONS]
+        ],
+        True,
+    )
