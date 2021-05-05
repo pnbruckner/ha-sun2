@@ -93,6 +93,23 @@ Default FRIENDLY_NAME is "Above Horizon" if THRESHOLD is -0.833, "Above minus TH
 
 `entity_id` will therefore be, for example, `binary_sensor.above_horizon` (-0.833), or `binary_sensor.above_minus_5_0` (-5) or `binary_sensor.above_10_5` (10.5).
 
+## Optional Location
+
+The following configuration parameters are optional, and can be used with all types of sensors. All four parameters are required, and should be specified once per platform entry. These can be used to create sensors that show sun data for another (or even multiple) location(s.) The default is to use Home Assistant's location configuration.
+
+### Configuration variables
+
+type | description
+-|-
+`latitude` | The location's latitude (in degrees.)
+`longitude` | The location's longitude (in degrees.)
+`time_zone` | The location's time zone. (See the "TZ database name" column at http://en.wikipedia.org/wiki/List_of_tz_database_time_zones.)
+`elevation` | The location's elevation above sea level (in meters.)
+
+## Entity Namespace
+
+When using the optional [`entity_namespace`](https://www.home-assistant.io/docs/configuration/platform_options/#entity-namespace) configuration parameter, not only will this affect Entity IDs, but it will also be used in creating the entity's `friendly_name`. E.g., in the configuration show below, the sunrise and sunset entities for London will be named "London Sunrise" and "London Sunset".
+
 ## Example Full Configuration
 
 ```yaml
@@ -120,6 +137,15 @@ sensor:
       - elevation
       - min_elevation
       - max_elevation
+  - platform: sun2
+    entity_namespace: London
+    latitude: 51.50739529645933
+    longitude: -0.12767666584664272
+    time_zone: Europe/London
+    elevation: 11
+    monitored_conditions:
+      - sunrise
+      - sunset
 binary_sensor:
   - platform: sun2
     monitored_conditions:
