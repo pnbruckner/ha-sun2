@@ -1,5 +1,5 @@
 """Sun2 Sensor."""
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 import logging
 
 import voluptuous as vol
@@ -12,11 +12,10 @@ from homeassistant.util import dt as dt_util
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.event import (
-    async_track_time_change, async_track_point_in_time)
+from homeassistant.helpers.event import async_track_point_in_utc_time
 
 from .helpers import (
-    async_init_astral_loc, astral_event, nearest_second, SIG_LOC_UPDATED)
+    async_init_astral_loc, astral_event, get_local_info, nearest_second, SIG_LOC_UPDATED)
 
 _LOGGER = logging.getLogger(__name__)
 _SOLAR_DEPRESSIONS = ('astronomical', 'civil', 'nautical')
@@ -28,11 +27,16 @@ _ONE_DAY = timedelta(days=1)
 ATTR_NEXT_CHANGE = 'next_change'
 
 
+def next_midnight(dt):
+    return dt.tzinfo.localize(datetime.combine(dt.date() + _ONE_DAY, time()))
+
+
 class Sun2Sensor(Entity):
     """Sun2 Sensor."""
 
     def __init__(self, hass, sensor_type, icon, default_solar_depression=0):
         """Initialize sensor."""
+        self.hass = hass
         if any(sol_dep in sensor_type for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = sensor_type.rsplit('_', 1)
         else:
@@ -44,9 +48,29 @@ class Sun2Sensor(Entity):
         self._yesterday = None
         self._today = None
         self._tomorrow = None
-        async_init_astral_loc(hass)
-        self._unsub_dispatcher = None
+
+        self._use_local_info = False
+        if self._use_local_info:
+            self._info = get_local_info(hass)
+        else:
+            latitude = 40.760866
+            longitude =-86.762332
+            timezone = "America/Indiana/Indianapolis"
+            elevation = 209
+            self._info = latitude, longitude, timezone, elevation
+
+        self._unsub_loc_updated = None
         self._unsub_update = None
+
+    @property
+    def _info(self):
+        return self.__info
+
+    @_info.setter
+    def _info(self, info):
+        self.__info = info
+        self._tzinfo = dt_util.get_time_zone(info[2])
+        async_init_astral_loc(self.hass, info)
 
     @property
     def should_poll(self):
@@ -81,44 +105,60 @@ class Sun2Sensor(Entity):
         return self._icon
 
     def _setup_fixed_updating(self):
-        # Default behavior is to update every local midnight.
+        # Default behavior is to update every midnight.
         # Override for sensor types that should update at a different time,
         # or that have a more dynamic update schedule (in which case override
         # with a method that does nothing and set up the update at the end of
         # an override of _update instead.)
+
         @callback
         def async_update_at_midnight(now):
+            next_midn = next_midnight(now.astimezone(self._tzinfo))
+            self._unsub_update = async_track_point_in_utc_time(
+                self.hass, async_update_at_midnight, next_midn)
             self.async_schedule_update_ha_state(True)
-        self._unsub_update = async_track_time_change(
-            self.hass, async_update_at_midnight, 0, 0, 0)
+
+        next_midn = next_midnight(dt_util.now(self._tzinfo))
+        self._unsub_update = async_track_point_in_utc_time(
+            self.hass, async_update_at_midnight, next_midn)
+
+    def _loc_updated(self):
+        if self._unsub_update:
+            self._unsub_update()
+            self._unsub_update = None
+        self._info = get_local_info(self.hass)
+        self._setup_fixed_updating()
+        self.async_schedule_update_ha_state(True)
 
     async def async_loc_updated(self):
         """Location updated."""
-        self.async_schedule_update_ha_state(True)
+        self._loc_updated()
 
     async def async_added_to_hass(self):
         """Subscribe to update signal and set up fixed updating."""
-        self._unsub_dispatcher = async_dispatcher_connect(
-            self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
+        if self._use_local_info:
+            self._unsub_loc_updated = async_dispatcher_connect(
+                self.hass, SIG_LOC_UPDATED, self.async_loc_updated)
         self._setup_fixed_updating()
 
     async def async_will_remove_from_hass(self):
         """Disconnect from update signal and cancel fixed updating."""
-        self._unsub_dispatcher()
+        if self._unsub_loc_updated:
+            self._unsub_loc_updated()
         if self._unsub_update:
             self._unsub_update()
 
     def _get_astral_event(self, event, date_or_dt):
-        return astral_event(event, date_or_dt, self._solar_depression)
+        return astral_event(self._info, event, date_or_dt, self._solar_depression)
 
     def _get_data(self, date_or_dt):
         return self._get_astral_event(self._event, date_or_dt)
 
     def _update(self):
-        today = dt_util.now().date()
-        self._yesterday = self._get_data(today-timedelta(days=1))
+        today = dt_util.now(self._tzinfo).date()
+        self._yesterday = self._get_data(today-_ONE_DAY)
         self._state = self._today = self._get_data(today)
-        self._tomorrow = self._get_data(today+timedelta(days=1))
+        self._tomorrow = self._get_data(today+_ONE_DAY)
 
     async def async_update(self):
         """Update state."""
@@ -177,7 +217,7 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
             end = self._get_astral_event('dusk', date_or_dt)
         else:
             start = self._get_astral_event('dusk', date_or_dt)
-            end = self._get_astral_event('dawn', date_or_dt+timedelta(days=1))
+            end = self._get_astral_event('dawn', date_or_dt+_ONE_DAY)
         if 'none' in (start, end):
             return None
         return (end - start).total_seconds()/3600
@@ -262,13 +302,10 @@ class Sun2ElevationSensor(Sun2Sensor):
         """Return the unit of measurement."""
         return '°'
 
-    async def async_loc_updated(self):
+    def _loc_updated(self):
         """Location updated."""
         self._reset()
-        if self._unsub_update:
-            self._unsub_update()
-            self._unsub_update = None
-        self.async_schedule_update_ha_state(True)
+        super()._loc_updated()
 
     def _setup_fixed_updating(self):
         pass
@@ -288,7 +325,7 @@ class Sun2ElevationSensor(Sun2Sensor):
                 return None
             if nxt_time in (time0, time1):
                 break
-            nxt_elev = astral_event("solar_elevation", nxt_time)
+            nxt_elev = astral_event(self._info, "solar_elevation", nxt_time)
             if nxt_time > time1:
                 time0 = time1
                 elev0 = elev1
@@ -313,8 +350,8 @@ class Sun2ElevationSensor(Sun2Sensor):
     def _update(self):
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
-        cur_time = nearest_second(dt_util.now())
-        cur_elev = astral_event("solar_elevation", cur_time)
+        cur_time = nearest_second(dt_util.now(self._tzinfo))
+        cur_elev = astral_event(self._info, "solar_elevation", cur_time)
         self._state = f'{cur_elev:0.1f}'
         _LOGGER.debug('Raw elevation = %f -> %s', cur_elev, self._state)
 
@@ -326,20 +363,20 @@ class Sun2ElevationSensor(Sun2Sensor):
             # solar_midnight() returns the solar midnight (which is when the
             # sun reaches its lowest point) nearest to the start of today. Note
             # that it may have occurred yesterday.
-            self._sol_midn = astral_event("solar_midnight", date)
+            self._sol_midn = astral_event(self._info, "solar_midnight", date)
             while self._sol_midn <= cur_time:
                 date += _ONE_DAY
-                self._sol_midn = astral_event("solar_midnight", date)
-            self._sol_noon = astral_event("solar_noon", date - _ONE_DAY)
-            self._prv_sol_midn = astral_event("solar_midnight", date - _ONE_DAY)
+                self._sol_midn = astral_event(self._info, "solar_midnight", date)
+            self._sol_noon = astral_event(self._info, "solar_noon", date - _ONE_DAY)
+            self._prv_sol_midn = astral_event(self._info, "solar_midnight", date - _ONE_DAY)
             _LOGGER.debug(
                 "Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
                 self._prv_sol_midn,
-                astral_event("solar_elevation", self._prv_sol_midn),
+                astral_event(self._info, "solar_elevation", self._prv_sol_midn),
                 self._sol_noon,
-                astral_event("solar_elevation", self._sol_noon),
+                astral_event(self._info, "solar_elevation", self._sol_noon),
                 self._sol_midn,
-                astral_event("solar_elevation", self._sol_midn),
+                astral_event(self._info, "solar_elevation", self._sol_midn),
             )
 
         if self._prv_time:
@@ -363,14 +400,14 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._prv_time = cur_time
         self._prv_elev = cur_elev
 
-        self._next_change = nxt_time
+        self._next_change = dt_util.as_local(nxt_time)
 
         @callback
         def async_update(now):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
-        self._unsub_update = async_track_point_in_time(self.hass, async_update, nxt_time)
+        self._unsub_update = async_track_point_in_utc_time(self.hass, async_update, nxt_time)
 
 
 _SENSOR_TYPES = {
