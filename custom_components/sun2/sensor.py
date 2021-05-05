@@ -5,13 +5,21 @@ import logging
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import CONF_MONITORED_CONDITIONS, DEVICE_CLASS_TIMESTAMP
+from homeassistant.const import (
+    CONF_ELEVATION,
+    CONF_LATITUDE,
+    CONF_LONGITUDE,
+    CONF_MONITORED_CONDITIONS,
+    CONF_TIME_ZONE,
+    DEVICE_CLASS_TIMESTAMP,
+)
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.util import slugify
 
 from .helpers import (
     async_init_astral_loc,
@@ -38,7 +46,7 @@ def next_midnight(dt):
 class Sun2Sensor(Entity):
     """Sun2 Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, default_solar_depression=0):
+    def __init__(self, hass, sensor_type, icon, info, default_solar_depression=0):
         """Initialize sensor."""
         self.hass = hass
         if any(sol_dep in sensor_type for sol_dep in _SOLAR_DEPRESSIONS):
@@ -47,21 +55,17 @@ class Sun2Sensor(Entity):
             self._solar_depression = default_solar_depression
             self._event = sensor_type
         self._icon = icon
-        self._name = sensor_type.replace("_", " ").title()
+        self._name = self._orig_name = sensor_type.replace("_", " ").title()
         self._state = None
         self._yesterday = None
         self._today = None
         self._tomorrow = None
 
-        self._use_local_info = False
+        self._use_local_info = info is None
         if self._use_local_info:
             self._info = get_local_info(hass)
         else:
-            latitude = 40.760866
-            longitude = -86.762332
-            timezone = "America/Indiana/Indianapolis"
-            elevation = 209
-            self._info = latitude, longitude, timezone, elevation
+            self._info = info
 
         self._unsub_loc_updated = None
         self._unsub_update = None
@@ -142,6 +146,11 @@ class Sun2Sensor(Entity):
 
     async def async_added_to_hass(self):
         """Subscribe to update signal and set up fixed updating."""
+        slug = slugify(self._orig_name)
+        object_id = self.entity_id.split('.')[1]
+        if slug != object_id and object_id.endswith(slug):
+            prefix = object_id[:-len(slug)].replace("_", " ").strip().title()
+            self._name = f"{prefix} {self._orig_name}"
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
                 self.hass, SIG_LOC_UPDATED, self.async_loc_updated
@@ -154,6 +163,7 @@ class Sun2Sensor(Entity):
             self._unsub_loc_updated()
         if self._unsub_update:
             self._unsub_update()
+        self._name = self._orig_name
 
     def _get_astral_event(self, event, date_or_dt):
         return astral_event(self._info, event, date_or_dt, self._solar_depression)
@@ -175,9 +185,9 @@ class Sun2Sensor(Entity):
 class Sun2PointInTimeSensor(Sun2Sensor):
     """Sun2 Point in Time Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
+    def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, "civil")
+        super().__init__(hass, sensor_type, icon, info, "civil")
 
     @property
     def device_class(self):
@@ -200,9 +210,9 @@ def _hours_to_hms(hours):
 class Sun2PeriodOfTimeSensor(Sun2Sensor):
     """Sun2 Period of Time Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
+    def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, 0.833)
+        super().__init__(hass, sensor_type, icon, info, 0.833)
 
     @property
     def unit_of_measurement(self):
@@ -240,9 +250,9 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
 class Sun2MinMaxElevationSensor(Sun2Sensor):
     """Sun2 Min/Max Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, is_min):
+    def __init__(self, hass, sensor_type, icon, info, is_min):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon)
+        super().__init__(hass, sensor_type, icon, info)
         self._event = "solar_midnight" if is_min else "solar_noon"
 
     @property
@@ -263,17 +273,17 @@ class Sun2MinMaxElevationSensor(Sun2Sensor):
 class Sun2MinElevationSensor(Sun2MinMaxElevationSensor):
     """Sun2 Min Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
+    def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, is_min=True)
+        super().__init__(hass, sensor_type, icon, info, is_min=True)
 
 
 class Sun2MaxElevationSensor(Sun2MinMaxElevationSensor):
     """Sun2 Max Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
+    def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, is_min=False)
+        super().__init__(hass, sensor_type, icon, info, is_min=False)
 
 
 def _nearest_multiple(value, multiple):
@@ -289,9 +299,9 @@ def _calc_nxt_time(time0, elev0, time1, elev1, trg_elev):
 class Sun2ElevationSensor(Sun2Sensor):
     """Sun2 Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon):
+    def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon)
+        super().__init__(hass, sensor_type, icon, info)
         self._reset()
 
     def _reset(self):
@@ -465,15 +475,28 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
             cv.ensure_list, [vol.In(_SENSOR_TYPES)]
         ),
+        vol.Inclusive(CONF_LATITUDE, "location"): cv.latitude,
+        vol.Inclusive(CONF_LONGITUDE, "location"): cv.longitude,
+        vol.Inclusive(CONF_TIME_ZONE, "location"): cv.time_zone,
+        vol.Inclusive(CONF_ELEVATION, "location"): vol.Coerce(float),
     }
 )
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up sensors."""
+    if CONF_LATITUDE in config:
+        info = (
+            config[CONF_LATITUDE],
+            config[CONF_LONGITUDE],
+            config[CONF_TIME_ZONE],
+            config[CONF_ELEVATION],
+        )
+    else:
+        info = None
     async_add_entities(
         [
-            _SENSOR_TYPES[event][0](hass, event, _SENSOR_TYPES[event][1])
+            _SENSOR_TYPES[event][0](hass, event, _SENSOR_TYPES[event][1], info)
             for event in config[CONF_MONITORED_CONDITIONS]
         ],
         True,

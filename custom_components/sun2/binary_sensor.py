@@ -14,14 +14,17 @@ from homeassistant.components.binary_sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
     CONF_ABOVE,
     CONF_ELEVATION,
+    CONF_LATITUDE,
+    CONF_LONGITUDE,
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
+    CONF_TIME_ZONE,
 )
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.util import dt as dt_util
+from homeassistant.util import dt as dt_util, slugify
 
 from .helpers import (
     async_init_astral_loc,
@@ -108,6 +111,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
             cv.ensure_list, [_BINARY_SENSOR_SCHEMA]
         ),
+        vol.Inclusive(CONF_LATITUDE, "location"): cv.latitude,
+        vol.Inclusive(CONF_LONGITUDE, "location"): cv.longitude,
+        vol.Inclusive(CONF_TIME_ZONE, "location"): cv.time_zone,
+        vol.Inclusive(CONF_ELEVATION, "location"): vol.Coerce(float),
     }
 )
 
@@ -115,23 +122,19 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 class Sun2ElevationSensor(BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
-    def __init__(self, hass, name, above):
+    def __init__(self, hass, name, above, info):
         """Initialize sensor."""
         self.hass = hass
-        self._name = name
+        self._name = self._orig_name = name
         self._threshold = above
         self._state = None
         self._next_change = None
 
-        self._use_local_info = False
+        self._use_local_info = info is None
         if self._use_local_info:
             self._info = get_local_info(hass)
         else:
-            latitude = 40.760866
-            longitude = -86.762332
-            timezone = "America/Indiana/Indianapolis"
-            elevation = 209
-            self._info = latitude, longitude, timezone, elevation
+            self._info = info
 
         self._unsub_loc_updated = None
         self._unsub_update = None
@@ -181,6 +184,11 @@ class Sun2ElevationSensor(BinarySensorEntity):
 
     async def async_added_to_hass(self):
         """Subscribe to update signal."""
+        slug = slugify(self._orig_name)
+        object_id = self.entity_id.split('.')[1]
+        if slug != object_id and object_id.endswith(slug):
+            prefix = object_id[:-len(slug)].replace("_", " ").strip().title()
+            self._name = f"{prefix} {self._orig_name}"
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
                 self.hass, SIG_LOC_UPDATED, self.async_loc_updated
@@ -192,6 +200,7 @@ class Sun2ElevationSensor(BinarySensorEntity):
             self._unsub_loc_updated()
         if self._unsub_update:
             self._unsub_update()
+        self._name = self._orig_name
 
     def _find_nxt_dttm(self, t0_dttm, t0_elev, t1_dttm, t1_elev):
         # Do a binary search for time between t0 & t1 where elevation is
@@ -356,11 +365,20 @@ class Sun2ElevationSensor(BinarySensorEntity):
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up sensors."""
+    if CONF_LATITUDE in config:
+        info = (
+            config[CONF_LATITUDE],
+            config[CONF_LONGITUDE],
+            config[CONF_TIME_ZONE],
+            config[CONF_ELEVATION],
+        )
+    else:
+        info = None
     sensors = []
     for cfg in config[CONF_MONITORED_CONDITIONS]:
         if CONF_ELEVATION in cfg:
             options = cfg[CONF_ELEVATION]
             sensors.append(
-                Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE])
+                Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE], info)
             )
     async_add_entities(sensors, True)
