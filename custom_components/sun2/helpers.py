@@ -4,7 +4,7 @@ from datetime import timedelta
 try:
     from astral import AstralError
 except ImportError:
-    AstralError = TypeError
+    AstralError = (TypeError, ValueError)
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import dispatcher_send
