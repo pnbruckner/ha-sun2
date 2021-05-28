@@ -40,7 +40,7 @@ ATTR_NEXT_CHANGE = "next_change"
 
 
 def next_midnight(dt):
-    return dt.tzinfo.localize(datetime.combine(dt.date() + _ONE_DAY, time()))
+    return datetime.combine(dt.date() + _ONE_DAY, time(), dt.tzinfo)
 
 
 class Sun2Sensor(Entity):
