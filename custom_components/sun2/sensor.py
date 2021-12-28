@@ -103,7 +103,7 @@ class Sun2Sensor(Entity):
         }
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         return self._device_state_attributes()
 
