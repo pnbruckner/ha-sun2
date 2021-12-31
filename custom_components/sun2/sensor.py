@@ -313,7 +313,7 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._next_change = None
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {ATTR_NEXT_CHANGE: self._next_change}
 
