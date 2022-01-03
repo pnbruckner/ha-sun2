@@ -19,6 +19,8 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     CONF_TIME_ZONE,
+    MAJOR_VERSION,
+    MINOR_VERSION,
 )
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
@@ -159,10 +161,19 @@ class Sun2ElevationSensor(BinarySensorEntity):
         """Return the name of the entity."""
         return self._name
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes."""
+    def _device_state_attributes(self):
         return {ATTR_NEXT_CHANGE: self._next_change}
+
+    if MAJOR_VERSION < 2021 or MAJOR_VERSION == 2021 and MINOR_VERSION < 4:
+        @property
+        def device_state_attributes(self):
+            """Return device specific state attributes."""
+            return self._device_state_attributes()
+    else:
+        @property
+        def extra_state_attributes(self):
+            """Return device specific state attributes."""
+            return self._device_state_attributes()
 
     @property
     def icon(self):
