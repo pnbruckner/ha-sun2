@@ -12,6 +12,8 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_TIME_ZONE,
     DEVICE_CLASS_TIMESTAMP,
+    MAJOR_VERSION,
+    MINOR_VERSION,
 )
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
@@ -102,10 +104,16 @@ class Sun2Sensor(Entity):
             "tomorrow": self._tomorrow,
         }
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes."""
-        return self._device_state_attributes()
+    if MAJOR_VERSION < 2021 or MAJOR_VERSION == 2021 and MINOR_VERSION < 4:
+        @property
+        def device_state_attributes(self):
+            """Return device specific state attributes."""
+            return self._device_state_attributes()
+    else:
+        @property
+        def extra_state_attributes(self):
+            """Return device specific state attributes."""
+            return self._device_state_attributes()
 
     @property
     def icon(self):
@@ -312,9 +320,7 @@ class Sun2ElevationSensor(Sun2Sensor):
         self._prv_elev = None
         self._next_change = None
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes."""
+    def _device_state_attributes(self):
         return {ATTR_NEXT_CHANGE: self._next_change}
 
     @property
