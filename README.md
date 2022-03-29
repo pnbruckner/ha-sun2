@@ -67,6 +67,7 @@ type | description
 `elevation` | The sun's elevation (degrees).
 `min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
+`deconz_phase` | Emulation of [deCONZ Daylight Sensor](https://www.home-assistant.io/integrations/deconz/#deconz-daylight-sensor).
 
 ## Binary Sensors
 ### Configuration variables
@@ -137,6 +138,7 @@ sensor:
       - elevation
       - min_elevation
       - max_elevation
+      - deconz_phase
   - platform: sun2
     entity_namespace: London
     latitude: 51.50739529645933
