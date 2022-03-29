@@ -5,6 +5,7 @@ try:
     from astral import AstralError
 except ImportError:
     AstralError = (TypeError, ValueError)
+
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import dispatcher_send
@@ -44,7 +45,6 @@ def _update_location(event):
 
 
 # info = (latitude, longitude, timezone, elevation)
-# info == None -> Use HA location config
 @callback
 def async_init_astral_loc(hass, info):
     """Initialize astral Location."""
@@ -56,7 +56,7 @@ def async_init_astral_loc(hass, info):
         _LOC_ELEV[info] = _get_astral_location(info)
 
 
-def astral_event(info, event, date_or_dt, depression=None):
+def astral_event(info, event, date_or_dt, /, depression=None, **kwargs):
     """Return astral event result."""
     loc, elev = _LOC_ELEV[info]
     if depression is not None:
@@ -65,6 +65,10 @@ def astral_event(info, event, date_or_dt, depression=None):
         if elev is not None:
             if event in ("solar_midnight", "solar_noon"):
                 return getattr(loc, event.split("_")[1])(date_or_dt)
+            elif event == "time_at_elevation":
+                return getattr(loc, event)(
+                    kwargs["elevation"], date=date_or_dt, direction=kwargs["direction"]
+                )
             else:
                 return getattr(loc, event)(date_or_dt, observer_elevation=elev)
         return getattr(loc, event)(date_or_dt)

@@ -165,11 +165,14 @@ class Sun2ElevationSensor(BinarySensorEntity):
         return {ATTR_NEXT_CHANGE: self._next_change}
 
     if MAJOR_VERSION < 2021 or MAJOR_VERSION == 2021 and MINOR_VERSION < 4:
+
         @property
         def device_state_attributes(self):
             """Return device specific state attributes."""
             return self._device_state_attributes()
+
     else:
+
         @property
         def extra_state_attributes(self):
             """Return device specific state attributes."""
@@ -196,9 +199,9 @@ class Sun2ElevationSensor(BinarySensorEntity):
     async def async_added_to_hass(self):
         """Subscribe to update signal."""
         slug = slugify(self._orig_name)
-        object_id = self.entity_id.split('.')[1]
+        object_id = self.entity_id.split(".")[1]
         if slug != object_id and object_id.endswith(slug):
-            prefix = object_id[:-len(slug)].replace("_", " ").strip().title()
+            prefix = object_id[: -len(slug)].replace("_", " ").strip().title()
             self._name = f"{prefix} {self._orig_name}"
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
@@ -330,7 +333,8 @@ class Sun2ElevationSensor(BinarySensorEntity):
                 nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
                 if nxt_dttm - cur_dttm > _ONE_DAY:
                     _LOGGER.warning(
-                        "Sun elevation will not reach %f again until %s",
+                        "%s: Sun elevation will not reach %f again until %s",
+                        self.name,
                         self._threshold,
                         nxt_dttm.date(),
                     )
@@ -353,24 +357,26 @@ class Sun2ElevationSensor(BinarySensorEntity):
         cur_elev = astral_event(self._info, "solar_elevation", cur_dttm)
         self._state = cur_elev > self._threshold
         _LOGGER.debug(
-            "name=%s, above=%f, elevation=%f", self._name, self._threshold, cur_elev
+            "%s: above = %f, elevation = %f", self.name, self._threshold, cur_elev
         )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
         self._next_change = dt_util.as_local(nxt_dttm)
 
         @callback
-        def async_update(now):
+        def async_schedule_update(now):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
         if nxt_dttm:
             self._unsub_update = async_track_point_in_utc_time(
-                self.hass, async_update, nxt_dttm
+                self.hass, async_schedule_update, nxt_dttm
             )
         else:
             _LOGGER.error(
-                "Sun elevation never reaches %f at this location", self._threshold
+                "%s: Sun elevation never reaches %f at this location",
+                self.name,
+                self._threshold,
             )
 
 
