@@ -10,6 +10,7 @@ from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import dispatcher_send
 
+ATTR_NEXT_CHANGE = "next_change"
 SIG_LOC_UPDATED = "sun2_loc_updated"
 
 _HASS = None
