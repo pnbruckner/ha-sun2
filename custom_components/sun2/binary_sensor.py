@@ -198,11 +198,16 @@ class Sun2ElevationSensor(BinarySensorEntity):
 
     async def async_added_to_hass(self):
         """Subscribe to update signal."""
+        # Determine final name, which will include entity_namespace if it's used.
         slug = slugify(self._orig_name)
         object_id = self.entity_id.split(".")[1]
         if slug != object_id and object_id.endswith(slug):
             prefix = object_id[: -len(slug)].replace("_", " ").strip().title()
             self._name = f"{prefix} {self._orig_name}"
+        # Now that we have final name, let's do the update that was delayed from
+        # async_add_entities call.
+        await self.async_update()
+        # Subscribe to update signal and set up fixed updating.
         if self._use_local_info:
             self._unsub_loc_updated = async_dispatcher_connect(
                 self.hass, SIG_LOC_UPDATED, self.async_loc_updated
@@ -398,4 +403,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             sensors.append(
                 Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE], info)
             )
-    async_add_entities(sensors, True)
+    # Don't force update now. Wait for first update until async_added_to_hass is called
+    # when final name is determined.
+    async_add_entities(sensors, False)
