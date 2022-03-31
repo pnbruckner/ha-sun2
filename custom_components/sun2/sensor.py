@@ -476,7 +476,7 @@ class Sun2PhaseSensor(Sun2Sensor):
             (6, "golden_hour_1", "golden_hour_2"),
         ]
         self._use_nadir = True
-        self._daylight_threshold = -6
+        self._daylight_threshold = -0.833
         self._updates = []
         self._daylight = None
         self._next_change = None
@@ -541,28 +541,61 @@ class Sun2PhaseSensor(Sun2Sensor):
         )
 
         def get_time_at_elev(trg_elev):
-            approx_dttm = astral_event(
-                self._info,
-                "time_at_elevation",
-                cur_date,
-                elevation=trg_elev,
-                direction=SUN_RISING if rising else SUN_SETTING,
+            approx_dttm = nearest_second(
+                astral_event(
+                    self._info,
+                    "time_at_elevation",
+                    cur_date,
+                    elevation=trg_elev,
+                    direction=SUN_RISING if rising else SUN_SETTING,
+                )
             )
             time0 = max(approx_dttm - _DELTA, t0_dttm)
             elev0 = astral_event(self._info, "solar_elevation", time0)
             time1 = min(approx_dttm + _DELTA, t1_dttm)
             elev1 = astral_event(self._info, "solar_elevation", time1)
-            nxt_elev = trg_elev + 1.5 * _ELEV_MAX_ERR
-            while abs(nxt_elev - trg_elev) >= _ELEV_MAX_ERR:
+            max_err = 0.005
+            nxt_elev = trg_elev + 1.5 * max_err
+            while abs(nxt_elev - trg_elev) >= max_err:
                 try:
                     nxt_time = _calc_nxt_time(time0, elev0, time1, elev1, trg_elev)
+                    nxt_elev = astral_event(self._info, "solar_elevation", nxt_time)
+                    _LOGGER.debug(
+                        "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> nxt = %s/%+7.3f[%+7.3f]",
+                        self.name,
+                        trg_elev,
+                        time0,
+                        elev0,
+                        time1,
+                        elev1,
+                        nxt_time,
+                        nxt_elev,
+                        nxt_elev - trg_elev,
+                    )
                 except ZeroDivisionError:
+                    _LOGGER.debug(
+                        "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> ZeroDivisionError",
+                        self.name,
+                        trg_elev,
+                        time0,
+                        elev0,
+                        time1,
+                        elev1,
+                    )
                     return None
                 if nxt_time < t0_dttm or nxt_time > t1_dttm:
+                    _LOGGER.debug(
+                        "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> outside range",
+                        self.name,
+                        trg_elev,
+                        time0,
+                        elev0,
+                        time1,
+                        elev1,
+                    )
                     return None
                 if nxt_time in (time0, time1):
                     break
-                nxt_elev = astral_event(self._info, "solar_elevation", nxt_time)
                 if nxt_time > time1:
                     time0 = time1
                     elev0 = elev1
