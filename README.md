@@ -10,6 +10,7 @@ sensor:
     monitored_conditions:
       - sunrise
       - sunset
+      - phase
 binary_sensor:
   - platform: sun2
     monitored_conditions:
@@ -68,6 +69,25 @@ type | description
 `min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
 `deconz_phase` | Emulation of [deCONZ Daylight Sensor](https://www.home-assistant.io/integrations/deconz/#deconz-daylight-sensor).
+`phase` | See [Phase Sensor](#phase-sensor)
+
+##### Phase Sensor
+
+###### Possible states
+state | description
+-|-
+`Night` | Sun is below -18°
+`Astronomical Twilight` | Sun is between -18° and -12°
+`Nautical Twilight` | Sun is between -12° and -6°
+`Civil Twilight` | Sun is between -6° and -0.833°
+`Day` | Sun is above -0.833°
+
+###### Attributes
+attribute | description
+-|-
+`rising` | `True` if sun is rising.
+`blue_hour` | `True` if sun is between -6° and -4°
+`golden_hour` | `True` if sun is between -4° and 6°
 
 ## Binary Sensors
 ### Configuration variables
