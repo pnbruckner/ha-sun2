@@ -1,4 +1,5 @@
 """Sun2 Sensor."""
+from abc import abstractmethod
 from datetime import datetime, time, timedelta
 import logging
 
@@ -51,6 +52,7 @@ def next_midnight(dt):
 class Sun2Sensor(Sun2SensorBase, Entity):
     """Sun2 Sensor."""
 
+    @abstractmethod
     def __init__(self, hass, sensor_type, icon, info, default_solar_depression=0):
         """Initialize sensor."""
         super().__init__(hass, sensor_type.replace("_", " ").title(), info)
@@ -187,6 +189,7 @@ class Sun2PeriodOfTimeSensor(Sun2Sensor):
 class Sun2MinMaxElevationSensor(Sun2Sensor):
     """Sun2 Min/Max Elevation Sensor."""
 
+    @abstractmethod
     def __init__(self, hass, sensor_type, icon, info, is_min):
         """Initialize sensor."""
         super().__init__(hass, sensor_type, icon, info)
@@ -227,64 +230,64 @@ def _nearest_multiple(value, multiple):
     return int(round(value / multiple)) * multiple
 
 
-def _get_dttm_at_elev(info, name, tL_dttm, tR_dttm, t0_dttm, t1_dttm, trg_elev, max_err):
+def _get_dttm_at_elev(info, name, tL_dttm, tR_dttm, t0_dttm, t1_dttm, elev, max_err):
     t0_elev = astral_event(info, "solar_elevation", t0_dttm)
     t1_elev = astral_event(info, "solar_elevation", t1_dttm)
-    nxt_elev = trg_elev + 1.5 * max_err
-    while abs(nxt_elev - trg_elev) >= max_err:
+    est_elev = elev + 1.5 * max_err
+    while abs(est_elev - elev) >= max_err:
         try:
-            nxt_dttm = nearest_second(
-                t0_dttm + (t1_dttm - t0_dttm) * ((trg_elev - t0_elev) / (t1_elev - t0_elev))
+            est_dttm = nearest_second(
+                t0_dttm + (t1_dttm - t0_dttm) * ((elev - t0_elev) / (t1_elev - t0_elev))
             )
-            nxt_elev = astral_event(info, "solar_elevation", nxt_dttm)
+            est_elev = astral_event(info, "solar_elevation", est_dttm)
             _LOGGER.debug(
-                "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> nxt = %s/%+7.3f[%+7.3f]",
+                "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> est = %s/%+7.3f[%+7.3f]",
                 name,
-                trg_elev,
+                elev,
                 t0_dttm,
                 t0_elev,
                 t1_dttm,
                 t1_elev,
-                nxt_dttm,
-                nxt_elev,
-                nxt_elev - trg_elev,
+                est_dttm,
+                est_elev,
+                est_elev - elev,
             )
         except ZeroDivisionError:
             _LOGGER.debug(
                 "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> ZeroDivisionError",
                 name,
-                trg_elev,
+                elev,
                 t0_dttm,
                 t0_elev,
                 t1_dttm,
                 t1_elev,
             )
             return None
-        if nxt_dttm < tL_dttm or nxt_dttm > tR_dttm:
+        if est_dttm < tL_dttm or est_dttm > tR_dttm:
             _LOGGER.debug(
                 "%s: trg = %+7.3f: t0 = %s/%+7.3f, t1 = %s/%+7.3f -> outside range",
                 name,
-                trg_elev,
+                elev,
                 t0_dttm,
                 t0_elev,
                 t1_dttm,
                 t1_elev,
             )
             return None
-        if nxt_dttm in (t0_dttm, t1_dttm):
+        if est_dttm in (t0_dttm, t1_dttm):
             break
-        if nxt_dttm > t1_dttm:
+        if est_dttm > t1_dttm:
             t0_dttm = t1_dttm
             t0_elev = t1_elev
-            t1_dttm = nxt_dttm
-            t1_elev = nxt_elev
-        elif t0_elev < trg_elev < nxt_elev or t0_elev > trg_elev > nxt_elev:
-            t1_dttm = nxt_dttm
-            t1_elev = nxt_elev
+            t1_dttm = est_dttm
+            t1_elev = est_elev
+        elif t0_elev < elev < est_elev or t0_elev > elev > est_elev:
+            t1_dttm = est_dttm
+            t1_elev = est_elev
         else:
-            t0_dttm = nxt_dttm
-            t0_elev = nxt_elev
-    return nxt_dttm
+            t0_dttm = est_dttm
+            t0_elev = est_elev
+    return est_dttm
 
 
 class Sun2ElevationSensor(Sun2Sensor):
@@ -353,7 +356,7 @@ class Sun2ElevationSensor(Sun2Sensor):
                 astral_event(self._info, "solar_elevation", self._sol_midn),
             )
 
-        def get_nxt_dttm(trg_elev, tL_dttm, tR_dttm):
+        def get_nxt_dttm(elev, tL_dttm, tR_dttm):
             if self._prv_dttm < tL_dttm:
                 return None
             return _get_dttm_at_elev(
@@ -363,8 +366,8 @@ class Sun2ElevationSensor(Sun2Sensor):
                 tR_dttm,
                 self._prv_dttm,
                 cur_dttm,
-                trg_elev,
-                _ELEV_MAX_ERR
+                elev,
+                _ELEV_MAX_ERR,
             )
 
         if self._prv_dttm:
@@ -373,26 +376,22 @@ class Sun2ElevationSensor(Sun2Sensor):
             rnd_elev = _nearest_multiple(cur_elev, _ELEV_RND)
             if cur_dttm < self._sol_noon:
                 nxt_dttm = get_nxt_dttm(
-                    rnd_elev + _ELEV_RND,
-                    self._prv_sol_midn,
-                    self._sol_noon,
+                    rnd_elev + _ELEV_RND, self._prv_sol_midn, self._sol_noon
                 )
             else:
                 nxt_dttm = get_nxt_dttm(
-                    rnd_elev - _ELEV_RND,
-                    self._sol_noon,
-                    self._sol_midn,
+                    rnd_elev - _ELEV_RND, self._sol_noon, self._sol_midn
                 )
         else:
             nxt_dttm = None
 
         if not nxt_dttm:
             if self._sol_noon - _DELTA <= cur_dttm < self._sol_noon:
-                nxt_dttm =  self._sol_noon
+                nxt_dttm = self._sol_noon
             elif self._sol_midn - _DELTA <= cur_dttm:
-                nxt_dttm =  self._sol_midn
+                nxt_dttm = self._sol_midn
             else:
-                nxt_dttm =  cur_dttm + _DELTA
+                nxt_dttm = cur_dttm + _DELTA
 
         self._prv_dttm = cur_dttm
 
@@ -408,33 +407,166 @@ class Sun2ElevationSensor(Sun2Sensor):
         )
 
 
-class Sun2PhaseSensor(Sun2Sensor):
-    """Sun2 Phase Sensor."""
+class Sun2PhaseSensorBase(Sun2Sensor):
+    """Sun2 Phase Sensor Base."""
 
+    class Data:
+        """Unique data to each subclass that is determined once at initialization."""
+
+        __slots__ = ("rising_elevs", "rising_states", "falling_elevs", "falling_states")
+
+    class Parameters:
+        """
+        Parameters common to all subclasses that describes current portion of
+        elevation curve, determined at update time, after crossing solar noon
+        or solar midnight.
+        """
+
+        __slots__ = (
+            "cur_date",
+            "tL_dttm",
+            "tL_elev",
+            "tR_dttm",
+            "tR_elev",
+            "nxt_noon",
+            "rising",
+        )
+
+    @abstractmethod
     def __init__(self, hass, sensor_type, icon, info):
         """Initialize sensor."""
         super().__init__(hass, sensor_type, icon, info)
-        self._phases = [
-            (-18, "night_end", "night_start"),
-            (-12, "nautical_dawn", "nautical_dusk"),
-            (-6, "dawn", "dusk"),
-            (-0.833, "sunrise_start", "sunset_end"),
-            (-0.3, "sunrise_end", "sunset_start"),
-            (6, "golden_hour_1", "golden_hour_2"),
-        ]
-        self._use_nadir = True
-        self._daylight_threshold = -0.833
+        self._attrs = {}
+        self._d = Sun2PhaseSensorBase.Data()
+        self._p = Sun2PhaseSensorBase.Parameters()
         self._updates = []
-        self._daylight = None
-        self._next_change = None
 
     def _device_state_attributes(self):
-        return {ATTR_DAYLIGHT: self._daylight, ATTR_NEXT_CHANGE: self._next_change}
+        return self._attrs
 
     def _setup_fixed_updating(self):
         pass
 
+    def _state_at_elev(self, elev):
+        if self._p.rising:
+            return list(filter(lambda x: elev >= x[0], self._d.rising_states))[-1][1]
+        else:
+            return list(filter(lambda x: elev <= x[0], self._d.falling_states))[-1][1]
+
+    def _set_attrs(self, attrs):
+        self._attrs = {ATTR_NEXT_CHANGE: dt_util.as_local(self._updates[0][1])}
+        self._attrs.update(attrs)
+
+    def _calc_elev_curve_params(self, cur_dttm, cur_elev):
+        self._p.cur_date = cur_date = cur_dttm.date()
+
+        # Find the highest and lowest points on the elevation curve that encompass
+        # current time, where it is ok for the current time to be the same as the
+        # first of these two points.
+        # Note that the astral solar_midnight event will always come before the astral
+        # solar_noon event for any given date, even if it actually falls on the previous
+        # day.
+        hi_dttm = astral_event(self._info, "solar_noon", cur_date)
+        lo_dttm = astral_event(self._info, "solar_midnight", cur_date)
+        nxt_noon = astral_event(self._info, "solar_noon", cur_date + _ONE_DAY)
+        if cur_dttm < lo_dttm:
+            self._p.tL_dttm = astral_event(
+                self._info, "solar_noon", cur_date - _ONE_DAY
+            )
+            self._p.tR_dttm = lo_dttm
+        elif cur_dttm < hi_dttm:
+            self._p.tL_dttm = lo_dttm
+            self._p.tR_dttm = hi_dttm
+        else:
+            lo_dttm = astral_event(self._info, "solar_midnight", cur_date + _ONE_DAY)
+            if cur_dttm < lo_dttm:
+                self._p.tL_dttm = hi_dttm
+                self._p.tR_dttm = lo_dttm
+            else:
+                self._p.tL_dttm = lo_dttm
+                self._p.tR_dttm = nxt_noon
+        self._p.tL_elev = astral_event(self._info, "solar_elevation", self._p.tL_dttm)
+        self._p.tR_elev = astral_event(self._info, "solar_elevation", self._p.tR_dttm)
+        self._p.nxt_noon = nxt_noon
+        self._p.rising = self._p.tR_elev > self._p.tL_elev
+
+        _LOGGER.debug(
+            "%s: t0 = %s/%0.2f, cur = %s/%0.2f, t1 = %s/%0.2f, rising = %s",
+            self.name,
+            self._p.tL_dttm,
+            self._p.tL_elev,
+            cur_dttm,
+            cur_elev,
+            self._p.tR_dttm,
+            self._p.tR_elev,
+            self._p.rising,
+        )
+
+    @callback
+    def _async_do_update(self, now):
+        _, _, state, attrs = self._updates.pop(0)
+        if self._updates:
+            self._state = state
+            self._set_attrs(attrs)
+            self.async_write_ha_state()
+        else:
+            self.async_schedule_update_ha_state(True)
+
+    def _setup_update_at_time(self, update_dttm, state=None, attrs=None):
+        self._updates.append(
+            (
+                async_track_point_in_utc_time(
+                    self.hass, self._async_do_update, update_dttm
+                ),
+                update_dttm,
+                state,
+                attrs,
+            )
+        )
+
+    def _setup_update_at_elev(self, elev):
+        est_dttm = nearest_second(
+            astral_event(
+                self._info,
+                "time_at_elevation",
+                self._p.cur_date,
+                elevation=elev,
+                direction=SUN_RISING if self._p.rising else SUN_SETTING,
+            )
+        )
+        update_dttm = _get_dttm_at_elev(
+            self._info,
+            self.name,
+            self._p.tL_dttm,
+            self._p.tR_dttm,
+            max(est_dttm - _DELTA, self._p.tL_dttm),
+            min(est_dttm + _DELTA, self._p.tR_dttm),
+            elev,
+            0.005,
+        )
+        if update_dttm:
+            self._setup_update_at_time(
+                update_dttm, self._state_at_elev(elev), self._attrs_at_elev(elev)
+            )
+        else:
+            _LOGGER.error("%s: Failed to find the time at elev: %0.2f", self.name, elev)
+
+    def _setup_updates(self, cur_dttm, cur_elev):
+        if self._p.rising:
+            for elev in self._d.rising_elevs:
+                if cur_elev < elev < self._p.tR_elev:
+                    self._setup_update_at_elev(elev)
+        else:
+            for elev in self._d.falling_elevs:
+                if cur_elev > elev > self._p.tR_elev:
+                    self._setup_update_at_elev(elev)
+
     def _update(self, cur_dttm):
+        # Updates are determined only once per section of elevation curve (between a
+        # pair of points at solar noon and solar midnight.) Once those updates have
+        # been performed (or canceled, e.g., if location parameters are changed),
+        # self._updates will be empty and it will be time to fill it again for the next
+        # section of the elevation curve.
         if self._updates:
             return
 
@@ -443,132 +575,22 @@ class Sun2PhaseSensor(Sun2Sensor):
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
         cur_dttm = nearest_second(cur_dttm)
-        cur_date = cur_dttm.date()
         cur_elev = astral_event(self._info, "solar_elevation", cur_dttm)
 
-        # Find the highest and lowest points on the elevation curve that encompass
-        # current time, where it is ok for the current time to be the same as the
-        # first of these two points.
-        hi_dttm = astral_event(self._info, "solar_noon", cur_date)
-        if self._use_nadir:
-            lo_dttm = hi_dttm - _HALF_DAY
-        else:
-            lo_dttm = astral_event(self._info, "solar_midnight", cur_date)
-        if cur_dttm < lo_dttm:
-            tL_dttm = astral_event(self._info, "solar_noon", cur_date - _ONE_DAY)
-            tR_dttm = lo_dttm
-        elif cur_dttm < hi_dttm:
-            tL_dttm = lo_dttm
-            tR_dttm = hi_dttm
-        else:
-            nxt_hi_dttm = astral_event(self._info, "solar_noon", cur_date + _ONE_DAY)
-            if self._use_nadir:
-                lo_dttm = nxt_hi_dttm - _HALF_DAY
-            else:
-                lo_dttm = astral_event(
-                    self._info, "solar_midnight", cur_date + _ONE_DAY
-                )
-            if cur_dttm < lo_dttm:
-                tL_dttm = hi_dttm
-                tR_dttm = lo_dttm
-            else:
-                tL_dttm = lo_dttm
-                tR_dttm = nxt_hi_dttm
-        tL_elev = astral_event(self._info, "solar_elevation", tL_dttm)
-        tR_elev = astral_event(self._info, "solar_elevation", tR_dttm)
-        rising = tR_elev > tL_elev
-        _LOGGER.debug(
-            "%s: t0 = %s/%0.2f, cur = %s/%0.2f, t1 = %s/%0.2f, rising = %s",
-            self.name,
-            tL_dttm,
-            tL_elev,
-            cur_dttm,
-            cur_elev,
-            tR_dttm,
-            tR_elev,
-            rising,
-        )
+        self._calc_elev_curve_params(cur_dttm, cur_elev)
 
-        def get_dttm_at_elev(trg_elev):
-            approx_dttm = nearest_second(
-                astral_event(
-                    self._info,
-                    "time_at_elevation",
-                    cur_date,
-                    elevation=trg_elev,
-                    direction=SUN_RISING if rising else SUN_SETTING,
-                )
-            )
-            t0_dttm = max(approx_dttm - _DELTA, tL_dttm)
-            t1_dttm = min(approx_dttm + _DELTA, tR_dttm)
-            return _get_dttm_at_elev(
-                self._info,
-                self.name,
-                tL_dttm,
-                tR_dttm,
-                t0_dttm,
-                t1_dttm,
-                trg_elev,
-                0.005,
-            )
+        self._state = None
+        self._setup_updates(cur_dttm, cur_elev)
+        # _setup_updates may determine state
+        if not self._state:
+            self._state = self._state_at_elev(cur_elev)
+        self._set_attrs(self._attrs_at_elev(cur_elev))
 
-        @callback
-        def async_do_update(now):
-            _, _, state, daylight = self._updates.pop(0)
-            if self._updates:
-                self._state = state
-                self._daylight = daylight
-                self._next_change = dt_util.as_local(self._updates[0][1])
-                self.async_write_ha_state()
-            else:
-                self.async_schedule_update_ha_state(True)
-
-        def is_daylight(elev):
-            if rising:
-                return elev >= self._daylight_threshold
-            else:
-                return not elev <= self._daylight_threshold
-
-        def setup_update(update_dttm, state, elev):
-            return (
-                async_track_point_in_utc_time(self.hass, async_do_update, update_dttm),
-                update_dttm,
-                state,
-                is_daylight(elev),
-            )
-
-        def setup_phase_update(phase):
-            update_dttm = get_dttm_at_elev(phase[0])
-            return setup_update(update_dttm, phase[1 if rising else 2], phase[0])
-
-        if rising:
-            seen_phases = list(
-                filter(lambda x: tL_elev < x[0] <= cur_elev, self._phases)
-            )
-            self._updates = list(
-                map(
-                    setup_phase_update,
-                    filter(lambda x: tR_elev > x[0] > cur_elev, self._phases),
-                )
-            )
-            self._state = "nadir" if not seen_phases else seen_phases[-1][1]
-        else:
-            seen_phases = list(
-                filter(lambda x: tL_elev > x[0] >= cur_elev, reversed(self._phases))
-            )
-            self._updates = list(
-                map(
-                    setup_phase_update,
-                    filter(lambda x: tR_elev < x[0] < cur_elev, reversed(self._phases)),
-                )
-            )
-            self._state = "solar_noon" if not seen_phases else seen_phases[-1][2]
-        self._daylight = is_daylight(cur_elev)
-        self._updates.append(
-            setup_update(tR_dttm, "solar_noon" if rising else "nadir", tR_elev)
-        )
-
-        self._next_change = dt_util.as_local(self._updates[0][1])
+        # This last update will not directly update the state, but will rather
+        # reschedule aysnc_update() with self._updates being empty so as to make this
+        # method run again to create a new schedule of udpates. Therefore we do not
+        # need to provide state and attribute values.
+        self._setup_update_at_time(self._p.tR_dttm)
 
         def cancel_updates():
             for update in self._updates:
@@ -578,6 +600,87 @@ class Sun2PhaseSensor(Sun2Sensor):
         self._unsub_update = cancel_updates
 
         _LOGGER.debug("%s: _update time: %s", self.name, dt_util.now() - start_update)
+
+
+class Sun2PhaseSensor(Sun2PhaseSensorBase):
+    """Sun2 Phase Sensor."""
+
+    def __init__(self, hass, sensor_type, icon, info):
+        """Initialize sensor."""
+        super().__init__(hass, sensor_type, icon, info)
+        phases = [
+            (-90, "Night"),
+            (-18, "Astronomical Twilight"),
+            (-12, "Nautical Twilight"),
+            (-6, "Civil Twilight"),
+            (-0.833, "Day"),
+            (90, None),
+        ]
+        elevs, states = zip(*phases)
+        self._d.rising_elevs = sorted([*elevs[1:-1], -4, 6])
+        self._d.rising_states = phases[:-1]
+        self._d.falling_elevs = self._d.rising_elevs[::-1]
+        self._d.falling_states = list(zip(elevs[1:], states[:-1]))[::-1]
+
+    def _attrs_at_elev(self, elev):
+        if self._p.rising:
+            blue_hour = -6 <= elev < -4
+            golden_hour = -4 <= elev < 6
+        else:
+            blue_hour = -6 < elev <= -4
+            golden_hour = -4 < elev <= 6
+        return {
+            "blue_hour": blue_hour,
+            "golden_hour": golden_hour,
+            "rising": self._p.rising,
+        }
+
+
+class Sun2DeconzPhaseSensor(Sun2PhaseSensorBase):
+    """Sun2 deCONZ Phase Sensor."""
+
+    def __init__(self, hass, sensor_type, icon, info):
+        """Initialize sensor."""
+        super().__init__(hass, sensor_type, icon, info)
+        phases = [
+            (-90, "nadir", None),
+            (-18, "night_end", "night_start"),
+            (-12, "nautical_dawn", "nautical_dusk"),
+            (-6, "dawn", "dusk"),
+            (-0.833, "sunrise_start", "sunset_end"),
+            (-0.3, "sunrise_end", "sunset_start"),
+            (6, "golden_hour_1", "golden_hour_2"),
+            (90, None, "solar_noon"),
+        ]
+        elevs, rising_states, falling_states = zip(*phases)
+        self._d.rising_elevs = list(elevs[1:-1])
+        self._d.rising_states = list(zip(elevs[:-1], rising_states[:-1]))
+        self._d.falling_elevs = self._d.rising_elevs[::-1]
+        self._d.falling_states = list(zip(elevs[1:], falling_states[1:]))[::-1]
+
+    def _attrs_at_elev(self, elev):
+        if self._p.rising:
+            daylight = -0.833 <= elev
+        else:
+            daylight = -0.833 < elev
+        return {ATTR_DAYLIGHT: daylight}
+
+    def _setup_updates(self, cur_dttm, cur_elev):
+        if self._p.rising:
+            nadir_dttm = self._p.tR_dttm - _HALF_DAY
+            if cur_dttm < nadir_dttm:
+                self._state = self._d.falling_states[-1][1]
+                nadir_elev = astral_event(self._info, "solar_elevation", nadir_dttm)
+                self._setup_update_at_time(
+                    nadir_dttm,
+                    self._d.rising_states[0][1],
+                    self._attrs_at_elev(nadir_elev),
+                )
+        else:
+            nadir_dttm = self._p.nxt_noon - _HALF_DAY
+            if cur_dttm >= nadir_dttm:
+                self._state = self._d.rising_states[0][1]
+        super()._setup_updates(cur_dttm, cur_elev)
 
 
 _SENSOR_TYPES = {
@@ -607,7 +710,8 @@ _SENSOR_TYPES = {
     # Elevation
     "elevation": (Sun2ElevationSensor, "mdi:weather-sunny"),
     # Phase
-    "deconz_phase": (Sun2PhaseSensor, "mdi:weather-sunny"),
+    "phase": (Sun2PhaseSensor, "mdi:weather-sunny"),
+    "deconz_phase": (Sun2DeconzPhaseSensor, "mdi:weather-sunny"),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
