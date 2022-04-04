@@ -581,16 +581,16 @@ class Sun2PhaseSensorBase(Sun2Sensor):
 
         self._state = None
         self._setup_updates(cur_dttm, cur_elev)
-        # _setup_updates may determine state
-        if not self._state:
-            self._state = self._state_at_elev(cur_elev)
-        self._set_attrs(self._attrs_at_elev(cur_elev))
-
         # This last update will not directly update the state, but will rather
         # reschedule aysnc_update() with self._updates being empty so as to make this
         # method run again to create a new schedule of udpates. Therefore we do not
         # need to provide state and attribute values.
         self._setup_update_at_time(self._p.tR_dttm)
+
+        # _setup_updates may have already determined the state.
+        if not self._state:
+            self._state = self._state_at_elev(cur_elev)
+        self._set_attrs(self._attrs_at_elev(cur_elev))
 
         def cancel_updates():
             for update in self._updates:
