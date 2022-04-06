@@ -550,6 +550,8 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         )
 
     def _setup_update_at_elev(self, elev):
+        # Try to find a close approximation for when the sun will reach the given
+        # elevation. This should allow _get_dttm_at_elev to converge more quickly.
         est_dttm = nearest_second(
             astral_event(
                 self._info,
@@ -559,13 +561,21 @@ class Sun2PhaseSensorBase(Sun2Sensor):
                 direction=SUN_RISING if self._p.rising else SUN_SETTING,
             )
         )
+        # time_at_elevation doesn't always work around solar midnight & solar noon.
+        if est_dttm == "none":
+            _LOGGER.debug("%s: time_at_elevation(%0.2f) returned none", self.name, elev)
+            t0_dttm = self._p.tL_dttm
+            t1_dttm = self._p.tR_dttm
+        else:
+            t0_dttm = max(est_dttm - _DELTA, self._p.tL_dttm)
+            t1_dttm = min(est_dttm + _DELTA, self._p.tR_dttm)
         update_dttm = _get_dttm_at_elev(
             self._info,
             self.name,
             self._p.tL_dttm,
             self._p.tR_dttm,
-            max(est_dttm - _DELTA, self._p.tL_dttm),
-            min(est_dttm + _DELTA, self._p.tR_dttm),
+            t0_dttm,
+            t1_dttm,
             elev,
             0.005,
         )
