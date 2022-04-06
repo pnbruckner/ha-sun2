@@ -14,6 +14,7 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
+    ATTR_ICON,
     CONF_ELEVATION,
     CONF_LATITUDE,
     CONF_LONGITUDE,
@@ -42,7 +43,10 @@ _DELTA = timedelta(minutes=5)
 _ONE_DAY = timedelta(days=1)
 _HALF_DAY = timedelta(days=0.5)
 
+ATTR_RISING = "rising"
 ATTR_DAYLIGHT = "daylight"
+ATTR_BLUE_HOUR = "blue_hour"
+ATTR_GOLDEN_HOUR = "golden_hour"
 
 
 def next_midnight(dt):
@@ -453,8 +457,29 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         else:
             return list(filter(lambda x: elev <= x[0], self._d.falling_states))[-1][1]
 
+    @abstractmethod
+    def _attrs_at_elev(self, elev):
+        if self._p.rising:
+            if elev < -18:
+                icon = "mdi:weather-night"
+            elif elev < -0.833:
+                icon = "mdi:weather-sunset-up"
+            else:
+                icon = "mdi:weather-sunny"
+        else:
+            if elev > -0.833:
+                icon = "mdi:weather-sunny"
+            elif elev > -18:
+                icon = "mdi:weather-sunset-down"
+            else:
+                icon = "mdi:weather-night"
+        return {ATTR_ICON: icon}
+
     def _set_attrs(self, attrs):
         self._attrs = {ATTR_NEXT_CHANGE: dt_util.as_local(self._updates[0][1])}
+        icon = attrs.pop(ATTR_ICON, None)
+        if icon:
+            self._icon = icon
         self._attrs.update(attrs)
 
     def _calc_elev_curve_params(self, cur_dttm, cur_elev):
@@ -623,17 +648,17 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
         self._d.falling_states = list(zip(elevs[1:], states[:-1]))[::-1]
 
     def _attrs_at_elev(self, elev):
+        attrs = super()._attrs_at_elev(elev)
         if self._p.rising:
             blue_hour = -6 <= elev < -4
             golden_hour = -4 <= elev < 6
         else:
             blue_hour = -6 < elev <= -4
             golden_hour = -4 < elev <= 6
-        return {
-            "blue_hour": blue_hour,
-            "golden_hour": golden_hour,
-            "rising": self._p.rising,
-        }
+        attrs[ATTR_BLUE_HOUR] = blue_hour
+        attrs[ATTR_GOLDEN_HOUR] = golden_hour
+        attrs[ATTR_BLUE_HOUR] = self._p.rising
+        return attrs
 
 
 class Sun2DeconzPhaseSensor(Sun2PhaseSensorBase):
@@ -659,11 +684,13 @@ class Sun2DeconzPhaseSensor(Sun2PhaseSensorBase):
         self._d.falling_states = list(zip(elevs[1:], falling_states[1:]))[::-1]
 
     def _attrs_at_elev(self, elev):
+        attrs = super()._attrs_at_elev(elev)
         if self._p.rising:
             daylight = -0.833 <= elev
         else:
             daylight = -0.833 < elev
-        return {ATTR_DAYLIGHT: daylight}
+        attrs[ATTR_DAYLIGHT] = daylight
+        return attrs
 
     def _setup_updates(self, cur_dttm, cur_elev):
         if self._p.rising:
@@ -710,8 +737,8 @@ _SENSOR_TYPES = {
     # Elevation
     "elevation": (Sun2ElevationSensor, "mdi:weather-sunny"),
     # Phase
-    "phase": (Sun2PhaseSensor, "mdi:weather-sunny"),
-    "deconz_phase": (Sun2DeconzPhaseSensor, "mdi:weather-sunny"),
+    "phase": (Sun2PhaseSensor, None),
+    "deconz_phase": (Sun2DeconzPhaseSensor, None),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
