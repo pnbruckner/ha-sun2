@@ -350,7 +350,7 @@ class Sun2ElevationSensor(Sun2Sensor):
                 self._info, "solar_midnight", date - _ONE_DAY
             )
             _LOGGER.debug(
-                "%s: Solar midnight/noon/midnight: %s/%0.2f, %s/%0.2f, %s/%0.2f",
+                "%s: Solar midnight/noon/midnight: %s/%0.3f, %s/%0.3f, %s/%0.3f",
                 self.name,
                 self._prv_sol_midn,
                 astral_event(self._info, "solar_elevation", self._prv_sol_midn),
@@ -441,8 +441,8 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         """Initialize sensor."""
         super().__init__(hass, sensor_type, icon, info)
         self._attrs = {}
-        self._d = Sun2PhaseSensorBase.Data()
-        self._p = Sun2PhaseSensorBase.Parameters()
+        self._d = __class__.Data()
+        self._p = __class__.Parameters()
         self._updates = []
 
     def _device_state_attributes(self):
@@ -516,7 +516,7 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         self._p.rising = self._p.tR_elev > self._p.tL_elev
 
         _LOGGER.debug(
-            "%s: t0 = %s/%0.2f, cur = %s/%0.2f, t1 = %s/%0.2f, rising = %s",
+            "%s: tL = %s/%0.3f, cur = %s/%0.3f, tR = %s/%0.3f, rising = %s",
             self.name,
             self._p.tL_dttm,
             self._p.tL_elev,
@@ -552,18 +552,19 @@ class Sun2PhaseSensorBase(Sun2Sensor):
     def _setup_update_at_elev(self, elev):
         # Try to find a close approximation for when the sun will reach the given
         # elevation. This should allow _get_dttm_at_elev to converge more quickly.
-        est_dttm = nearest_second(
-            astral_event(
-                self._info,
-                "time_at_elevation",
-                self._p.cur_date,
-                elevation=elev,
-                direction=SUN_RISING if self._p.rising else SUN_SETTING,
+        try:
+            est_dttm = nearest_second(
+                astral_event(
+                    self._info,
+                    "time_at_elevation",
+                    self._p.cur_date,
+                    elevation=elev,
+                    direction=SUN_RISING if self._p.rising else SUN_SETTING,
+                )
             )
-        )
-        # time_at_elevation doesn't always work around solar midnight & solar noon.
-        if est_dttm == "none":
-            _LOGGER.debug("%s: time_at_elevation(%0.2f) returned none", self.name, elev)
+        except TypeError:
+            # time_at_elevation doesn't always work around solar midnight & solar noon.
+            _LOGGER.debug("%s: time_at_elevation(%0.3f) returned none", self.name, elev)
             t0_dttm = self._p.tL_dttm
             t1_dttm = self._p.tR_dttm
         else:
@@ -584,7 +585,7 @@ class Sun2PhaseSensorBase(Sun2Sensor):
                 update_dttm, self._state_at_elev(elev), self._attrs_at_elev(elev)
             )
         else:
-            _LOGGER.error("%s: Failed to find the time at elev: %0.2f", self.name, elev)
+            _LOGGER.error("%s: Failed to find the time at elev: %0.3f", self.name, elev)
 
     def _setup_updates(self, cur_dttm, cur_elev):
         if self._p.rising:
