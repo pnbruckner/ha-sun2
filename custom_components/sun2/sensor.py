@@ -672,7 +672,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
         return attrs
 
 
-class Sun2DeconzPhaseSensor(Sun2PhaseSensorBase):
+class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
     """Sun2 deCONZ Phase Sensor."""
 
     def __init__(self, hass, sensor_type, icon, info):
@@ -748,8 +748,8 @@ _SENSOR_TYPES = {
     # Elevation
     "elevation": (Sun2ElevationSensor, "mdi:weather-sunny"),
     # Phase
-    "phase": (Sun2PhaseSensor, None),
-    "deconz_phase": (Sun2DeconzPhaseSensor, None),
+    "sun_phase": (Sun2PhaseSensor, None),
+    "deconz_daylight": (Sun2DeconzDaylightSensor, None),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
