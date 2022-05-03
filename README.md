@@ -10,6 +10,7 @@ sensor:
     monitored_conditions:
       - sunrise
       - sunset
+      - sun_phase
 binary_sensor:
   - platform: sun2
     monitored_conditions:
@@ -67,6 +68,26 @@ type | description
 `elevation` | The sun's elevation (degrees).
 `min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
+`deconz_daylight` | Emulation of [deCONZ Daylight Sensor](https://www.home-assistant.io/integrations/deconz/#deconz-daylight-sensor). Entity is `sensor.deconz_daylight` instead of `sensor.daylight`.
+`sun_phase` | See [Sun Phase Sensor](#phase-sensor)
+
+##### Sun Phase Sensor
+
+###### Possible states
+state | description
+-|-
+`Night` | Sun is below -18°
+`Astronomical Twilight` | Sun is between -18° and -12°
+`Nautical Twilight` | Sun is between -12° and -6°
+`Civil Twilight` | Sun is between -6° and -0.833°
+`Day` | Sun is above -0.833°
+
+###### Attributes
+attribute | description
+-|-
+`rising` | `True` if sun is rising.
+`blue_hour` | `True` if sun is between -6° and -4°
+`golden_hour` | `True` if sun is between -4° and 6°
 
 ## Binary Sensors
 ### Configuration variables
@@ -137,6 +158,8 @@ sensor:
       - elevation
       - min_elevation
       - max_elevation
+      - sun_phase
+      - deconz_daylight
   - platform: sun2
     entity_namespace: London
     latitude: 51.50739529645933

@@ -19,22 +19,18 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     CONF_TIME_ZONE,
-    MAJOR_VERSION,
-    MINOR_VERSION,
 )
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.util import dt as dt_util
 
 from .helpers import (
-    async_init_astral_loc,
+    ATTR_NEXT_CHANGE,
     astral_event,
-    get_local_info,
     nearest_second,
-    SIG_LOC_UPDATED,
 )
+from .sun2_sensor import Sun2SensorBase
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,8 +44,6 @@ _ONE_DAY = timedelta(days=1)
 _ONE_SEC = timedelta(seconds=1)
 
 _SENSOR_TYPES = [CONF_ELEVATION]
-
-ATTR_NEXT_CHANGE = "next_change"
 
 
 # elevation
@@ -121,59 +115,18 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-class Sun2ElevationSensor(BinarySensorEntity):
+class Sun2ElevationSensor(Sun2SensorBase, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(self, hass, name, above, info):
         """Initialize sensor."""
-        self.hass = hass
-        self._name = self._orig_name = name
+        super().__init__(hass, name, info)
+
         self._threshold = above
-        self._state = None
         self._next_change = None
-
-        self._use_local_info = info is None
-        if self._use_local_info:
-            self._info = get_local_info(hass)
-        else:
-            self._info = info
-
-        self._unsub_loc_updated = None
-        self._unsub_update = None
-
-    @property
-    def _info(self):
-        return self.__info
-
-    @_info.setter
-    def _info(self, info):
-        self.__info = info
-        self._tzinfo = dt_util.get_time_zone(info[2])
-        async_init_astral_loc(self.hass, info)
-
-    @property
-    def should_poll(self):
-        """Do not poll."""
-        return False
-
-    @property
-    def name(self):
-        """Return the name of the entity."""
-        return self._name
 
     def _device_state_attributes(self):
         return {ATTR_NEXT_CHANGE: self._next_change}
-
-    if MAJOR_VERSION < 2021 or MAJOR_VERSION == 2021 and MINOR_VERSION < 4:
-        @property
-        def device_state_attributes(self):
-            """Return device specific state attributes."""
-            return self._device_state_attributes()
-    else:
-        @property
-        def extra_state_attributes(self):
-            """Return device specific state attributes."""
-            return self._device_state_attributes()
 
     @property
     def icon(self):
@@ -184,34 +137,6 @@ class Sun2ElevationSensor(BinarySensorEntity):
     def is_on(self):
         """Return true if the binary sensor is on."""
         return self._state
-
-    async def async_loc_updated(self):
-        """Location updated."""
-        if self._unsub_update:
-            self._unsub_update()
-            self._unsub_update = None
-        self._info = get_local_info(self.hass)
-        self.async_schedule_update_ha_state(True)
-
-    async def async_added_to_hass(self):
-        """Subscribe to update signal."""
-        slug = slugify(self._orig_name)
-        object_id = self.entity_id.split('.')[1]
-        if slug != object_id and object_id.endswith(slug):
-            prefix = object_id[:-len(slug)].replace("_", " ").strip().title()
-            self._name = f"{prefix} {self._orig_name}"
-        if self._use_local_info:
-            self._unsub_loc_updated = async_dispatcher_connect(
-                self.hass, SIG_LOC_UPDATED, self.async_loc_updated
-            )
-
-    async def async_will_remove_from_hass(self):
-        """Disconnect from update signal."""
-        if self._unsub_loc_updated:
-            self._unsub_loc_updated()
-        if self._unsub_update:
-            self._unsub_update()
-        self._name = self._orig_name
 
     def _find_nxt_dttm(self, t0_dttm, t0_elev, t1_dttm, t1_elev):
         # Do a binary search for time between t0 & t1 where elevation is
@@ -330,7 +255,8 @@ class Sun2ElevationSensor(BinarySensorEntity):
                 nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
                 if nxt_dttm - cur_dttm > _ONE_DAY:
                     _LOGGER.warning(
-                        "Sun elevation will not reach %f again until %s",
+                        "%s: Sun elevation will not reach %f again until %s",
+                        self.name,
                         self._threshold,
                         nxt_dttm.date(),
                     )
@@ -353,24 +279,26 @@ class Sun2ElevationSensor(BinarySensorEntity):
         cur_elev = astral_event(self._info, "solar_elevation", cur_dttm)
         self._state = cur_elev > self._threshold
         _LOGGER.debug(
-            "name=%s, above=%f, elevation=%f", self._name, self._threshold, cur_elev
+            "%s: above = %f, elevation = %f", self.name, self._threshold, cur_elev
         )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
         self._next_change = dt_util.as_local(nxt_dttm)
 
         @callback
-        def async_update(now):
+        def async_schedule_update(now):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
         if nxt_dttm:
             self._unsub_update = async_track_point_in_utc_time(
-                self.hass, async_update, nxt_dttm
+                self.hass, async_schedule_update, nxt_dttm
             )
         else:
             _LOGGER.error(
-                "Sun elevation never reaches %f at this location", self._threshold
+                "%s: Sun elevation never reaches %f at this location",
+                self.name,
+                self._threshold,
             )
 
 
@@ -392,4 +320,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             sensors.append(
                 Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE], info)
             )
-    async_add_entities(sensors, True)
+    # Don't force update now. Wait for first update until async_added_to_hass is called
+    # when final name is determined.
+    async_add_entities(sensors, False)
