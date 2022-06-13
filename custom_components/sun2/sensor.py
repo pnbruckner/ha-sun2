@@ -668,7 +668,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
             golden_hour = -4 < elev <= 6
         attrs[ATTR_BLUE_HOUR] = blue_hour
         attrs[ATTR_GOLDEN_HOUR] = golden_hour
-        attrs[ATTR_BLUE_HOUR] = self._p.rising
+        attrs[ATTR_RISING] = self._p.rising
         return attrs
 
 
