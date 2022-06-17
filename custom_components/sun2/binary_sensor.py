@@ -20,7 +20,7 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import callback
+from homeassistant.core import callback, CoreState
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
@@ -254,12 +254,13 @@ class Sun2ElevationSensor(Sun2SensorBase, BinarySensorEntity):
 
                 nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
                 if nxt_dttm - cur_dttm > _ONE_DAY:
-                    _LOGGER.warning(
-                        "%s: Sun elevation will not reach %f again until %s",
-                        self.name,
-                        self._threshold,
-                        nxt_dttm.date(),
-                    )
+                    if self.hass.state == CoreState.running:
+                        _LOGGER.warning(
+                            "%s: Sun elevation will not reach %f again until %s",
+                            self.name,
+                            self._threshold,
+                            nxt_dttm.date(),
+                        )
                 return nxt_dttm
 
             # Shift one day ahead.
@@ -283,7 +284,6 @@ class Sun2ElevationSensor(Sun2SensorBase, BinarySensorEntity):
         )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
-        self._next_change = dt_util.as_local(nxt_dttm)
 
         @callback
         def async_schedule_update(now):
@@ -291,15 +291,18 @@ class Sun2ElevationSensor(Sun2SensorBase, BinarySensorEntity):
             self.async_schedule_update_ha_state(True)
 
         if nxt_dttm:
+            self._next_change = dt_util.as_local(nxt_dttm)
             self._unsub_update = async_track_point_in_utc_time(
                 self.hass, async_schedule_update, nxt_dttm
             )
         else:
-            _LOGGER.error(
-                "%s: Sun elevation never reaches %f at this location",
-                self.name,
-                self._threshold,
-            )
+            self._next_change = None
+            if self.hass.state == CoreState.running:
+                _LOGGER.error(
+                    "%s: Sun elevation never reaches %f at this location",
+                    self.name,
+                    self._threshold,
+                )
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
