@@ -427,11 +427,11 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         """
 
         __slots__ = (
-            "cur_date",
             "tL_dttm",
             "tL_elev",
             "tR_dttm",
             "tR_elev",
+            "mid_date",
             "nxt_noon",
             "rising",
         )
@@ -483,7 +483,7 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         self._attrs.update(attrs)
 
     def _calc_elev_curve_params(self, cur_dttm, cur_elev):
-        self._p.cur_date = cur_date = cur_dttm.date()
+        cur_date = cur_dttm.date()
 
         # Find the highest and lowest points on the elevation curve that encompass
         # current time, where it is ok for the current time to be the same as the
@@ -512,6 +512,7 @@ class Sun2PhaseSensorBase(Sun2Sensor):
                 self._p.tR_dttm = nxt_noon
         self._p.tL_elev = astral_event(self._info, "solar_elevation", self._p.tL_dttm)
         self._p.tR_elev = astral_event(self._info, "solar_elevation", self._p.tR_dttm)
+        self._p.mid_date = (self._p.tL_dttm + (self._p.tR_dttm - self._p.tL_dttm) / 2).date()
         self._p.nxt_noon = nxt_noon
         self._p.rising = self._p.tR_elev > self._p.tL_elev
 
@@ -553,18 +554,38 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         # Try to find a close approximation for when the sun will reach the given
         # elevation. This should allow _get_dttm_at_elev to converge more quickly.
         try:
-            est_dttm = nearest_second(
-                astral_event(
-                    self._info,
-                    "time_at_elevation",
-                    self._p.cur_date,
-                    elevation=elev,
-                    direction=SUN_RISING if self._p.rising else SUN_SETTING,
+            def get_est_dttm(offset=None):
+                return nearest_second(
+                    astral_event(
+                        self._info,
+                        "time_at_elevation",
+                        self._p.mid_date + offset if offset else self._p.mid_date,
+                        elevation=elev,
+                        direction=SUN_RISING if self._p.rising else SUN_SETTING,
+                    )
                 )
-            )
-        except TypeError:
-            # time_at_elevation doesn't always work around solar midnight & solar noon.
-            _LOGGER.debug("%s: time_at_elevation(%0.3f) returned none", self.name, elev)
+
+            est_dttm = get_est_dttm()
+            if not self._p.tL_dttm <= est_dttm < self._p.tR_dttm:
+                est_dttm = get_est_dttm(
+                    _ONE_DAY if est_dttm < self._p.tL_dttm else -_ONE_DAY
+                )
+                if not self._p.tL_dttm <= est_dttm < self._p.tR_dttm:
+                    raise ValueError
+        except (TypeError, ValueError) as exc:
+            if isinstance(exc, TypeError):
+                # time_at_elevation doesn't always work around solar midnight & solar
+                # noon.
+                _LOGGER.debug(
+                    "%s: time_at_elevation(%0.3f) returned none", self.name, elev
+                )
+            else:
+                _LOGGER.debug(
+                    "%s: time_at_elevation(%0.3f) outside [tL, tR): %s",
+                    self.name,
+                    elev,
+                    est_dttm,
+                )
             t0_dttm = self._p.tL_dttm
             t1_dttm = self._p.tR_dttm
         else:
