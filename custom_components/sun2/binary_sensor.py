@@ -14,6 +14,7 @@ from homeassistant.components.binary_sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
     CONF_ABOVE,
     CONF_ELEVATION,
+    CONF_ENTITY_NAMESPACE,
     CONF_LATITUDE,
     CONF_LONGITUDE,
     CONF_MONITORED_CONDITIONS,
@@ -118,8 +119,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 class Sun2ElevationSensor(Sun2SensorBase, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
-    def __init__(self, hass, name, above, info):
+    def __init__(self, hass, ns, name, above, info):
         """Initialize sensor."""
+        if ns:
+            self._attr_unique_id = f"{ns} {name}"
+        else:
+            self._attr_unique_id = name
         super().__init__(hass, name, info)
 
         self._threshold = above
@@ -317,11 +322,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     else:
         info = None
     sensors = []
+    ns = config.get(CONF_ENTITY_NAMESPACE)
     for cfg in config[CONF_MONITORED_CONDITIONS]:
         if CONF_ELEVATION in cfg:
             options = cfg[CONF_ELEVATION]
             sensors.append(
-                Sun2ElevationSensor(hass, options[CONF_NAME], options[CONF_ABOVE], info)
+                Sun2ElevationSensor(hass, ns, options[CONF_NAME], options[CONF_ABOVE], info)
             )
     # Don't force update now. Wait for first update until async_added_to_hass is called
     # when final name is determined.

@@ -16,6 +16,7 @@ from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (
     ATTR_ICON,
     CONF_ELEVATION,
+    CONF_ENTITY_NAMESPACE,
     CONF_LATITUDE,
     CONF_LONGITUDE,
     CONF_MONITORED_CONDITIONS,
@@ -57,9 +58,14 @@ class Sun2Sensor(Sun2SensorBase, Entity):
     """Sun2 Sensor."""
 
     @abstractmethod
-    def __init__(self, hass, sensor_type, icon, info, default_solar_depression=0):
+    def __init__(self, hass, ns, sensor_type, icon, info, default_solar_depression=0):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type.replace("_", " ").title(), info)
+        name = sensor_type.replace("_", " ").title()
+        if ns:
+            self._attr_unique_id = f"{ns} {name}"
+        else:
+            self._attr_unique_id = name
+        super().__init__(hass, name, info)
 
         if any(sol_dep in sensor_type for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = sensor_type.rsplit("_", 1)
@@ -128,9 +134,9 @@ class Sun2Sensor(Sun2SensorBase, Entity):
 class Sun2PointInTimeSensor(Sun2Sensor):
     """Sun2 Point in Time Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info, "civil")
+        super().__init__(hass, ns, sensor_type, icon, info, "civil")
 
     @property
     def device_class(self):
@@ -153,9 +159,9 @@ def _hours_to_hms(hours):
 class Sun2PeriodOfTimeSensor(Sun2Sensor):
     """Sun2 Period of Time Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info, 0.833)
+        super().__init__(hass, ns, sensor_type, icon, info, 0.833)
 
     @property
     def unit_of_measurement(self):
@@ -194,9 +200,9 @@ class Sun2MinMaxElevationSensor(Sun2Sensor):
     """Sun2 Min/Max Elevation Sensor."""
 
     @abstractmethod
-    def __init__(self, hass, sensor_type, icon, info, is_min):
+    def __init__(self, hass, ns, sensor_type, icon, info, is_min):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info)
+        super().__init__(hass, ns, sensor_type, icon, info)
         self._event = "solar_midnight" if is_min else "solar_noon"
 
     @property
@@ -217,17 +223,17 @@ class Sun2MinMaxElevationSensor(Sun2Sensor):
 class Sun2MinElevationSensor(Sun2MinMaxElevationSensor):
     """Sun2 Min Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info, is_min=True)
+        super().__init__(hass, ns, sensor_type, icon, info, is_min=True)
 
 
 class Sun2MaxElevationSensor(Sun2MinMaxElevationSensor):
     """Sun2 Max Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info, is_min=False)
+        super().__init__(hass, ns, sensor_type, icon, info, is_min=False)
 
 
 def _nearest_multiple(value, multiple):
@@ -297,9 +303,9 @@ def _get_dttm_at_elev(info, name, tL_dttm, tR_dttm, t0_dttm, t1_dttm, elev, max_
 class Sun2ElevationSensor(Sun2Sensor):
     """Sun2 Elevation Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info)
+        super().__init__(hass, ns, sensor_type, icon, info)
         self._reset()
 
     def _reset(self):
@@ -437,9 +443,9 @@ class Sun2PhaseSensorBase(Sun2Sensor):
         )
 
     @abstractmethod
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info)
+        super().__init__(hass, ns, sensor_type, icon, info)
         self._attrs = {}
         self._d = __class__.Data()
         self._p = __class__.Parameters()
@@ -662,9 +668,9 @@ class Sun2PhaseSensorBase(Sun2Sensor):
 class Sun2PhaseSensor(Sun2PhaseSensorBase):
     """Sun2 Phase Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info)
+        super().__init__(hass, ns, sensor_type, icon, info)
         phases = [
             (-90, "Night"),
             (-18, "Astronomical Twilight"),
@@ -696,9 +702,9 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
 class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
     """Sun2 deCONZ Phase Sensor."""
 
-    def __init__(self, hass, sensor_type, icon, info):
+    def __init__(self, hass, ns, sensor_type, icon, info):
         """Initialize sensor."""
-        super().__init__(hass, sensor_type, icon, info)
+        super().__init__(hass, ns, sensor_type, icon, info)
         phases = [
             (-90, "nadir", None),
             (-18, "night_end", "night_start"),
@@ -797,11 +803,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         )
     else:
         info = None
+    ns = config.get(CONF_ENTITY_NAMESPACE)
     # Don't force update now. Wait for first update until async_added_to_hass is called
     # when final name is determined.
     async_add_entities(
         [
-            _SENSOR_TYPES[event][0](hass, event, _SENSOR_TYPES[event][1], info)
+            _SENSOR_TYPES[event][0](hass, ns, event, _SENSOR_TYPES[event][1], info)
             for event in config[CONF_MONITORED_CONDITIONS]
         ],
         False,
