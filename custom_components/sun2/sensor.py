@@ -35,7 +35,7 @@ try:
 except ImportError:
     from homeassistant.const import TIME_HOURS
 
-    time_hours = TIME_HOURS
+    time_hours = TIME_HOURS  # type: ignore[assignment]
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
@@ -600,11 +600,11 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         # SensorDeviceClass.ENUM & SensorEntityDescription.options were new in 2023.1
         with suppress(AttributeError):
             entity_description.device_class = SensorDeviceClass.ENUM
-            entity_description.options = set(
-                x[1] for x in phase_data.rising_states
-            ) | set(
-                x[1] for x in phase_data.falling_states
-            )
+            options = [state[1] for state in phase_data.rising_states]
+            for state in phase_data.falling_states:
+                if state[1] not in options:
+                    options.append(state[1])
+            entity_description.options = options
         super().__init__(loc_params, namespace, entity_description)
         self._d = phase_data
         self._updates: list[Update] = []
