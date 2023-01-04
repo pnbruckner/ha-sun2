@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Mapping, MutableMapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Generic, Optional, TypeVar, Union, cast
@@ -24,8 +25,18 @@ from homeassistant.const import (
     CONF_ENTITY_NAMESPACE,
     CONF_MONITORED_CONDITIONS,
     DEGREE,
-    TIME_HOURS,
 )
+
+# UnitOfTime was new in 2023.1
+try:
+    from homeassistant.const import UnitOfTime
+
+    time_hours = UnitOfTime.HOURS
+except ImportError:
+    from homeassistant.const import TIME_HOURS
+
+    time_hours = TIME_HOURS
+
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -186,9 +197,12 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         entity_description = SensorEntityDescription(
             key=sensor_type,
             icon=icon,
-            native_unit_of_measurement=TIME_HOURS,
+            native_unit_of_measurement=time_hours,
             state_class=SensorStateClass.MEASUREMENT,
         )
+        # SensorDeviceClass.DURATION was new in 2022.5
+        with suppress(AttributeError):
+            entity_description.device_class = SensorDeviceClass.DURATION
         super().__init__(loc_params, namespace, entity_description, -SUNSET_ELEV)
 
     @property
@@ -583,6 +597,14 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
     ) -> None:
         """Initialize sensor."""
         entity_description = SensorEntityDescription(key=sensor_type, icon=icon)
+        # SensorDeviceClass.ENUM & SensorEntityDescription.options were new in 2023.1
+        with suppress(AttributeError):
+            entity_description.device_class = SensorDeviceClass.ENUM
+            entity_description.options = set(
+                x[1] for x in phase_data.rising_states
+            ) | set(
+                x[1] for x in phase_data.falling_states
+            )
         super().__init__(loc_params, namespace, entity_description)
         self._d = phase_data
         self._updates: list[Update] = []
