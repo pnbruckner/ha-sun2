@@ -39,6 +39,7 @@ Place a copy of:
 [`binary_sensor.py`](custom_components/sun2/binary_sensor.py) at `<config>/custom_components/sun2/binary_sensor.py`  
 [`helpers.py`](custom_components/sun2/helpers.py) at `<config>/custom_components/sun2/helpers.py`  
 [`sensor.py`](custom_components/sun2/sensor.py) at `<config>/custom_components/sun2/sensor.py`  
+[`sun2_sensor.py`](custom_components/sun2/sun2_sensor.py) at `<config>/custom_components/sun2/sun2_sensor.py`  
 [`manifest.json`](custom_components/sun2/manifest.json) at `<config>/custom_components/sun2/manifest.json`
 
 where `<config>` is your Home Assistant configuration directory.
