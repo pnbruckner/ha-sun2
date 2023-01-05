@@ -2,9 +2,10 @@
   "domain": "sun2",
   "name": "Sun2",
   "version": "2.2.0b1",
-  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",
+  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/unique-ids/README.md",
   "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
   "dependencies": [],
+  "iot_class": "calculated",
   "codeowners": ["@pnbruckner"]
 }
