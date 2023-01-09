@@ -1,8 +1,8 @@
 {
   "domain": "sun2",
   "name": "Sun2",
-  "version": "2.1.3",
-  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/hacs/README.md",
+  "version": "2.2.0b3",
+  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/unique-ids/README.md",
   "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
   "dependencies": [],
