@@ -6,6 +6,7 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from math import ceil, floor
 from typing import Any, Generic, Optional, TypeVar, Union, cast
 
 from astral import SunDirection
@@ -37,7 +38,7 @@ except ImportError:
 
     time_hours = TIME_HOURS  # type: ignore[assignment]
 
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -58,7 +59,7 @@ from .const import (
     ATTR_YESTERDAY_HMS,
     HALF_DAY,
     MAX_ERR_ELEV,
-    ELEV_RND,
+    ELEV_STEP,
     LOGGER,
     MAX_ERR_PHASE,
     ONE_DAY,
@@ -72,7 +73,6 @@ from .helpers import (
     Sun2Entity,
     get_loc_params,
     hours_to_hms,
-    nearest_multiple,
     nearest_second,
     next_midnight,
 )
@@ -481,7 +481,6 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
     """Sun2 Elevation Sensor."""
 
     _prv_dttm: datetime | None = None
-    _elev_incr: float
 
     def __init__(
         self,
@@ -510,7 +509,7 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
         # before continuing.
         cur_dttm = nearest_second(cur_dttm)
         cur_elev = cast(float, self._astral_event(cur_dttm))
-        self._attr_native_value = round(cur_elev, 1)
+        self._attr_native_value = rnd_elev = round(cur_elev, 1)
         LOGGER.debug(
             "%s: Raw elevation = %f -> %s", self.name, cur_elev, self.native_value
         )
@@ -518,24 +517,19 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
         if not self._cp or cur_dttm >= self._cp.tR_dttm:
             self._prv_dttm = None
             self._cp = self._get_curve_params(cur_dttm, cur_elev)
-            self._elev_incr = ELEV_RND
-            if not self._cp.rising:
-                self._elev_incr *= -1
 
         if self._prv_dttm:
             # Extrapolate based on previous point and current point to find next point.
-            elev = nearest_multiple(cur_elev, ELEV_RND) + self._elev_incr
             # But if that crosses sunrise/sunset elevation, then make next point the
             # sunrise/sunset elevation so icon updates at the right time.
-            if (
-                self._cp.rising
-                and cur_elev < SUNSET_ELEV
-                and elev > SUNSET_ELEV
-                or not self._cp.rising
-                and cur_elev > SUNSET_ELEV
-                and elev < SUNSET_ELEV
-            ):
-                elev = SUNSET_ELEV
+            if self._cp.rising:
+                elev = floor((rnd_elev + ELEV_STEP) / ELEV_STEP) * ELEV_STEP
+                if rnd_elev < SUNSET_ELEV and elev > SUNSET_ELEV + MAX_ERR_ELEV:
+                    elev = SUNSET_ELEV + MAX_ERR_ELEV
+            else:
+                elev = ceil((rnd_elev - ELEV_STEP) / ELEV_STEP) * ELEV_STEP
+                if rnd_elev > SUNSET_ELEV and elev < SUNSET_ELEV - MAX_ERR_ELEV:
+                    elev = SUNSET_ELEV - MAX_ERR_ELEV
             nxt_dttm = self._get_dttm_at_elev(
                 self._prv_dttm, cur_dttm, elev, MAX_ERR_ELEV
             )
@@ -714,7 +708,10 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                 update_dttm, self._state_at_elev(elev), self._attrs_at_elev(elev)
             )
         else:
-            LOGGER.error("%s: Failed to find the time at elev: %0.3f", self.name, elev)
+            if self.hass.state == CoreState.running:
+                LOGGER.error(
+                    "%s: Failed to find the time at elev: %0.3f", self.name, elev
+                )
 
     def _setup_updates(self, cur_dttm: datetime, cur_elev: Num) -> None:
         """Set up updates for next portion of elevation curve."""

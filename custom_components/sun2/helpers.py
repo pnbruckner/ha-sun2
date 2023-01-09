@@ -90,11 +90,6 @@ def hours_to_hms(hours: Num | None) -> str | None:
 _Num = TypeVar("_Num", bound=Num)
 
 
-def nearest_multiple(value: Num, multiple: _Num) -> _Num:
-    """Return nearest multiple of value."""
-    return round(value / multiple) * multiple  # type: ignore[return-value]
-
-
 def nearest_second(dttm: datetime) -> datetime:
     """Round dttm to nearest second."""
     return dttm.replace(microsecond=0) + timedelta(

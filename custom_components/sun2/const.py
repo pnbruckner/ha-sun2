@@ -4,7 +4,7 @@ import logging
 
 DOMAIN = "sun2"
 
-ELEV_RND = 0.5
+ELEV_STEP = 0.5
 MAX_ERR_ELEV = 0.02
 MAX_ERR_BIN = 0.001
 MAX_ERR_PHASE = 0.005
