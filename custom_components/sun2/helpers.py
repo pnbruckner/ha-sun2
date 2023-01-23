@@ -174,15 +174,18 @@ class Sun2Entity(Entity):
             )
 
         if not self._loc_params:
+
+            async def loc_updated(loc_data: LocData) -> None:
+                """Location updated."""
+                await self.async_request_call(self._async_loc_updated(loc_data))
+
             self.async_on_remove(
-                async_dispatcher_connect(
-                    self.hass, SIG_HA_LOC_UPDATED, self._loc_updated
-                )
+                async_dispatcher_connect(self.hass, SIG_HA_LOC_UPDATED, loc_updated)
             )
 
         return loc_data
 
-    def _loc_updated(self, loc_data: LocData) -> None:
+    async def _async_loc_updated(self, loc_data: LocData) -> None:
         """Location updated."""
         if self._unsub_update:
             self._unsub_update()

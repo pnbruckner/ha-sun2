@@ -198,7 +198,6 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             key=sensor_type,
             icon=icon,
             native_unit_of_measurement=time_hours,
-            state_class=SensorStateClass.MEASUREMENT,
         )
         # SensorDeviceClass.DURATION was new in 2022.5
         with suppress(AttributeError):
@@ -337,10 +336,10 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
             return self._attr_extra_state_attributes
         return None
 
-    def _loc_updated(self, loc_data: LocData) -> None:
+    async def _async_loc_updated(self, loc_data: LocData) -> None:
         """Location updated."""
         self._cp = None
-        super()._loc_updated(loc_data)
+        await super()._async_loc_updated(loc_data)
 
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
