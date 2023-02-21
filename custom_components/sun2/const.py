@@ -17,6 +17,9 @@ ONE_SEC = timedelta(seconds=1)
 
 LOGGER = logging.getLogger(__package__)
 
+CONF_DIRECTION = "direction"
+CONF_TIME_AT_ELEVATION = "time_at_elevation"
+
 ATTR_BLUE_HOUR = "blue_hour"
 ATTR_DAYLIGHT = "daylight"
 ATTR_GOLDEN_HOUR = "golden_hour"

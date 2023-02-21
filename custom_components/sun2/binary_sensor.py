@@ -161,7 +161,6 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
             )
             and abs(tn_elev - self._threshold) <= MAX_ERR_BIN
         ):
-
             if (tn_elev - self._threshold) * slope > 0:
                 if t1_dttm == tn_dttm:
                     break
@@ -254,7 +253,6 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
                 t0_elev <= self._threshold < t1_elev
                 or t1_elev <= self._threshold <= t0_elev
             ):
-
                 nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
                 if nxt_dttm - cur_dttm > ONE_DAY:
                     if self.hass.state == CoreState.running:
