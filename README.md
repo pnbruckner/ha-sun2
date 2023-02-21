@@ -68,6 +68,7 @@ type | description
 `dusk` | The time in the evening when the sun is a 6 degrees below the horizon.
 `nautical_dusk` | The time in the evening when the sun is a 12 degrees below the horizon.
 `astronomical_dusk` | The time in the evening when the sun is a 18 degrees below the horizon.
+`time_at_elevation` | See [Time at Elevation Sensor](#time-at-elevation-sensor)
 
 #### Length of Time Sensors (in hours)
 type | description
@@ -88,7 +89,33 @@ type | description
 `min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
 `deconz_daylight` | Emulation of [deCONZ Daylight Sensor](https://www.home-assistant.io/integrations/deconz/#deconz-daylight-sensor). Entity is `sensor.deconz_daylight` instead of `sensor.daylight`.
-`sun_phase` | See [Sun Phase Sensor](#phase-sensor)
+`sun_phase` | See [Sun Phase Sensor](#sun-phase-sensor)
+
+##### Time at Elevation Sensor
+
+key | optional | description
+-|-|-
+`time_at_elevation` | no | Elevation
+`direction` | yes | `rising` (default) or `setting`
+`icon` | yes | default is `mdi:weather-sunny`
+`name` | yes | default is "DIRECTION at [minus] ELEVATION °"
+
+For example, this:
+
+```yaml
+- time_at_elevation: -0.833
+```
+
+Would be equivalent to:
+
+```yaml
+- time_at_elevation: -0.833
+  direction: rising
+  icon: mdi:weather-sunny
+  name: Rising at minus 0.833 °
+```
+
+Which would result in an entity with the ID: `sensor.rising_at_minus_0_833_deg`
 
 ##### Sun Phase Sensor
 
@@ -179,6 +206,11 @@ sensor:
       - max_elevation
       - sun_phase
       - deconz_daylight
+      - time_at_elevation: 10
+      - time_at_elevation: -10
+        direction: setting
+        icon: mdi:weather-sunset-down
+        name: Setting past 10 deg below horizon
   - platform: sun2
     entity_namespace: London
     latitude: 51.50739529645933
