@@ -983,18 +983,29 @@ _SENSOR_TYPES = {
     "deconz_daylight": SensorParams(Sun2DeconzDaylightSensor, None),
 }
 
+_DIR_TO_ICON = {
+    SunDirection.RISING: "mdi:weather-sunset-up",
+    SunDirection.SETTING: "mdi:weather-sunset-down",
+}
 
-def _tae_name(config: ConfigType) -> ConfigType:
-    """Fill in default time_at_elevation name."""
+
+def _defaults(config: ConfigType) -> ConfigType:
+    """Fill in defaults."""
+
+    elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
+    direction = cast(SunDirection, config[CONF_DIRECTION])
+
+    if not config.get(CONF_ICON):
+        config[CONF_ICON] = _DIR_TO_ICON[direction]
 
     if not config.get(CONF_NAME):
-        direction = cast(SunDirection, config[CONF_DIRECTION]).name.title()
-        elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
+        dir_str = direction.name.title()
         if elevation >= 0:
-            elev = str(elevation)
+            elev_str = str(elevation)
         else:
-            elev = f"minus {-elevation}"
-        config[CONF_NAME] = f"{direction} at {elev} °"
+            elev_str = f"minus {-elevation}"
+        config[CONF_NAME] = f"{dir_str} at {elev_str} °"
+
     return config
 
 
@@ -1005,11 +1016,11 @@ TIME_AT_ELEVATION_SCHEMA = vol.All(
             vol.Optional(CONF_DIRECTION, default=SunDirection.RISING.name): vol.All(
                 vol.Upper, cv.enum(SunDirection)
             ),
-            vol.Optional(CONF_ICON, default="mdi:weather-sunny"): cv.icon,
+            vol.Optional(CONF_ICON): cv.icon,
             vol.Optional(CONF_NAME): cv.string,
         }
     ),
-    _tae_name,
+    _defaults,
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
