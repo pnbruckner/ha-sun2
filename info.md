@@ -1,4 +1,4 @@
-# Sun2 Sensor
+# <img src="https://github.com/home-assistant/brands/blob/master/custom_integrations/sun2/icon.png" title="Composite" width="50"/> Sun2 Sensor
 
 Creates sensors that provide information about various sun related events.
 
