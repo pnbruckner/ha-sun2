@@ -1,4 +1,4 @@
-# <img src="https://github.com/home-assistant/brands/blob/master/custom_integrations/sun2/icon.png" title="Composite" width="50"/> Sun2 Sensor
+# <img src="https://brands.home-assistant.io/sun2/icon.png" alt="Composite Device Tracker Platform" width="50" height="50"/> Sun2 Sensor
 
 Creates sensors that provide information about various sun related events.
 
