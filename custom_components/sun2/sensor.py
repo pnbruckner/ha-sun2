@@ -174,14 +174,6 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
         )
         super().__init__(loc_params, namespace, entity_description, "civil")
 
-    def _update(self, cur_dttm: datetime) -> None:
-        """Update state."""
-        super()._update(cur_dttm)
-        # A state of None will get converted to "unknown", which is not appropriate for
-        # this sensor. Use the word "none" instead.
-        if self._attr_native_value is None:
-            self._attr_native_value = "none"
-
 
 class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
     """Sun2 Period of Time Sensor."""
