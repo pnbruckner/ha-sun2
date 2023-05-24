@@ -1,11 +1,11 @@
 {
   "domain": "sun2",
   "name": "Sun2",
-  "version": "2.3.0b2",
+  "codeowners": ["@pnbruckner"],
+  "dependencies": [],
   "documentation": "https://github.com/pnbruckner/ha-sun2/blob/time_at_elevation/README.md",
+  "iot_class": "calculated",
   "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
-  "dependencies": [],
-  "iot_class": "calculated",
-  "codeowners": ["@pnbruckner"]
+  "version": "2.3.0b2"
 }
