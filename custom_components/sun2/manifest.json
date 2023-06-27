@@ -3,9 +3,9 @@
   "name": "Sun2",
   "codeowners": ["@pnbruckner"],
   "dependencies": [],
-  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/time_at_elevation/README.md",
+  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
-  "version": "2.3.0b3"
+  "version": "2.3.0"
 }
