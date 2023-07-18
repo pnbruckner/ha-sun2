@@ -713,8 +713,8 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                 )
                 if not self._cp.tL_dttm <= est_dttm < self._cp.tR_dttm:
                     raise ValueError
-        except (TypeError, ValueError) as exc:
-            if isinstance(exc, TypeError):
+        except (AttributeError, TypeError, ValueError) as exc:
+            if not isinstance(exc, ValueError):
                 # time_at_elevation doesn't always work around solar midnight & solar
                 # noon.
                 LOGGER.debug(
