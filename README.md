@@ -85,6 +85,7 @@ type | description
 #### Other Sensors
 type | description
 -|-
+`azimuth` | The sun's azimuth (degrees).
 `elevation` | The sun's elevation (degrees).
 `min_elevation` | The sun's elevation at solar midnight (degrees).
 `max_elevation` | The sun's elevation at solar noon (degrees).
@@ -201,6 +202,7 @@ sensor:
       - civil_night
       - nautical_night
       - astronomical_night
+      - azimuth
       - elevation
       - min_elevation
       - max_elevation
