@@ -43,7 +43,7 @@ except ImportError:
 from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.event import async_call_later, async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util, slugify
 
@@ -86,6 +86,69 @@ _DELTA = timedelta(minutes=5)
 
 
 _T = TypeVar("_T")
+
+
+class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
+    """Sun2 Azimuth Sensor."""
+
+    _attr_native_value: float
+
+    def __init__(
+        self,
+        loc_params: LocParams | None,
+        namespace: str | None,
+        sensor_type: str,
+        icon: str | None,
+    ) -> None:
+        """Initialize sensor."""
+        name = sensor_type.replace("_", " ").title()
+        if namespace:
+            name = f"{namespace} {name}"
+        entity_description = SensorEntityDescription(
+            key=sensor_type,
+            icon=icon,
+            name=name,
+            native_unit_of_measurement=DEGREE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+        self.entity_description = entity_description
+        super().__init__(loc_params, SENSOR_DOMAIN, sensor_type)
+        self._event = "solar_azimuth"
+
+    @property
+    def native_value(self) -> str:
+        """Return the value reported by the sensor."""
+        return f"{self._attr_native_value:0.1f}"
+
+    def _setup_fixed_updating(self) -> None:
+        """Set up fixed updating."""
+        pass
+
+    def _update(self, cur_dttm: datetime) -> None:
+        """Update state."""
+        # Astral package ignores microseconds, so round to nearest second
+        # before continuing.
+        cur_dttm = nearest_second(cur_dttm)
+        self._attr_native_value = self._astral_event(cur_dttm)
+
+        @callback
+        def async_schedule_update(now: datetime) -> None:
+            """Schedule entity update."""
+            self._unsub_update = None
+            self.async_schedule_update_ha_state(True)
+
+        elevation = self._astral_event(cur_dttm, "solar_elevation")
+        if elevation >= 10:
+            delta = 4 * 60
+        elif elevation >= 0:
+            delta = 2 * 60
+        elif elevation >= -6:
+            delta = 4 * 60
+        elif elevation >= -18:
+            delta = 8 * 60
+        else:
+            delta = 20 * 60
+        self._unsub_update = async_call_later(self.hass, delta, async_schedule_update)
 
 
 class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
@@ -968,7 +1031,8 @@ _SENSOR_TYPES = {
     # Min/Max elevation
     "min_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-night"),
     "max_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-sunny"),
-    # Elevation
+    # Azimuth & Elevation
+    "azimuth": SensorParams(Sun2AzimuthSensor, "mdi:sun-angle"),
     "elevation": SensorParams(Sun2ElevationSensor, None),
     # Phase
     "sun_phase": SensorParams(Sun2PhaseSensor, None),
