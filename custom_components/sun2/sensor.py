@@ -5,7 +5,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 from math import ceil, floor
 from typing import Any, Generic, Optional, TypeVar, Union, cast
 
@@ -60,6 +60,7 @@ from .const import (
     ATTR_YESTERDAY,
     ATTR_YESTERDAY_HMS,
     CONF_DIRECTION,
+    CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
     HALF_DAY,
     MAX_ERR_ELEV,
@@ -226,6 +227,38 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
             Optional[_T], self._astral_event(cur_date)
         )
         self._tomorrow = cast(Optional[_T], self._astral_event(cur_date + ONE_DAY))
+
+
+class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
+    """Sun2 Elevation at Time Sensor."""
+
+    def __init__(
+        self,
+        loc_params: LocParams | None,
+        namespace: str | None,
+        at_time: str | time,
+    ) -> None:
+        """Initialize sensor."""
+        assert isinstance(at_time, time)
+        self._at_time = at_time
+        entity_description = SensorEntityDescription(
+            key=CONF_ELEVATION_AT_TIME,
+            icon="mdi:weather-sunny",
+            native_unit_of_measurement=DEGREE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+        # TODO: name
+        super().__init__(loc_params, namespace, entity_description)
+        self._event = "solar_elevation"
+
+    def _update(self, cur_dttm: datetime) -> None:
+        """Update state."""
+        cur_dttm = datetime.combine(cur_dttm.date(), self._at_time)
+        self._yesterday = cast(Optional[_T], self._astral_event(cur_dttm - ONE_DAY))
+        self._attr_native_value = self._today = cast(
+            Optional[_T], self._astral_event(cur_dttm)
+        )
+        self._tomorrow = cast(Optional[_T], self._astral_event(cur_dttm + ONE_DAY))
 
 
 class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
@@ -1045,7 +1078,7 @@ _DIR_TO_ICON = {
 }
 
 
-def _defaults(config: ConfigType) -> ConfigType:
+def _tae_defaults(config: ConfigType) -> ConfigType:
     """Fill in defaults."""
 
     elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
@@ -1076,13 +1109,23 @@ TIME_AT_ELEVATION_SCHEMA = vol.All(
             vol.Optional(CONF_NAME): cv.string,
         }
     ),
-    _defaults,
+    _tae_defaults,
+)
+
+ELEVATION_AT_TIME_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
+            vol.All(cv.string, cv.entity_domain("input_datetime")),
+            cv.time,
+            msg="Expected input_datetime entity ID or time string",
+        ),
+    }
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [vol.Any(TIME_AT_ELEVATION_SCHEMA, vol.In(_SENSOR_TYPES))]
+            cv.ensure_list, [vol.Any(TIME_AT_ELEVATION_SCHEMA, ELEVATION_AT_TIME_SCHEMA, vol.In(_SENSOR_TYPES))]
         ),
         **LOC_PARAMS,
     }
@@ -1107,7 +1150,7 @@ async def async_setup_platform(
                     loc_params, namespace, sensor, _SENSOR_TYPES[sensor].icon
                 )
             )
-        else:
+        elif CONF_TIME_AT_ELEVATION in sensor:
             sensors.append(
                 Sun2TimeAtElevationSensor(
                     loc_params,
@@ -1116,6 +1159,14 @@ async def async_setup_platform(
                     sensor[CONF_DIRECTION],
                     sensor[CONF_TIME_AT_ELEVATION],
                     sensor[CONF_NAME],
+                )
+            )
+        else:
+            sensors.append(
+                Sun2ElevationAtTimeSensor(
+                    loc_params,
+                    namespace,
+                    sensor[CONF_ELEVATION_AT_TIME],
                 )
             )
 
