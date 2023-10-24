@@ -222,6 +222,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         loc_params: LocParams | None,
         namespace: str | None,
         at_time: str | time,
+        name: str,
     ) -> None:
         """Initialize sensor."""
         assert isinstance(at_time, time)
@@ -232,8 +233,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
         )
-        # TODO: name
-        super().__init__(loc_params, namespace, entity_description)
+        super().__init__(loc_params, namespace, entity_description, name=name)
         self._event = "solar_elevation"
 
     def _update(self, cur_dttm: datetime) -> None:
@@ -1083,6 +1083,15 @@ def _tae_defaults(config: ConfigType) -> ConfigType:
     return config
 
 
+def _eat_defaults(config: ConfigType) -> ConfigType:
+    """Fill in defaults."""
+
+    if not config.get(CONF_NAME):
+        config[CONF_NAME] = f"Elevation at {config[CONF_ELEVATION_AT_TIME]}"
+
+    return config
+
+
 TIME_AT_ELEVATION_SCHEMA = vol.All(
     vol.Schema(
         {
@@ -1097,14 +1106,18 @@ TIME_AT_ELEVATION_SCHEMA = vol.All(
     _tae_defaults,
 )
 
-ELEVATION_AT_TIME_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
-            vol.All(cv.string, cv.entity_domain("input_datetime")),
-            cv.time,
-            msg="Expected input_datetime entity ID or time string",
-        ),
-    }
+ELEVATION_AT_TIME_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
+                vol.All(cv.string, cv.entity_domain("input_datetime")),
+                cv.time,
+                msg="Expected input_datetime entity ID or time string",
+            ),
+            vol.Optional(CONF_NAME): cv.string,
+        }
+    ),
+    _eat_defaults,
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -1152,6 +1165,7 @@ async def async_setup_platform(
                     loc_params,
                     namespace,
                     sensor[CONF_ELEVATION_AT_TIME],
+                    sensor[CONF_NAME],
                 )
             )
 
