@@ -28,18 +28,8 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     DEGREE,
+    UnitOfTime,
 )
-
-# UnitOfTime was new in 2023.1
-try:
-    from homeassistant.const import UnitOfTime
-
-    time_hours = UnitOfTime.HOURS
-except ImportError:
-    from homeassistant.const import TIME_HOURS
-
-    time_hours = TIME_HOURS  # type: ignore[assignment]
-
 from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -115,11 +105,6 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
         self.entity_description = entity_description
         super().__init__(loc_params, SENSOR_DOMAIN, sensor_type)
         self._event = "solar_azimuth"
-
-    @property
-    def native_value(self) -> str:
-        """Return the value reported by the sensor."""
-        return f"{self._attr_native_value:0.1f}"
 
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
@@ -324,7 +309,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         entity_description = SensorEntityDescription(
             key=sensor_type,
             icon=icon,
-            native_unit_of_measurement=time_hours,
+            native_unit_of_measurement=UnitOfTime.HOURS,
         )
         # SensorDeviceClass.DURATION was new in 2022.5
         with suppress(AttributeError):

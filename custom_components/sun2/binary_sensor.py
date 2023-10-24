@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from numbers import Real
-from typing import Any, Mapping, cast
+from typing import cast
 
 import voluptuous as vol
 
@@ -327,6 +327,4 @@ async def async_setup_platform(
                     loc_params, namespace, options[CONF_NAME], options[CONF_ABOVE]
                 )
             )
-    # Don't force update now. Wait for first update until async_added_to_hass is called
-    # when final name is determined.
     async_add_entities(sensors, True)

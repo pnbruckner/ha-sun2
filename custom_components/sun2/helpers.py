@@ -28,7 +28,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util, slugify
 
-from .const import DOMAIN, LOGGER, ONE_DAY, SIG_HA_LOC_UPDATED
+from .const import DOMAIN, ONE_DAY, SIG_HA_LOC_UPDATED
 
 
 Num = Union[float, int]
