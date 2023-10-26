@@ -69,6 +69,7 @@ type | description
 `nautical_dusk` | The time in the evening when the sun is a 12 degrees below the horizon.
 `astronomical_dusk` | The time in the evening when the sun is a 18 degrees below the horizon.
 `time_at_elevation` | See [Time at Elevation Sensor](#time-at-elevation-sensor)
+`elevation_at_time` | See [Elevation at Time Sensor](#elevation-at-time-sensor)
 
 #### Length of Time Sensors (in hours)
 type | description
@@ -117,6 +118,13 @@ Would be equivalent to:
 ```
 
 Which would result in an entity with the ID: `sensor.rising_at_minus_0_833_deg`
+
+##### Elevation at Time Sensor
+
+key | optional | description
+-|-|-
+`elevation_at_time` | no | time string or `input_datetime` entity ID
+`name` | yes | default is "Elevation at <value of `elevation_at_time`>"
 
 ##### Sun Phase Sensor
 
@@ -213,6 +221,9 @@ sensor:
         direction: setting
         icon: mdi:weather-sunset-down
         name: Setting past 10 deg below horizon
+      - elevation_at_time: '12:00'
+      - elevation_at_time: input_datetime.test
+        name: Elv @ test time
   - platform: sun2
     entity_namespace: London
     latitude: 51.50739529645933
