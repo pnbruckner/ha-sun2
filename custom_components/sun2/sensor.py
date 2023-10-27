@@ -101,14 +101,14 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
         name = sensor_type.replace("_", " ").title()
         if namespace:
             name = f"{namespace} {name}"
-        entity_description = SensorEntityDescription(
+        self.entity_description = SensorEntityDescription(
             key=sensor_type,
             icon=icon,
             name=name,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision = 2,
         )
-        self.entity_description = entity_description
         super().__init__(loc_params, SENSOR_DOMAIN, sensor_type)
         self._event = "solar_azimuth"
 
@@ -245,6 +245,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             icon="mdi:weather-sunny",
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=2,
         )
         super().__init__(loc_params, namespace, entity_description, name=name)
         self._event = "solar_elevation"
@@ -403,12 +404,11 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         """Initialize sensor."""
         entity_description = SensorEntityDescription(
             key=sensor_type,
+            device_class=SensorDeviceClass.DURATION,
             icon=icon,
             native_unit_of_measurement=UnitOfTime.HOURS,
+            suggested_display_precision=3,
         )
-        # SensorDeviceClass.DURATION was new in 2022.5
-        with suppress(AttributeError):
-            entity_description.device_class = SensorDeviceClass.DURATION
         super().__init__(loc_params, namespace, entity_description, -SUNSET_ELEV)
 
     @property
@@ -444,12 +444,6 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             return None
         return (end - start).total_seconds() / 3600
 
-    def _update(self, cur_dttm: datetime) -> None:
-        """Update state."""
-        super()._update(cur_dttm)
-        if self._attr_native_value is not None:
-            self._attr_native_value = round(self._attr_native_value, 3)
-
 
 class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
     """Sun2 Min/Max Elevation Sensor."""
@@ -467,6 +461,7 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
             icon=icon,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=3,
         )
         super().__init__(loc_params, namespace, entity_description)
         self._event = {
@@ -488,12 +483,6 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
                 cast(datetime, super()._astral_event(date_or_dttm)), "solar_elevation"
             ),
         )
-
-    def _update(self, cur_dttm: datetime) -> None:
-        """Update state."""
-        super()._update(cur_dttm)
-        if self._attr_native_value is not None:
-            self._attr_native_value = round(self._attr_native_value, 3)
 
 
 @dataclass
@@ -701,13 +690,9 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
             icon=icon,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=1,
         )
         super().__init__(loc_params, namespace, entity_description)
-
-    @property
-    def native_value(self) -> str:
-        """Return the value reported by the sensor."""
-        return f"{self._attr_native_value:0.1f}"
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -717,7 +702,7 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
         cur_elev = cast(float, self._astral_event(cur_dttm))
         self._attr_native_value = rnd_elev = round(cur_elev, 1)
         LOGGER.debug(
-            "%s: Raw elevation = %f -> %s", self.name, cur_elev, self.native_value
+            "%s: Raw elevation = %f -> %s", self.name, cur_elev, rnd_elev
         )
 
         if not self._cp or cur_dttm >= self._cp.tR_dttm:
@@ -796,15 +781,16 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         phase_data: PhaseData,
     ) -> None:
         """Initialize sensor."""
-        entity_description = SensorEntityDescription(key=sensor_type, icon=icon)
-        # SensorDeviceClass.ENUM & SensorEntityDescription.options were new in 2023.1
-        with suppress(AttributeError):
-            entity_description.device_class = SensorDeviceClass.ENUM
-            options = [state[1] for state in phase_data.rising_states]
-            for state in phase_data.falling_states:
-                if state[1] not in options:
-                    options.append(state[1])
-            entity_description.options = options
+        options = [state[1] for state in phase_data.rising_states]
+        for state in phase_data.falling_states:
+            if state[1] not in options:
+                options.append(state[1])
+        entity_description = SensorEntityDescription(
+            key=sensor_type,
+            device_class=SensorDeviceClass.ENUM,
+            icon=icon,
+            options=options,
+        )
         super().__init__(loc_params, namespace, entity_description)
         self._d = phase_data
         self._updates: list[Update] = []
