@@ -28,6 +28,8 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     DEGREE,
+    EVENT_HOMEASSISTANT_STARTED,
+    EVENT_STATE_CHANGED,
     UnitOfTime,
 )
 from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback, Event
@@ -224,6 +226,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
     _at_time: time | None = None
     _input_datetime: str | None = None
     _unsub_track: CALLBACK_TYPE | None = None
+    _unsub_listen: CALLBACK_TYPE | None = None
 
     def __init__(
         self,
@@ -255,19 +258,28 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         @callback
         def update_at_time(event: Event | None = None) -> None:
             """Update time from input_datetime entity."""
-            if event:
+            self._at_time = None
+            if event and event.event_type == EVENT_STATE_CHANGED:
                 state = event.data["new_state"]
             else:
                 state = self.hass.states.get(self._input_datetime)
             if not state:
-                self._at_time = None
-                LOGGER.debug("%s: %s state not found", self.name, self._input_datetime)
+                if event and event.event_type == EVENT_STATE_CHANGED:
+                    LOGGER.error("%s: %s deleted", self.name, self._input_datetime)
+                elif self.hass.state == CoreState.running:
+                    LOGGER.error("%s: %s not found", self.name, self._input_datetime)
+                else:
+                    self._unsub_listen = self.hass.bus.async_listen(EVENT_HOMEASSISTANT_STARTED, update_at_time)
             else:
-                self._at_time = time(
-                    state.attributes["hour"],
-                    state.attributes["minute"],
-                    state.attributes["second"],
-                )
+                try:
+                    self._at_time = time(
+                        state.attributes["hour"],
+                        state.attributes["minute"],
+                        state.attributes["second"],
+                    )
+                except KeyError:
+                    LOGGER.error("%s: %s missing time attributes", self.name, self._input_datetime)
+
             self.async_schedule_update_ha_state(True)
 
         self._unsub_track = async_track_state_change_event(
@@ -283,6 +295,9 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         if self._unsub_track:
             self._unsub_track()
             self._unsub_track = None
+        if self._unsub_listen:
+            self._unsub_listen()
+            self._unsub_listen = None
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
