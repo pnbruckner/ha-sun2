@@ -126,6 +126,11 @@ key | optional | description
 `elevation_at_time` | no | time string or `input_datetime` entity ID
 `name` | yes | default is "Elevation at <value of `elevation_at_time`>"
 
+When using an `input_datetime` entity it must have the time component. The date component is optional.
+If the date is not present, the result will be the sun's elevation at the given time on the current date.
+If the date is present, it will be used and the result will be the sun's elevation at the given time on the given date.
+Also in this case, the `sensor` entity will not have `yesterday`, `today` and `tomorrow` attributes.
+
 ##### Sun Phase Sensor
 
 ###### Possible states
