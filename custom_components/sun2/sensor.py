@@ -223,7 +223,7 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
 class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
     """Sun2 Elevation at Time Sensor."""
 
-    _at_time: time | None = None
+    _at_time: time | datetime | None = None
     _input_datetime: str | None = None
     _unsub_track: CALLBACK_TYPE | None = None
     _unsub_listen: CALLBACK_TYPE | None = None
@@ -249,6 +249,13 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         super().__init__(loc_params, namespace, entity_description, name=name)
         self._event = "solar_elevation"
 
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return entity specific state attributes."""
+        if isinstance(self._at_time, datetime):
+            return None
+        return super().extra_state_attributes
+
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
         super()._setup_fixed_updating()
@@ -269,16 +276,32 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
                 elif self.hass.state == CoreState.running:
                     LOGGER.error("%s: %s not found", self.name, self._input_datetime)
                 else:
-                    self._unsub_listen = self.hass.bus.async_listen(EVENT_HOMEASSISTANT_STARTED, update_at_time)
-            else:
-                try:
-                    self._at_time = time(
-                        state.attributes["hour"],
-                        state.attributes["minute"],
-                        state.attributes["second"],
+                    self._unsub_listen = self.hass.bus.async_listen(
+                        EVENT_HOMEASSISTANT_STARTED, update_at_time
                     )
-                except KeyError:
-                    LOGGER.error("%s: %s missing time attributes", self.name, self._input_datetime)
+            else:
+                if not state.attributes["has_time"]:
+                    LOGGER.error(
+                        "%s: %s missing time attributes",
+                        self.name,
+                        self._input_datetime,
+                    )
+                else:
+                    if state.attributes["has_date"]:
+                        self._at_time = datetime(
+                            state.attributes["year"],
+                            state.attributes["month"],
+                            state.attributes["day"],
+                            state.attributes["hour"],
+                            state.attributes["minute"],
+                            state.attributes["second"],
+                        )
+                    else:
+                        self._at_time = time(
+                            state.attributes["hour"],
+                            state.attributes["minute"],
+                            state.attributes["second"],
+                        )
 
             self.async_schedule_update_ha_state(True)
 
@@ -306,12 +329,16 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             self._attr_native_value = self._today = None
             self._tomorrow = None
             return
-        cur_dttm = datetime.combine(cur_dttm.date(), self._at_time)
-        self._yesterday = cast(Optional[_T], self._astral_event(cur_dttm - ONE_DAY))
-        self._attr_native_value = self._today = cast(
-            Optional[_T], self._astral_event(cur_dttm)
-        )
-        self._tomorrow = cast(Optional[_T], self._astral_event(cur_dttm + ONE_DAY))
+        if isinstance(self._at_time, datetime):
+            dttm = self._at_time
+        else:
+            dttm = datetime.combine(cur_dttm.date(), self._at_time)
+        self._attr_native_value = cast(Optional[float], self._astral_event(dttm))
+        if isinstance(self._at_time, datetime):
+            return
+        self._yesterday = cast(Optional[float], self._astral_event(dttm - ONE_DAY))
+        self._today = self._attr_native_value
+        self._tomorrow = cast(Optional[float], self._astral_event(dttm + ONE_DAY))
 
 
 class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
