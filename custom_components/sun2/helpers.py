@@ -28,7 +28,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util, slugify
 
-from .const import DOMAIN, LOGGER, ONE_DAY, SIG_HA_LOC_UPDATED
+from .const import DOMAIN, ONE_DAY, SIG_HA_LOC_UPDATED
 
 
 Num = Union[float, int]
@@ -137,6 +137,10 @@ class Sun2Entity(Entity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity will be removed from hass."""
+        self._cancel_update()
+
+    def _cancel_update(self) -> None:
+        """Cancel update."""
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
@@ -187,9 +191,7 @@ class Sun2Entity(Entity):
 
     async def _async_loc_updated(self, loc_data: LocData) -> None:
         """Location updated."""
-        if self._unsub_update:
-            self._unsub_update()
-            self._unsub_update = None
+        self._cancel_update()
         self._loc_data = loc_data
         self._setup_fixed_updating()
         self.async_schedule_update_ha_state(True)
