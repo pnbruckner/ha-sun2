@@ -33,9 +33,7 @@ SUN2_CONFIG = vol.All(
             vol.Optional(CONF_BINARY_SENSORS): vol.All(
                 cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
             ),
-            vol.Optional(CONF_SENSORS): vol.All(
-                cv.ensure_list, [SUN2_SENSOR_SCHEMA]
-            ),
+            vol.Optional(CONF_SENSORS): vol.All(cv.ensure_list, [SUN2_SENSOR_SCHEMA]),
             **LOC_PARAMS,
         }
     ),
