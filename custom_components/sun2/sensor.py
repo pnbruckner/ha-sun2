@@ -109,7 +109,7 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
             name=name,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
-            suggested_display_precision = 2,
+            suggested_display_precision=2,
         )
         super().__init__(loc_params, SENSOR_DOMAIN, sensor_type)
         self._event = "solar_azimuth"
@@ -703,9 +703,7 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
         cur_dttm = nearest_second(cur_dttm)
         cur_elev = cast(float, self._astral_event(cur_dttm))
         self._attr_native_value = rnd_elev = round(cur_elev, 1)
-        LOGGER.debug(
-            "%s: Raw elevation = %f -> %s", self.name, cur_elev, rnd_elev
-        )
+        LOGGER.debug("%s: Raw elevation = %f -> %s", self.name, cur_elev, rnd_elev)
 
         if not self._cp or cur_dttm >= self._cp.tR_dttm:
             self._prv_dttm = None

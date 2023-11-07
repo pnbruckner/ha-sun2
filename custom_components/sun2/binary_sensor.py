@@ -28,7 +28,15 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
-from .const import ATTR_NEXT_CHANGE, DOMAIN, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
+from .const import (
+    ATTR_NEXT_CHANGE,
+    DOMAIN,
+    LOGGER,
+    MAX_ERR_BIN,
+    ONE_DAY,
+    ONE_SEC,
+    SUNSET_ELEV,
+)
 from .helpers import (
     LOC_PARAMS,
     LocParams,
