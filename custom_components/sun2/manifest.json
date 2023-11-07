@@ -1,6 +1,7 @@
 {
   "domain": "sun2",
   "name": "Sun2",
+  "config_flow": false,
   "codeowners": ["@pnbruckner"],
   "dependencies": [],
   "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",

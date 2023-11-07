@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_ICON,
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
+    CONF_PLATFORM,
     DEGREE,
     EVENT_HOMEASSISTANT_STARTED,
     EVENT_STATE_CHANGED,
@@ -58,6 +59,7 @@ from .const import (
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
+    DOMAIN,
     HALF_DAY,
     MAX_ERR_ELEV,
     ELEV_STEP,
@@ -1199,17 +1201,14 @@ ELEVATION_AT_TIME_SCHEMA = vol.All(
     _eat_defaults,
 )
 
+SUN2_SENSOR_SCHEMA = vol.Any(
+    TIME_AT_ELEVATION_SCHEMA, ELEVATION_AT_TIME_SCHEMA, vol.In(_SENSOR_TYPES)
+)
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list,
-            [
-                vol.Any(
-                    TIME_AT_ELEVATION_SCHEMA,
-                    ELEVATION_AT_TIME_SCHEMA,
-                    vol.In(_SENSOR_TYPES),
-                )
-            ],
+            cv.ensure_list, [SUN2_SENSOR_SCHEMA]
         ),
         **LOC_PARAMS,
     }
@@ -1223,6 +1222,13 @@ async def async_setup_platform(
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up sensors."""
+    LOGGER.warning(
+        "%s: %s under %s is deprecated. Move to %s: ...",
+        CONF_PLATFORM,
+        DOMAIN,
+        SENSOR_DOMAIN,
+        DOMAIN,
+    )
     loc_params = get_loc_params(config)
     namespace = config.get(CONF_ENTITY_NAMESPACE)
 

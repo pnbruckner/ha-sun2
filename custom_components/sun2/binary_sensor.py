@@ -19,6 +19,7 @@ from homeassistant.const import (
     CONF_ENTITY_NAMESPACE,
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
+    CONF_PLATFORM,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
@@ -27,7 +28,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
-from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
+from .const import ATTR_NEXT_CHANGE, DOMAIN, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
     LOC_PARAMS,
     LocParams,
@@ -83,7 +84,7 @@ def _val_cfg(config: str | ConfigType) -> ConfigType:
     return config
 
 
-_BINARY_SENSOR_SCHEMA = vol.All(
+SUN2_BINARY_SENSOR_SCHEMA = vol.All(
     vol.Any(
         vol.In(_SENSOR_TYPES),
         vol.Schema(
@@ -106,7 +107,7 @@ _BINARY_SENSOR_SCHEMA = vol.All(
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [_BINARY_SENSOR_SCHEMA]
+            cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
         ),
         **LOC_PARAMS,
     }
@@ -316,6 +317,13 @@ async def async_setup_platform(
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up sensors."""
+    LOGGER.warning(
+        "%s: %s under %s is deprecated. Move to %s: ...",
+        CONF_PLATFORM,
+        DOMAIN,
+        BINARY_SENSOR_DOMAIN,
+        DOMAIN,
+    )
     loc_params = get_loc_params(config)
     namespace = config.get(CONF_ENTITY_NAMESPACE)
     sensors = []
