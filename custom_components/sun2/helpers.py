@@ -112,16 +112,12 @@ class Sun2Entity(Entity):
     _solar_depression: Num | str
 
     @abstractmethod
-    def __init__(
-        self, loc_params: LocParams | None, domain: str, object_id: str
-    ) -> None:
+    def __init__(self, loc_params: LocParams | None) -> None:
         """Initialize base class.
 
         self.name must be set up to return name before calling this.
         E.g., set up self.entity_description.name first.
         """
-        # Note that entity_platform will add namespace prefix to object ID.
-        self.entity_id = f"{domain}.{slugify(object_id)}"
         self._attr_unique_id = self.name
         self._loc_params = loc_params
 
