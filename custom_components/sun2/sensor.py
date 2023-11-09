@@ -1326,7 +1326,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    config = entry.data
+    config = entry.options
     if not (sensors_config := config.get(CONF_SENSORS)):
         return
 
