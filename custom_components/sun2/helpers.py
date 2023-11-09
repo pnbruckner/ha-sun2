@@ -11,6 +11,7 @@ from astral import LocationInfo
 from astral.location import Location
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ELEVATION,
     CONF_LATITUDE,
@@ -20,6 +21,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import CALLBACK_TYPE, Event
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     dispatcher_send,
@@ -112,7 +114,11 @@ class Sun2Entity(Entity):
     _solar_depression: Num | str
 
     @abstractmethod
-    def __init__(self, loc_params: LocParams | None) -> None:
+    def __init__(
+        self,
+        loc_params: LocParams | None,
+        entry: ConfigEntry | None,
+    ) -> None:
         """Initialize base class.
 
         self.name must be set up to return name before calling this.
@@ -120,6 +126,12 @@ class Sun2Entity(Entity):
         """
         self._attr_unique_id = self.name
         self._loc_params = loc_params
+        if entry:
+            self._attr_device_info = DeviceInfo(
+                entry_type=DeviceEntryType.SERVICE,
+                identifiers={(DOMAIN, entry.entry_id)},
+                name=entry.title,
+            )
 
     async def async_update(self) -> None:
         """Update state."""
