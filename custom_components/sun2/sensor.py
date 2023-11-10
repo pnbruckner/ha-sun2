@@ -10,6 +10,7 @@ from math import ceil, floor
 from typing import Any, Generic, Optional, TypeVar, Union, cast
 
 from astral import SunDirection
+from astral.sun import SUN_APPARENT_RADIUS
 
 import voluptuous as vol
 
@@ -409,7 +410,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             native_unit_of_measurement=UnitOfTime.HOURS,
             suggested_display_precision=3,
         )
-        super().__init__(loc_params, namespace, entity_description, -SUNSET_ELEV)
+        super().__init__(loc_params, namespace, entity_description, SUN_APPARENT_RADIUS)
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
