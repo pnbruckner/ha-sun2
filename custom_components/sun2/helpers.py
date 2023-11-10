@@ -21,7 +21,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import CALLBACK_TYPE, Event
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType
+# Device Info moved to device_registry in 2023.9
+try:
+    from homeassistant.helpers.device_registry import DeviceInfo
+except ImportError:
+    from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     dispatcher_send,
