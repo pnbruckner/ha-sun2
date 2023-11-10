@@ -1,8 +1,8 @@
 {
   "domain": "sun2",
   "name": "Sun2",
-  "config_flow": true,
   "codeowners": ["@pnbruckner"],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/pnbruckner/ha-sun2/blob/master/README.md",
   "iot_class": "calculated",
