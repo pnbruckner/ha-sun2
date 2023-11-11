@@ -130,22 +130,21 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
 
     def __init__(
         self,
-        entry: ConfigEntry | None,
         loc_params: LocParams | None,
-        name_prefix: str | None,
+        extra: ConfigEntry | str | None,
         name: str,
         above: float,
     ) -> None:
         """Initialize sensor."""
-        if not entry:
+        if not isinstance(extra, ConfigEntry):
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{BINARY_SENSOR_DOMAIN}.{slugify(name)}"
-        if name_prefix:
-            name = f"{name_prefix} {name}"
+            if extra:
+                name = f"{extra} {name}"
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, entry)
+        super().__init__(loc_params, extra if isinstance(extra, ConfigEntry) else None)
         self._event = "solar_elevation"
 
         self._threshold: float = above
@@ -326,9 +325,8 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
 
 def _sensors(
     loc_params: LocParams | None,
-    name_prefix: str | None,
+    extra: ConfigEntry | str | None,
     sensors_config: list[str | dict],
-    entry: ConfigEntry | None = None,
 ) -> list[Entity]:
     sensors = []
     for config in sensors_config:
@@ -336,11 +334,7 @@ def _sensors(
             options = config[CONF_ELEVATION]
             sensors.append(
                 Sun2ElevationSensor(
-                    entry,
-                    loc_params,
-                    name_prefix,
-                    options[CONF_NAME],
-                    options[CONF_ABOVE],
+                    loc_params, extra, options[CONF_NAME], options[CONF_ABOVE]
                 )
             )
     return sensors
@@ -382,11 +376,6 @@ async def async_setup_entry(
         return
 
     async_add_entities(
-        _sensors(
-            get_loc_params(config),
-            config.get(CONF_NAME),
-            sensors_config,
-            entry,
-        ),
+        _sensors(get_loc_params(config), entry, sensors_config),
         True,
     )

@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import (
     CONF_BINARY_SENSORS,
-    CONF_NAME,
+    CONF_LOCATION,
     CONF_SENSORS,
     CONF_UNIQUE_ID,
     Platform,
@@ -21,11 +21,11 @@ from .helpers import LOC_PARAMS
 from .sensor import SUN2_SENSOR_SCHEMA
 
 
-def _unique_names(configs: list[dict]) -> list[dict]:
-    """Check that names are unique."""
-    names = [config.get(CONF_NAME) for config in configs]
+def _unique_locations(configs: list[dict]) -> list[dict]:
+    """Check that locations are unique."""
+    names = [config.get(CONF_LOCATION) for config in configs]
     if len(names) != len(set(names)):
-        raise vol.Invalid("Names must be unique")
+        raise vol.Invalid(f"{CONF_LOCATION} values must be unique")
     return configs
 
 
@@ -35,7 +35,7 @@ SUN2_CONFIG = vol.All(
     vol.Schema(
         {
             vol.Required(CONF_UNIQUE_ID): cv.string,
-            vol.Optional(CONF_NAME): cv.string,
+            vol.Optional(CONF_LOCATION): cv.string,
             vol.Optional(CONF_BINARY_SENSORS): vol.All(
                 cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
             ),
@@ -49,7 +49,7 @@ SUN2_CONFIG = vol.All(
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Optional(DOMAIN, default=list): vol.All(
-            cv.ensure_list, [SUN2_CONFIG], _unique_names
+            cv.ensure_list, [SUN2_CONFIG], _unique_locations
         ),
     },
     extra=vol.ALLOW_EXTRA,

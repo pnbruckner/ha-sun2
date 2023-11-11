@@ -22,6 +22,7 @@ from homeassistant.const import (
 from homeassistant.core import CALLBACK_TYPE, Event
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType
+
 # Device Info moved to device_registry in 2023.9
 try:
     from homeassistant.helpers.device_registry import DeviceInfo
@@ -129,14 +130,17 @@ class Sun2Entity(Entity):
         self.name must be set up to return name before calling this.
         E.g., set up self.entity_description.name first.
         """
-        self._attr_unique_id = self.name
-        self._loc_params = loc_params
         if entry:
+            self._attr_has_entity_name = True
             self._attr_device_info = DeviceInfo(
                 entry_type=DeviceEntryType.SERVICE,
                 identifiers={(DOMAIN, entry.entry_id)},
                 name=entry.title,
             )
+            self._attr_unique_id = f"{entry.title} {self.name}"
+        else:
+            self._attr_unique_id = self.name
+        self._loc_params = loc_params
 
     async def async_update(self) -> None:
         """Update state."""
