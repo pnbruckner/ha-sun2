@@ -1,0 +1,18 @@
+{
+    "title": "Sun2",
+    "service_name": "Sun",
+    "entity": {
+        "sensor": {
+            "sun_phase": {
+                "name": "Phase",
+                "state": {
+                    "astronomical_twilight": "Astronomical Twilight",
+                    "civil_twilight": "Civil Twilight",
+                    "day": "Day",
+                    "nautical_twilight": "Nautical Twilight",
+                    "night": "Night"
+                }
+            }
+        }
+    }
+}

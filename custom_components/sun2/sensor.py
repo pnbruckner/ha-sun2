@@ -978,11 +978,11 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
     ) -> None:
         """Initialize sensor."""
         phases = (
-            (-90, "Night"),
-            (-18, "Astronomical Twilight"),
-            (-12, "Nautical Twilight"),
-            (-6, "Civil Twilight"),
-            (SUNSET_ELEV, "Day"),
+            (-90, "night"),
+            (-18, "astronomical_twilight"),
+            (-12, "nautical_twilight"),
+            (-6, "civil_twilight"),
+            (SUNSET_ELEV, "day"),
             (90, None),
         )
         elevs, states = cast(
@@ -998,6 +998,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
                 zip(elevs[1:], states[:-1]),
             )
         )[::-1]
+        self._attr_translation_key = sensor_type
         super().__init__(
             loc_params,
             extra,

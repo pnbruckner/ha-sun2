@@ -60,8 +60,7 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup composite integration."""
     regd = {
-        entry.unique_id: entry
-        for entry in hass.config_entries.async_entries(DOMAIN)
+        entry.unique_id: entry for entry in hass.config_entries.async_entries(DOMAIN)
     }
     cfgs = {cfg[CONF_UNIQUE_ID]: cfg for cfg in config[DOMAIN]}
 
@@ -72,7 +71,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
         )
     for uid in set(cfgs) & set(regd):
-        hass.config_entries.async_update_entry(regd[uid], **config_entry_params(hass, cfgs[uid]))
+        params = await config_entry_params(hass, cfgs[uid])
+        hass.config_entries.async_update_entry(regd[uid], **params)
 
     return True
 

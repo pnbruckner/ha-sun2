@@ -137,7 +137,7 @@ class Sun2Entity(Entity):
                 identifiers={(DOMAIN, entry.entry_id)},
                 name=entry.title,
             )
-            self._attr_unique_id = f"{entry.title} {self.name}"
+            self._attr_unique_id = f"{entry.title} {self.entity_description.name}"
         else:
             self._attr_unique_id = self.name
         self._loc_params = loc_params
