@@ -386,7 +386,7 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         """Initialize sensor."""
         self._direction = direction
         self._elevation = elevation
-        super().__init__(loc_params, extra, "time_at_elevation", icon, name)
+        super().__init__(loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name)
 
     def _astral_event(
         self,
@@ -998,7 +998,6 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
                 zip(elevs[1:], states[:-1]),
             )
         )[::-1]
-        self._attr_translation_key = sensor_type
         super().__init__(
             loc_params,
             extra,

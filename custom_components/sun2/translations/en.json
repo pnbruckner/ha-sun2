@@ -3,6 +3,83 @@
     "service_name": "Sun",
     "entity": {
         "sensor": {
+            "astronomical_daylight": {
+                "name": "Astronomical Daylight"
+            },
+            "astronomical_dawn": {
+                "name": "Astronomical Dawn"
+            },
+            "astronomical_dusk": {
+                "name": "Astronomical Dusk"
+            },
+            "astronomical_night": {
+                "name": "Astronomical Night"
+            },
+            "azimuth": {
+                "name": "Azimuth"
+            },
+            "civil_daylight": {
+                "name": "Civil Daylight"
+            },
+            "civil_night": {
+                "name": "Civil Night"
+            },
+            "daylight": {
+                "name": "Daylight"
+            },
+            "dawn": {
+                "name": "Dawn"
+            },
+            "deconz_daylight": {
+                "name": "deCONZ Daylight",
+                "state": {
+                    "dawn": "Dawn",
+                    "dusk": "Dusk",
+                    "golden_hour_1": "Golden Hour 1",
+                    "golden_hour_2": "Golden Hour 2",
+                    "nadir": "Nadir",
+                    "nautical_dawn": "Nautial Dawn",
+                    "nautical_dusk": "Nautial Dusk",
+                    "night_end": "Night End",
+                    "night_start": "Night Start",
+                    "solar_noon": "Solar Noon",
+                    "sunrise_end": "Sunrise End",
+                    "sunrise_start": "Sunrise Start"
+                }
+            },
+            "dusk": {
+                "name": "Dusk"
+            },
+            "elevation": {
+                "name": "Elevation"
+            },
+            "max_elevation": {
+                "name": "Maximum Elevation"
+            },
+            "min_elevation": {
+                "name": "Minimum Elevation"
+            },
+            "nautical_daylight": {
+                "name": "Nautical Daylight"
+            },
+            "nautical_dawn": {
+                "name": "Nautical Dawn"
+            },
+            "nautical_dusk": {
+                "name": "Nautical Dusk"
+            },
+            "nautical_night": {
+                "name": "Nautical Night"
+            },
+            "night": {
+                "name": "Night"
+            },
+            "solar_midnight": {
+                "name": "Solar Midnight"
+            },
+            "solar_noon": {
+                "name": "Solar Noon"
+            },
             "sun_phase": {
                 "name": "Phase",
                 "state": {
@@ -12,6 +89,12 @@
                     "nautical_twilight": "Nautical Twilight",
                     "night": "Night"
                 }
+            },
+            "sunrise": {
+                "name": "Rising"
+            },
+            "sunset": {
+                "name": "Setting"
             }
         }
     }

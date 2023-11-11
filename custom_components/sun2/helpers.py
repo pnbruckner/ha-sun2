@@ -131,6 +131,7 @@ class Sun2Entity(Entity):
         E.g., set up self.entity_description.name first.
         """
         if entry:
+            self._attr_translation_key = self.entity_description.key
             self._attr_has_entity_name = True
             self._attr_device_info = DeviceInfo(
                 entry_type=DeviceEntryType.SERVICE,
