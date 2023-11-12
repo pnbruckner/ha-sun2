@@ -1,0 +1,101 @@
+{
+    "title": "Zon2",
+    "service_name": "Zon",
+    "entity": {
+        "sensor": {
+            "astronomical_daylight": {
+                "name": "Astronomisch daglicht"
+            },
+            "astronomical_dawn": {
+                "name": "Astronomische dageraad"
+            },
+            "astronomical_dusk": {
+                "name": "Astronomische schemer"
+            },
+            "astronomical_night": {
+                "name": "Astronomische nacht"
+            },
+            "azimuth": {
+                "name": "Azimut"
+            },
+            "civil_daylight": {
+                "name": "Civiel daglicht"
+            },
+            "civil_night": {
+                "name": "Civiele nacht"
+            },
+            "daylight": {
+                "name": "Daglicht"
+            },
+            "dawn": {
+                "name": "Dageraad"
+            },
+            "deconz_daylight": {
+                "name": "deCONZ Daglicht",
+                "state": {
+                    "dawn": "Dageraad",
+                    "dusk": "Schemer",
+                    "golden_hour_1": "Gouden uur 1",
+                    "golden_hour_2": "Gouden uur 2",
+                    "nadir": "Nadir",
+                    "nautical_dawn": "Nautische dageraad",
+                    "nautical_dusk": "Nautische schemer",
+                    "night_end": "Nachteinde",
+                    "night_start": "Nachtbegin",
+                    "solar_noon": "Middagzon",
+                    "sunrise_end": "Zonsopkomsteinde",
+                    "sunrise_start": "Zonsopkomstbegin"
+                }
+            },
+            "dusk": {
+                "name": "Schemer"
+            },
+            "elevation": {
+                "name": "Hoogtehoek"
+            },
+            "max_elevation": {
+                "name": "Maximale hoogtehoek"
+            },
+            "min_elevation": {
+                "name": "Minimale hoogtehoek"
+            },
+            "nautical_daylight": {
+                "name": "Nautisch daglicht"
+            },
+            "nautical_dawn": {
+                "name": "Nautische dageraad"
+            },
+            "nautical_dusk": {
+                "name": "Nautische schemer"
+            },
+            "nautical_night": {
+                "name": "Nautische nacht"
+            },
+            "night": {
+                "name": "Nacht"
+            },
+            "solar_midnight": {
+                "name": "Zonne-middernacht"
+            },
+            "solar_noon": {
+                "name": "Middagzon"
+            },
+            "sun_phase": {
+                "name": "Fase",
+                "state": {
+                    "astronomical_twilight": "Astronomische schemering",
+                    "civil_twilight": "Civiele schemering",
+                    "day": "Dag",
+                    "nautical_twilight": "Nautische schemering",
+                    "night": "Nacht"
+                }
+            },
+            "sunrise": {
+                "name": "Zonsopkomst"
+            },
+            "sunset": {
+                "name": "Zonsondergang"
+            }
+        }
+    }
+}
