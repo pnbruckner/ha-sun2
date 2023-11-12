@@ -7,7 +7,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, time
 from math import ceil, floor
-from typing import Any, Generic, Optional, TypeVar, Union, cast
+from typing import Any, Generic, Iterable, Optional, TypeVar, Union, cast
 
 from astral import SunDirection
 from astral.sun import SUN_APPARENT_RADIUS
@@ -84,6 +84,16 @@ from .helpers import (
     next_midnight,
 )
 
+_ENABLED_SENSORS = [
+    "solar_midnight",
+    "dawn",
+    "sunrise",
+    "solar_noon",
+    "sunset",
+    "dusk",
+    CONF_ELEVATION_AT_TIME,
+    CONF_TIME_AT_ELEVATION,
+]
 _SOLAR_DEPRESSIONS = ("astronomical", "civil", "nautical")
 _DELTA = timedelta(minutes=5)
 
@@ -112,6 +122,7 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
                 name = f"{extra} {name}"
         self.entity_description = SensorEntityDescription(
             key=sensor_type,
+            entity_registry_enabled_default=sensor_type in _ENABLED_SENSORS,
             icon=icon,
             name=name,
             native_unit_of_measurement=DEGREE,
@@ -173,14 +184,18 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
         key = entity_description.key
         if name is None:
             name = key.replace("_", " ").title()
-        if not isinstance(extra, ConfigEntry):
+        if isinstance(extra, ConfigEntry):
+            entity_description.entity_registry_enabled_default = key in _ENABLED_SENSORS
+            entry = extra
+        else:
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{SENSOR_DOMAIN}.{slugify(name)}"
             if extra:
                 name = f"{extra} {name}"
+            entry = None
         entity_description.name = name
         self.entity_description = entity_description
-        super().__init__(loc_params, extra if isinstance(extra, ConfigEntry) else None)
+        super().__init__(loc_params, entry)
 
         if any(key.startswith(sol_dep + "_") for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = key.rsplit("_", 1)
@@ -1206,14 +1221,14 @@ ELEVATION_AT_TIME_SCHEMA = vol.All(
     _eat_defaults,
 )
 
-SUN2_SENSOR_SCHEMA = vol.Any(
+_SUN2_SENSOR_SCHEMA = vol.Any(
     TIME_AT_ELEVATION_SCHEMA, ELEVATION_AT_TIME_SCHEMA, vol.In(_SENSOR_TYPES)
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [SUN2_SENSOR_SCHEMA]
+            cv.ensure_list, [_SUN2_SENSOR_SCHEMA]
         ),
         **LOC_PARAMS,
     }
@@ -1223,7 +1238,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 def _sensors(
     loc_params: LocParams | None,
     extra: ConfigEntry | str | None,
-    sensors_config: list[str | dict],
+    sensors_config: Iterable[str | dict[str, Any]],
 ) -> list[Entity]:
     sensors = []
     for config in sensors_config:
@@ -1292,7 +1307,9 @@ async def async_setup_entry(
     if not (sensors_config := config.get(CONF_SENSORS)):
         return
 
+    loc_params = get_loc_params(config)
     async_add_entities(
-        _sensors(get_loc_params(config), entry, sensors_config),
+        _sensors(loc_params, entry, sensors_config)
+        + _sensors(loc_params, entry, _SENSOR_TYPES.keys()),
         True,
     )

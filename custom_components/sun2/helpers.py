@@ -142,6 +142,7 @@ class Sun2Entity(Entity):
         else:
             self._attr_unique_id = self.name
         self._loc_params = loc_params
+        self.async_on_remove(self._cancel_update)
 
     async def async_update(self) -> None:
         """Update state."""
@@ -152,10 +153,6 @@ class Sun2Entity(Entity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         self._setup_fixed_updating()
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Run when entity will be removed from hass."""
-        self._cancel_update()
 
     def _cancel_update(self) -> None:
         """Cancel update."""

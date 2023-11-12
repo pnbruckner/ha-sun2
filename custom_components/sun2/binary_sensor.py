@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from numbers import Real
-from typing import cast
+from typing import Any, Iterable, cast
 
 import voluptuous as vol
 
@@ -326,7 +326,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
 def _sensors(
     loc_params: LocParams | None,
     extra: ConfigEntry | str | None,
-    sensors_config: list[str | dict],
+    sensors_config: Iterable[str | dict[str, Any]],
 ) -> list[Entity]:
     sensors = []
     for config in sensors_config:

@@ -18,11 +18,11 @@ from homeassistant.helpers.typing import ConfigType
 from .binary_sensor import SUN2_BINARY_SENSOR_SCHEMA
 from .const import DOMAIN
 from .helpers import LOC_PARAMS
-from .sensor import SUN2_SENSOR_SCHEMA
+from .sensor import ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 
-def _unique_locations(configs: list[dict]) -> list[dict]:
-    """Check that locations are unique."""
+def _unique_locations_names(configs: list[dict]) -> list[dict]:
+    """Check that location names are unique."""
     names = [config.get(CONF_LOCATION) for config in configs]
     if len(names) != len(set(names)):
         raise vol.Invalid(f"{CONF_LOCATION} values must be unique")
@@ -31,25 +31,25 @@ def _unique_locations(configs: list[dict]) -> list[dict]:
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
-SUN2_CONFIG = vol.All(
-    vol.Schema(
-        {
-            vol.Required(CONF_UNIQUE_ID): cv.string,
-            vol.Optional(CONF_LOCATION): cv.string,
-            vol.Optional(CONF_BINARY_SENSORS): vol.All(
-                cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
-            ),
-            vol.Optional(CONF_SENSORS): vol.All(cv.ensure_list, [SUN2_SENSOR_SCHEMA]),
-            **LOC_PARAMS,
-        }
-    ),
-    cv.has_at_least_one_key(CONF_BINARY_SENSORS, CONF_SENSORS),
+SUN2_CONFIG = vol.Schema(
+    {
+        vol.Required(CONF_UNIQUE_ID): cv.string,
+        vol.Optional(CONF_LOCATION): cv.string,
+        vol.Optional(CONF_BINARY_SENSORS): vol.All(
+            cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
+        ),
+        vol.Optional(CONF_SENSORS): vol.All(
+            cv.ensure_list,
+            [vol.Any(ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA)],
+        ),
+        **LOC_PARAMS,
+    }
 )
 
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Optional(DOMAIN, default=list): vol.All(
-            cv.ensure_list, [SUN2_CONFIG], _unique_locations
+            cv.ensure_list, [SUN2_CONFIG], _unique_locations_names
         ),
     },
     extra=vol.ALLOW_EXTRA,
