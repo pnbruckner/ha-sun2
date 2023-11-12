@@ -16,7 +16,6 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .binary_sensor import SUN2_BINARY_SENSOR_SCHEMA
-from .config_flow import config_entry_params
 from .const import DOMAIN
 from .helpers import LOC_PARAMS
 from .sensor import SUN2_SENSOR_SCHEMA
@@ -59,20 +58,12 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup composite integration."""
-    regd = {
-        entry.unique_id: entry for entry in hass.config_entries.async_entries(DOMAIN)
-    }
-    cfgs = {cfg[CONF_UNIQUE_ID]: cfg for cfg in config[DOMAIN]}
-
-    for uid in set(cfgs) - set(regd):
+    for conf in config[DOMAIN]:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": SOURCE_IMPORT}, data=cfgs[uid]
+                DOMAIN, context={"source": SOURCE_IMPORT}, data=conf.copy()
             )
         )
-    for uid in set(cfgs) & set(regd):
-        params = await config_entry_params(hass, cfgs[uid])
-        hass.config_entries.async_update_entry(regd[uid], **params)
 
     return True
 

@@ -5,24 +5,10 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_LOCATION, CONF_UNIQUE_ID
-from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.translation import async_get_translations
 
 from .const import DOMAIN
-
-
-async def config_entry_params(
-    hass: HomeAssistant, data: dict[str, Any]
-) -> dict[str, Any]:
-    """Get config entry parameters from configuration data."""
-    data = data.copy()
-    translations = await async_get_translations(
-        hass, hass.config.language, "service_name", [DOMAIN], False
-    )
-    location = data.pop(CONF_LOCATION, hass.config.location_name)
-    title = f"{location} {translations[f'component.{DOMAIN}.service_name']}"
-    return {"title": title, "options": data}
 
 
 class Sun2ConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -32,8 +18,18 @@ class Sun2ConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, data: dict[str, Any]) -> FlowResult:
         """Import config entry from configuration."""
-        await self.async_set_unique_id(data.pop(CONF_UNIQUE_ID))
-        self._abort_if_unique_id_configured()
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "service_name", [DOMAIN], False
+        )
+        location = data.pop(CONF_LOCATION, self.hass.config.location_name)
+        title = f"{location} {translations[f'component.{DOMAIN}.service_name']}"
+        if existing_entry := await self.async_set_unique_id(data.pop(CONF_UNIQUE_ID)):
+            self.hass.config_entries.async_update_entry(
+                existing_entry, title=title, options=data
+            )
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(existing_entry.entry_id)
+            )
+            return self.async_abort(reason="already_configured")
 
-        params = await config_entry_params(self.hass, data)
-        return self.async_create_entry(data={}, **params)
+        return self.async_create_entry(data={}, title=title, options=data)
