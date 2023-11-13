@@ -5,6 +5,7 @@ from abc import abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, tzinfo
+from functools import partial
 from typing import Any, TypeVar, Union, cast
 
 from astral import LocationInfo
@@ -19,7 +20,7 @@ from homeassistant.const import (
     CONF_TIME_ZONE,
     EVENT_CORE_CONFIG_UPDATE,
 )
-from homeassistant.core import CALLBACK_TYPE, Event
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType
 
@@ -34,7 +35,7 @@ from homeassistant.helpers.dispatcher import (
 )
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, ONE_DAY, SIG_HA_LOC_UPDATED
 
@@ -168,22 +169,26 @@ class Sun2Entity(Entity):
         if DOMAIN not in self.hass.data:
             self.hass.data[DOMAIN] = {}
 
-            def update_local_loc_data(event: Event | None = None) -> None:
+            def update_local_loc_data(
+                hass: HomeAssistant, event: Event | None = None
+            ) -> None:
                 """Update local location data from HA's config."""
-                self.hass.data[DOMAIN][None] = loc_data = LocData(
+                hass.data[DOMAIN][None] = loc_data = LocData(
                     LocParams(
-                        self.hass.config.elevation,
-                        self.hass.config.latitude,
-                        self.hass.config.longitude,
-                        str(self.hass.config.time_zone),
+                        hass.config.elevation,
+                        hass.config.latitude,
+                        hass.config.longitude,
+                        str(hass.config.time_zone),
                     )
                 )
                 if event:
                     # Signal all instances that location data has changed.
-                    dispatcher_send(self.hass, SIG_HA_LOC_UPDATED, loc_data)
+                    dispatcher_send(hass, SIG_HA_LOC_UPDATED, loc_data)
 
-            update_local_loc_data()
-            self.hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, update_local_loc_data)
+            update_local_loc_data(self.hass)
+            self.hass.bus.async_listen(
+                EVENT_CORE_CONFIG_UPDATE, partial(update_local_loc_data, self.hass)
+            )
 
         try:
             loc_data = cast(LocData, self.hass.data[DOMAIN][self._loc_params])
