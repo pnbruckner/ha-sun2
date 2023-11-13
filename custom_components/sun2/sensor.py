@@ -1304,12 +1304,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     config = entry.options
-    if not (sensors_config := config.get(CONF_SENSORS)):
-        return
 
     loc_params = get_loc_params(config)
     async_add_entities(
-        _sensors(loc_params, entry, sensors_config)
+        _sensors(loc_params, entry, config.get(CONF_SENSORS, []))
         + _sensors(loc_params, entry, _SENSOR_TYPES.keys()),
         True,
     )
