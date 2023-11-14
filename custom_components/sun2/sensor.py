@@ -1255,7 +1255,7 @@ def _sensors(
                     extra,
                     config[CONF_NAME],
                     config[CONF_ICON],
-                    config[CONF_DIRECTION],
+                    SunDirection(config[CONF_DIRECTION]),
                     config[CONF_TIME_AT_ELEVATION],
                 )
             )
