@@ -9,15 +9,17 @@ from homeassistant.const import (
     CONF_LOCATION,
     CONF_SENSORS,
     CONF_UNIQUE_ID,
+    EVENT_CORE_CONFIG_UPDATE,
     Platform,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
 from .binary_sensor import SUN2_BINARY_SENSOR_SCHEMA
-from .const import DOMAIN
-from .helpers import LOC_PARAMS
+from .const import DOMAIN, SIG_HA_LOC_UPDATED
+from .helpers import LOC_PARAMS, LocData, LocParams
 from .sensor import ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 
@@ -58,6 +60,25 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup composite integration."""
+    hass.data[DOMAIN] = {}
+
+    def update_local_loc_data(event: Event | None = None) -> None:
+        """Update local location data from HA's config."""
+        hass.data[DOMAIN][None] = loc_data = LocData(
+            LocParams(
+                hass.config.elevation,
+                hass.config.latitude,
+                hass.config.longitude,
+                str(hass.config.time_zone),
+            )
+        )
+        if event:
+            # Signal all instances that location data has changed.
+            dispatcher_send(hass, SIG_HA_LOC_UPDATED, loc_data)
+
+    update_local_loc_data()
+    hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, update_local_loc_data)
+
     for conf in config[DOMAIN]:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
