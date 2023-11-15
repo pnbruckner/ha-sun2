@@ -1,6 +1,8 @@
 {
     "title": "Sun2",
-    "service_name": "Sun",
+    "misc": {
+        "service_name": "Sun"
+    },
     "entity": {
         "sensor": {
             "astronomical_daylight": {

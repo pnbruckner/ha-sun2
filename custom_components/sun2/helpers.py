@@ -70,6 +70,14 @@ class LocData:
         object.__setattr__(self, "tzi", dt_util.get_time_zone(lp.time_zone))
 
 
+@dataclass
+class Sun2Data:
+    """Sun2 shared data."""
+
+    locations: dict[LocParams | None, LocData]
+    translations: dict[str, str]
+
+
 def get_loc_params(config: ConfigType) -> LocParams | None:
     """Get location parameters from configuration."""
     try:
@@ -140,6 +148,10 @@ class Sun2Entity(Entity):
         self._loc_params = loc_params
         self.async_on_remove(self._cancel_update)
 
+    @property
+    def _sun2_data(self) -> Sun2Data:
+        return cast(Sun2Data, self.hass.data[DOMAIN])
+
     async def async_update(self) -> None:
         """Update state."""
         if not self._loc_data:
@@ -162,9 +174,9 @@ class Sun2Entity(Entity):
         loc_params = None -> Use location parameters from HA's config.
         """
         try:
-            loc_data = cast(LocData, self.hass.data[DOMAIN][self._loc_params])
+            loc_data = self._sun2_data.locations[self._loc_params]
         except KeyError:
-            loc_data = self.hass.data[DOMAIN][self._loc_params] = LocData(
+            loc_data = self._sun2_data.locations[self._loc_params] = LocData(
                 cast(LocParams, self._loc_params)
             )
 

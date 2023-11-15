@@ -1,6 +1,8 @@
 """Sun2 integration."""
 from __future__ import annotations
 
+from typing import cast
+
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
@@ -15,11 +17,12 @@ from homeassistant.const import (
 from homeassistant.core import Event, HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import dispatcher_send
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
 from .binary_sensor import SUN2_BINARY_SENSOR_SCHEMA
 from .const import DOMAIN, SIG_HA_LOC_UPDATED
-from .helpers import LOC_PARAMS, LocData, LocParams
+from .helpers import LOC_PARAMS, LocData, LocParams, Sun2Data
 from .sensor import ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 
@@ -60,11 +63,16 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup composite integration."""
-    hass.data[DOMAIN] = {}
+    hass.data[DOMAIN] = Sun2Data(
+        locations={},
+        translations=await async_get_translations(
+            hass, hass.config.language, "misc", [DOMAIN], False
+        ),
+    )
 
     def update_local_loc_data(event: Event | None = None) -> None:
         """Update local location data from HA's config."""
-        hass.data[DOMAIN][None] = loc_data = LocData(
+        cast(Sun2Data, hass.data[DOMAIN]).locations[None] = loc_data = LocData(
             LocParams(
                 hass.config.elevation,
                 hass.config.latitude,
