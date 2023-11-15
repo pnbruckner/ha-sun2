@@ -1,6 +1,9 @@
 {
     "title": "Zon2",
     "misc": {
+        "above": "Boven",
+        "above_horizon": "Boven Horizon",
+        "minus": "min",
         "service_name": "Zon"
     },
     "entity": {

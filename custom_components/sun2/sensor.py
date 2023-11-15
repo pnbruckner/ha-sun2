@@ -1193,36 +1193,36 @@ def _eat_defaults(config: ConfigType) -> ConfigType:
     return config
 
 
-TIME_AT_ELEVATION_SCHEMA = vol.All(
-    vol.Schema(
-        {
-            vol.Required(CONF_TIME_AT_ELEVATION): vol.Coerce(float),
-            vol.Optional(CONF_DIRECTION, default=SunDirection.RISING.name): vol.All(
-                vol.Upper, cv.enum(SunDirection)
-            ),
-            vol.Optional(CONF_ICON): cv.icon,
-            vol.Optional(CONF_NAME): cv.string,
-        }
-    ),
-    _tae_defaults,
+TIME_AT_ELEVATION_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_TIME_AT_ELEVATION): vol.Coerce(float),
+        vol.Optional(CONF_DIRECTION, default=SunDirection.RISING.name): vol.All(
+            vol.Upper, cv.enum(SunDirection)
+        ),
+        vol.Optional(CONF_ICON): cv.icon,
+        vol.Optional(CONF_NAME): cv.string,
+    }
 )
 
-ELEVATION_AT_TIME_SCHEMA = vol.All(
-    vol.Schema(
-        {
-            vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
-                vol.All(cv.string, cv.entity_domain("input_datetime")),
-                cv.time,
-                msg="Expected input_datetime entity ID or time string",
-            ),
-            vol.Optional(CONF_NAME): cv.string,
-        }
-    ),
-    _eat_defaults,
+_TIME_AT_ELEVATION_SCHEMA_W_DEFAULTS = vol.All(TIME_AT_ELEVATION_SCHEMA, _tae_defaults)
+
+ELEVATION_AT_TIME_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
+            vol.All(cv.string, cv.entity_domain("input_datetime")),
+            cv.time,
+            msg="Expected input_datetime entity ID or time string",
+        ),
+        vol.Optional(CONF_NAME): cv.string,
+    }
 )
+
+_ELEVATION_AT_TIME_SCHEMA_W_DEFAULTS = vol.All(ELEVATION_AT_TIME_SCHEMA, _eat_defaults)
 
 _SUN2_SENSOR_SCHEMA = vol.Any(
-    TIME_AT_ELEVATION_SCHEMA, ELEVATION_AT_TIME_SCHEMA, vol.In(_SENSOR_TYPES)
+    _TIME_AT_ELEVATION_SCHEMA_W_DEFAULTS,
+    _ELEVATION_AT_TIME_SCHEMA_W_DEFAULTS,
+    vol.In(_SENSOR_TYPES),
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(

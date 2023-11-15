@@ -3,72 +3,21 @@ from __future__ import annotations
 
 from typing import cast
 
-import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
-from homeassistant.const import (
-    CONF_BINARY_SENSORS,
-    CONF_LOCATION,
-    CONF_SENSORS,
-    CONF_UNIQUE_ID,
-    EVENT_CORE_CONFIG_UPDATE,
-    Platform,
-)
+from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform
 from homeassistant.core import Event, HomeAssistant
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import dispatcher_send
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from .binary_sensor import SUN2_BINARY_SENSOR_SCHEMA
 from .const import DOMAIN, SIG_HA_LOC_UPDATED
-from .helpers import LOC_PARAMS, LocData, LocParams, Sun2Data
-from .sensor import ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
-
-
-def _unique_locations_names(configs: list[dict]) -> list[dict]:
-    """Check that location names are unique."""
-    names = [config.get(CONF_LOCATION) for config in configs]
-    if len(names) != len(set(names)):
-        raise vol.Invalid(f"{CONF_LOCATION} values must be unique")
-    return configs
+from .helpers import LocData, LocParams, Sun2Data
 
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
-SUN2_CONFIG = vol.Schema(
-    {
-        vol.Required(CONF_UNIQUE_ID): cv.string,
-        vol.Optional(CONF_LOCATION): cv.string,
-        vol.Optional(CONF_BINARY_SENSORS): vol.All(
-            cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
-        ),
-        vol.Optional(CONF_SENSORS): vol.All(
-            cv.ensure_list,
-            [vol.Any(ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA)],
-        ),
-        **LOC_PARAMS,
-    }
-)
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        vol.Optional(DOMAIN, default=list): vol.All(
-            cv.ensure_list, [SUN2_CONFIG], _unique_locations_names
-        ),
-    },
-    extra=vol.ALLOW_EXTRA,
-)
-
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup composite integration."""
-    hass.data[DOMAIN] = Sun2Data(
-        locations={},
-        translations=await async_get_translations(
-            hass, hass.config.language, "misc", [DOMAIN], False
-        ),
-    )
 
     def update_local_loc_data(event: Event | None = None) -> None:
         """Update local location data from HA's config."""
@@ -87,7 +36,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     update_local_loc_data()
     hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, update_local_loc_data)
 
-    for conf in config[DOMAIN]:
+    for conf in config.get(DOMAIN, []):
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN, context={"source": SOURCE_IMPORT}, data=conf.copy()

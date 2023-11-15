@@ -1,6 +1,9 @@
 {
     "title": "Sun2",
     "misc": {
+        "above": "Above",
+        "above_horizon": "Above Horizon",
+        "minus": "minus",
         "service_name": "Sun"
     },
     "entity": {

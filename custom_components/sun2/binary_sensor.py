@@ -65,7 +65,7 @@ _SENSOR_TYPES = [CONF_ELEVATION]
 #   name: <friendly_name>
 
 
-def _val_cfg(config: str | ConfigType) -> ConfigType:
+def val_bs_cfg(config: str | ConfigType) -> ConfigType:
     """Validate configuration."""
     if isinstance(config, str):
         config = {config: {}}
@@ -81,6 +81,14 @@ def _val_cfg(config: str | ConfigType) -> ConfigType:
                 raise vol.Invalid(f"{key} not allowed for {CONF_ELEVATION}")
         if CONF_ABOVE not in options:
             options[CONF_ABOVE] = DEFAULT_ELEVATION_ABOVE
+    return config
+
+
+def _val_cfg(config: str | ConfigType) -> ConfigType:
+    """Validate configuration including name."""
+    config = val_bs_cfg(config)
+    if CONF_ELEVATION in config:
+        options = config[CONF_ELEVATION]
         if CONF_NAME not in options:
             above = options[CONF_ABOVE]
             if above == DEFAULT_ELEVATION_ABOVE:
@@ -95,30 +103,29 @@ def _val_cfg(config: str | ConfigType) -> ConfigType:
     return config
 
 
-SUN2_BINARY_SENSOR_SCHEMA = vol.All(
-    vol.Any(
-        vol.In(_SENSOR_TYPES),
-        vol.Schema(
-            {
-                vol.Required(vol.In(_SENSOR_TYPES)): vol.Any(
-                    vol.Coerce(float),
-                    vol.Schema(
-                        {
-                            vol.Optional(CONF_ABOVE): vol.Coerce(float),
-                            vol.Optional(CONF_NAME): cv.string,
-                        }
-                    ),
+SUN2_BINARY_SENSOR_SCHEMA = vol.Any(
+    vol.In(_SENSOR_TYPES),
+    vol.Schema(
+        {
+            vol.Required(vol.In(_SENSOR_TYPES)): vol.Any(
+                vol.Coerce(float),
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_ABOVE): vol.Coerce(float),
+                        vol.Optional(CONF_NAME): cv.string,
+                    }
                 ),
-            }
-        ),
+            ),
+        }
     ),
-    _val_cfg,
 )
+
+_SUN2_BINARY_SENSOR_SCHEMA_W_DEFAULTS = vol.All(SUN2_BINARY_SENSOR_SCHEMA, _val_cfg)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
+            cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA_W_DEFAULTS]
         ),
         **LOC_PARAMS,
     }
