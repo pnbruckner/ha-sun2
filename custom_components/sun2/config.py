@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from astral import SunDirection
 import voluptuous as vol
 
 from homeassistant.const import (
@@ -24,14 +25,14 @@ from .binary_sensor import (
     SUN2_BINARY_SENSOR_SCHEMA,
     val_bs_cfg,
 )
-from .const import CONF_ELEVATION_AT_TIME, DOMAIN
-from .helpers import LOC_PARAMS, Sun2Data
-from .sensor import (
-    _eat_defaults,
-    _tae_defaults,
-    ELEVATION_AT_TIME_SCHEMA,
-    TIME_AT_ELEVATION_SCHEMA,
+from .const import (
+    CONF_DIRECTION,
+    CONF_ELEVATION_AT_TIME,
+    CONF_TIME_AT_ELEVATION,
+    DOMAIN,
 )
+from .helpers import LOC_PARAMS, Sun2Data
+from .sensor import val_tae_cfg, ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 _SUN2_LOCATION_CONFIG = vol.Schema(
     {
@@ -70,6 +71,13 @@ _SUN2_CONFIG_SCHEMA = vol.Schema(
 )
 
 
+def _translation(hass: HomeAssistant, key: str) -> str:
+    """Sun2 translations."""
+    return cast(Sun2Data, hass.data[DOMAIN]).translations[
+        f"component.{DOMAIN}.misc.{key}"
+    ]
+
+
 def _val_bs_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
     """Validate binary_sensor name."""
     if CONF_ELEVATION in config:
@@ -77,21 +85,44 @@ def _val_bs_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
         if CONF_NAME not in options:
             above = options[CONF_ABOVE]
             if above == DEFAULT_ELEVATION_ABOVE:
-                name = cast(Sun2Data, hass.data[DOMAIN]).translations[
-                    f"component.{DOMAIN}.misc.above_horizon"
-                ]
+                name = _translation(hass, "above_horizon")
             else:
-                above_str = cast(Sun2Data, hass.data[DOMAIN]).translations[
-                    f"component.{DOMAIN}.misc.above"
-                ]
+                above_str = _translation(hass, "above")
                 if above < 0:
-                    minus_str = cast(Sun2Data, hass.data[DOMAIN]).translations[
-                        f"component.{DOMAIN}.misc.minus"
-                    ]
+                    minus_str = _translation(hass, "minus")
                     name = f"{above_str} {minus_str} {-above}"
                 else:
                     name = f"{above_str} {above}"
             options[CONF_NAME] = name
+    return config
+
+
+def _val_eat_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
+    """Validate elevation_at_time name."""
+    if config.get(CONF_NAME):
+        return config
+
+    config[
+        CONF_NAME
+    ] = f"{_translation(hass, 'elevation_at')} {config[CONF_ELEVATION_AT_TIME]}"
+
+    return config
+
+
+def _val_tae_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
+    """Validate time_at_elevation name."""
+    if config.get(CONF_NAME):
+        return config
+
+    direction = SunDirection(config[CONF_DIRECTION])
+    elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
+
+    if elevation >= 0:
+        elev_str = str(elevation)
+    else:
+        elev_str = f"{_translation(hass, 'minus')} {-elevation}"
+    config[CONF_NAME] = f"{_translation(hass, direction.name.lower())} at {elev_str} °"
+
     return config
 
 
@@ -123,8 +154,10 @@ async def async_validate_config(
             sensor_configs = []
             for sensor_config in loc_config[CONF_SENSORS]:
                 if CONF_ELEVATION_AT_TIME in sensor_config:
-                    sensor_configs.append(_eat_defaults(sensor_config))
+                    sensor_configs.append(_val_eat_name(hass, sensor_config))
                 else:
-                    sensor_configs.append(_tae_defaults(sensor_config))
+                    sensor_configs.append(
+                        _val_tae_name(hass, val_tae_cfg(sensor_config))
+                    )
             loc_config[CONF_SENSORS] = sensor_configs
     return config

@@ -1164,29 +1164,36 @@ _DIR_TO_ICON = {
 }
 
 
-def _tae_defaults(config: ConfigType) -> ConfigType:
-    """Fill in defaults."""
-
-    elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
-    direction = cast(SunDirection, config[CONF_DIRECTION])
-
+def val_tae_cfg(config: ConfigType) -> ConfigType:
+    """Validate time_at_elevation config."""
+    direction = SunDirection(config[CONF_DIRECTION])
     if not config.get(CONF_ICON):
         config[CONF_ICON] = _DIR_TO_ICON[direction]
+    return config
 
-    if not config.get(CONF_NAME):
-        dir_str = direction.name.title()
-        if elevation >= 0:
-            elev_str = str(elevation)
-        else:
-            elev_str = f"minus {-elevation}"
-        config[CONF_NAME] = f"{dir_str} at {elev_str} °"
+
+def _tae_defaults(config: ConfigType) -> ConfigType:
+    """Fill in defaults including name."""
+    config = val_tae_cfg(config)
+
+    if config.get(CONF_NAME):
+        return config
+
+    direction = SunDirection(config[CONF_DIRECTION])
+    elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
+
+    dir_str = direction.name.title()
+    if elevation >= 0:
+        elev_str = str(elevation)
+    else:
+        elev_str = f"minus {-elevation}"
+    config[CONF_NAME] = f"{dir_str} at {elev_str} °"
 
     return config
 
 
 def _eat_defaults(config: ConfigType) -> ConfigType:
-    """Fill in defaults."""
-
+    """Fill in defaults including name."""
     if not config.get(CONF_NAME):
         config[CONF_NAME] = f"Elevation at {config[CONF_ELEVATION_AT_TIME]}"
 

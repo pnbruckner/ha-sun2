@@ -3,8 +3,11 @@
     "misc": {
         "above": "Above",
         "above_horizon": "Above Horizon",
+        "elevation_at": "Elevation at",
         "minus": "minus",
-        "service_name": "Sun"
+        "rising": "Rising",
+        "service_name": "Sun",
+        "setting": "Setting"
     },
     "entity": {
         "sensor": {

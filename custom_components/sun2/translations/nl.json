@@ -3,8 +3,11 @@
     "misc": {
         "above": "Boven",
         "above_horizon": "Boven Horizon",
+        "elevation_at": "Hoogte bij",
         "minus": "min",
-        "service_name": "Zon"
+        "rising": "Zonsopkomst",
+        "service_name": "Zon",
+        "setting": "Zonsondergang"
     },
     "entity": {
         "sensor": {
