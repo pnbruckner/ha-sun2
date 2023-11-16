@@ -34,6 +34,8 @@ from .const import (
 from .helpers import LOC_PARAMS, Sun2Data
 from .sensor import val_tae_cfg, ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
+PACKAGE_MERGE_HINT = "list"
+
 _SUN2_LOCATION_CONFIG = vol.Schema(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
