@@ -65,7 +65,7 @@ _SENSOR_TYPES = [CONF_ELEVATION]
 #   name: <friendly_name>
 
 
-def val_bs_cfg(config: str | ConfigType) -> ConfigType:
+def _val_bs_cfg(config: str | ConfigType) -> ConfigType:
     """Validate configuration."""
     if isinstance(config, str):
         config = {config: {}}
@@ -86,7 +86,7 @@ def val_bs_cfg(config: str | ConfigType) -> ConfigType:
 
 def _val_cfg(config: str | ConfigType) -> ConfigType:
     """Validate configuration including name."""
-    config = val_bs_cfg(config)
+    config = _val_bs_cfg(config)
     if CONF_ELEVATION in config:
         options = config[CONF_ELEVATION]
         if CONF_NAME not in options:
@@ -330,7 +330,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
-def _sensors(
+def _sensors_old(
     loc_params: LocParams | None,
     extra: ConfigEntry | str | None,
     sensors_config: Iterable[str | dict[str, Any]],
@@ -342,6 +342,22 @@ def _sensors(
             sensors.append(
                 Sun2ElevationSensor(
                     loc_params, extra, options[CONF_NAME], options[CONF_ABOVE]
+                )
+            )
+    return sensors
+
+
+def _sensors_new(
+    loc_params: LocParams | None,
+    extra: ConfigEntry | str | None,
+    sensors_config: Iterable[str | dict[str, Any]],
+) -> list[Entity]:
+    sensors = []
+    for config in sensors_config:
+        if CONF_ELEVATION in config:
+            sensors.append(
+                Sun2ElevationSensor(
+                    loc_params, extra, config[CONF_NAME], config[CONF_ELEVATION]
                 )
             )
     return sensors
@@ -363,7 +379,7 @@ async def async_setup_platform(
     )
 
     async_add_entities(
-        _sensors(
+        _sensors_old(
             get_loc_params(config),
             config.get(CONF_ENTITY_NAMESPACE),
             config[CONF_MONITORED_CONDITIONS],
@@ -383,6 +399,6 @@ async def async_setup_entry(
         return
 
     async_add_entities(
-        _sensors(get_loc_params(config), entry, sensors_config),
+        _sensors_new(get_loc_params(config), entry, sensors_config),
         True,
     )

@@ -7,7 +7,6 @@ from astral import SunDirection
 import voluptuous as vol
 
 from homeassistant.const import (
-    CONF_ABOVE,
     CONF_BINARY_SENSORS,
     CONF_ELEVATION,
     CONF_LOCATION,
@@ -20,28 +19,34 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from .binary_sensor import (
-    DEFAULT_ELEVATION_ABOVE,
-    SUN2_BINARY_SENSOR_SCHEMA,
-    val_bs_cfg,
-)
 from .const import (
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
+    SUNSET_ELEV,
 )
 from .helpers import LOC_PARAMS, Sun2Data
 from .sensor import val_tae_cfg, ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 PACKAGE_MERGE_HINT = "list"
+DEFAULT_ELEVATION = SUNSET_ELEV
+
+_SUN2_BINARY_SENSOR_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ELEVATION): vol.Any(
+            vol.All(vol.Lower, "horizon"), vol.Coerce(float)
+        ),
+        vol.Optional(CONF_NAME): cv.string,
+    }
+)
 
 _SUN2_LOCATION_CONFIG = vol.Schema(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
         vol.Optional(CONF_LOCATION): cv.string,
         vol.Optional(CONF_BINARY_SENSORS): vol.All(
-            cv.ensure_list, [SUN2_BINARY_SENSOR_SCHEMA]
+            cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA]
         ),
         vol.Optional(CONF_SENSORS): vol.All(
             cv.ensure_list,
@@ -80,22 +85,24 @@ def _translation(hass: HomeAssistant, key: str) -> str:
     ]
 
 
-def _val_bs_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
-    """Validate binary_sensor name."""
-    if CONF_ELEVATION in config:
-        options = config[CONF_ELEVATION]
-        if CONF_NAME not in options:
-            above = options[CONF_ABOVE]
-            if above == DEFAULT_ELEVATION_ABOVE:
-                name = _translation(hass, "above_horizon")
-            else:
-                above_str = _translation(hass, "above")
-                if above < 0:
-                    minus_str = _translation(hass, "minus")
-                    name = f"{above_str} {minus_str} {-above}"
-                else:
-                    name = f"{above_str} {above}"
-            options[CONF_NAME] = name
+def _val_bs_elevation(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
+    """Validate elevation binary_sensor."""
+    if config[CONF_ELEVATION] == "horizon":
+        config[CONF_ELEVATION] = DEFAULT_ELEVATION
+
+    if config.get(CONF_NAME):
+        return config
+
+    if (elv := config[CONF_ELEVATION]) == DEFAULT_ELEVATION:
+        name = _translation(hass, "above_horizon")
+    else:
+        above_str = _translation(hass, "above")
+        if elv < 0:
+            minus_str = _translation(hass, "minus")
+            name = f"{above_str} {minus_str} {-elv}"
+        else:
+            name = f"{above_str} {elv}"
+    config[CONF_NAME] = name
     return config
 
 
@@ -149,8 +156,7 @@ async def async_validate_config(
     for loc_config in config[DOMAIN]:
         if CONF_BINARY_SENSORS in loc_config:
             loc_config[CONF_BINARY_SENSORS] = [
-                _val_bs_name(hass, val_bs_cfg(cfg))
-                for cfg in loc_config[CONF_BINARY_SENSORS]
+                _val_bs_elevation(hass, cfg) for cfg in loc_config[CONF_BINARY_SENSORS]
             ]
         if CONF_SENSORS in loc_config:
             sensor_configs = []
