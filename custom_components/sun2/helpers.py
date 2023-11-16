@@ -32,7 +32,17 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, ONE_DAY, SIG_HA_LOC_UPDATED
+from .const import (
+    ATTR_NEXT_CHANGE,
+    ATTR_TODAY_HMS,
+    ATTR_TOMORROW,
+    ATTR_TOMORROW_HMS,
+    ATTR_YESTERDAY,
+    ATTR_YESTERDAY_HMS,
+    DOMAIN,
+    ONE_DAY,
+    SIG_HA_LOC_UPDATED,
+)
 
 
 Num = Union[float, int]
@@ -117,6 +127,16 @@ def next_midnight(dttm: datetime) -> datetime:
 class Sun2Entity(Entity):
     """Sun2 Entity."""
 
+    _unreported_attributes = frozenset(
+        {
+            ATTR_NEXT_CHANGE,
+            ATTR_TODAY_HMS,
+            ATTR_TOMORROW,
+            ATTR_TOMORROW_HMS,
+            ATTR_YESTERDAY,
+            ATTR_YESTERDAY_HMS,
+        }
+    )
     _attr_should_poll = False
     _loc_data: LocData = None  # type: ignore[assignment]
     _unsub_update: CALLBACK_TYPE | None = None
