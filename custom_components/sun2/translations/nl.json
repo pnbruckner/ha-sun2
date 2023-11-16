@@ -2,7 +2,7 @@
     "title": "Zon2",
     "misc": {
         "above": "Boven",
-        "above_horizon": "Boven Horizon",
+        "above_horizon": "Boven horizon",
         "elevation_at": "Hoogte bij",
         "minus": "min",
         "rising": "Zonsopkomst",
@@ -10,36 +10,96 @@
         "setting": "Zonsondergang"
     },
     "entity": {
+        "binary_sensor": {
+            "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            }
+        },
         "sensor": {
             "astronomical_daylight": {
-                "name": "Astronomisch daglicht"
+                "name": "Astronomisch daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "astronomical_dawn": {
-                "name": "Astronomische dageraad"
+                "name": "Astronomische dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "astronomical_dusk": {
-                "name": "Astronomische schemer"
+                "name": "Astronomische schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "astronomical_night": {
-                "name": "Astronomische nacht"
+                "name": "Astronomische nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
-            "azimuth": {
-                "name": "Azimut"
-            },
+            "azimuth": {"name": "Azimut"},
             "civil_daylight": {
-                "name": "Civiel daglicht"
+                "name": "Civiel daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "civil_night": {
-                "name": "Civiele nacht"
+                "name": "Civiele nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "daylight": {
-                "name": "Daglicht"
+                "name": "Daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "dawn": {
-                "name": "Dageraad"
+                "name": "Dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "deconz_daylight": {
-                "name": "deCONZ Daglicht",
+                "name": "deCONZ daglicht",
                 "state": {
                     "dawn": "Dageraad",
                     "dusk": "Schemer",
@@ -53,40 +113,113 @@
                     "solar_noon": "Middagzon",
                     "sunrise_end": "Zonsopkomsteinde",
                     "sunrise_start": "Zonsopkomstbegin"
+                },
+                "state_attributes": {
+                    "daylight": {"name": "Daglicht"},
+                    "next_change": {"name": "Volgende wijziging"}
                 }
             },
             "dusk": {
-                "name": "Schemer"
+                "name": "Schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "elevation": {
-                "name": "Hoogtehoek"
+                "name": "Hoogtehoek",
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "max_elevation": {
-                "name": "Maximale hoogtehoek"
+                "name": "Maximale hoogtehoek",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "min_elevation": {
-                "name": "Minimale hoogtehoek"
+                "name": "Minimale hoogtehoek",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "nautical_daylight": {
-                "name": "Nautisch daglicht"
+                "name": "Nautisch daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "nautical_dawn": {
-                "name": "Nautische dageraad"
+                "name": "Nautische dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "nautical_dusk": {
-                "name": "Nautische schemer"
+                "name": "Nautische schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "nautical_night": {
-                "name": "Nautische nacht"
+                "name": "Nautische nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "night": {
-                "name": "Nacht"
+                "name": "Nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
             },
             "solar_midnight": {
-                "name": "Zonne-middernacht"
+                "name": "Zonne-middernacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "solar_noon": {
-                "name": "Middagzon"
+                "name": "Middagzon",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "sun_phase": {
                 "name": "Fase",
@@ -96,13 +229,36 @@
                     "day": "Dag",
                     "nautical_twilight": "Nautische schemering",
                     "night": "Nacht"
+                },
+                "state_attributes": {
+                    "blue_hour": {"name": "Blauw uur"},
+                    "golden_hour": {"name": "Gouden uur"},
+                    "next_change": {"name": "Volgende wijziging"},
+                    "rising": {"name": "Zonsopkomst"}
                 }
             },
             "sunrise": {
-                "name": "Zonsopkomst"
+                "name": "Zonsopkomst",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             },
             "sunset": {
-                "name": "Zonsondergang"
+                "name": "Zonsondergang",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "time_at_elevation": {
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             }
         }
     }

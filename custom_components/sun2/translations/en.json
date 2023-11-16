@@ -2,7 +2,7 @@
     "title": "Sun2",
     "misc": {
         "above": "Above",
-        "above_horizon": "Above Horizon",
+        "above_horizon": "Above horizon",
         "elevation_at": "Elevation at",
         "minus": "minus",
         "rising": "Rising",
@@ -10,99 +10,255 @@
         "setting": "Setting"
     },
     "entity": {
+        "binary_sensor": {
+            "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            }
+        },
         "sensor": {
             "astronomical_daylight": {
-                "name": "Astronomical Daylight"
+                "name": "Astronomical daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "astronomical_dawn": {
-                "name": "Astronomical Dawn"
+                "name": "Astronomical dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "astronomical_dusk": {
-                "name": "Astronomical Dusk"
+                "name": "Astronomical dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "astronomical_night": {
-                "name": "Astronomical Night"
+                "name": "Astronomical night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
-            "azimuth": {
-                "name": "Azimuth"
-            },
+            "azimuth": {"name": "Azimuth"},
             "civil_daylight": {
-                "name": "Civil Daylight"
+                "name": "Civil daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "civil_night": {
-                "name": "Civil Night"
+                "name": "Civil night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "daylight": {
-                "name": "Daylight"
+                "name": "Daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "dawn": {
-                "name": "Dawn"
+                "name": "Dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "deconz_daylight": {
-                "name": "deCONZ Daylight",
+                "name": "deCONZ daylight",
                 "state": {
                     "dawn": "Dawn",
                     "dusk": "Dusk",
-                    "golden_hour_1": "Golden Hour 1",
-                    "golden_hour_2": "Golden Hour 2",
+                    "golden_hour_1": "Golden hour 1",
+                    "golden_hour_2": "Golden hour 2",
                     "nadir": "Nadir",
-                    "nautical_dawn": "Nautial Dawn",
-                    "nautical_dusk": "Nautial Dusk",
-                    "night_end": "Night End",
-                    "night_start": "Night Start",
-                    "solar_noon": "Solar Noon",
-                    "sunrise_end": "Sunrise End",
-                    "sunrise_start": "Sunrise Start"
+                    "nautical_dawn": "Nautial dawn",
+                    "nautical_dusk": "Nautial dusk",
+                    "night_end": "Night end",
+                    "night_start": "Night start",
+                    "solar_noon": "Solar noon",
+                    "sunrise_end": "Sunrise end",
+                    "sunrise_start": "Sunrise start"
+                },
+                "state_attributes": {
+                    "daylight": {"name": "Daylight"},
+                    "next_change": {"name": "Next change"}
                 }
             },
             "dusk": {
-                "name": "Dusk"
+                "name": "Dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "elevation": {
-                "name": "Elevation"
+                "name": "Elevation",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "max_elevation": {
-                "name": "Maximum Elevation"
+                "name": "Maximum elevation",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "min_elevation": {
-                "name": "Minimum Elevation"
+                "name": "Minimum elevation",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "nautical_daylight": {
-                "name": "Nautical Daylight"
+                "name": "Nautical daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "nautical_dawn": {
-                "name": "Nautical Dawn"
+                "name": "Nautical dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "nautical_dusk": {
-                "name": "Nautical Dusk"
+                "name": "Nautical dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "nautical_night": {
-                "name": "Nautical Night"
+                "name": "Nautical night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "night": {
-                "name": "Night"
+                "name": "Night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
             },
             "solar_midnight": {
-                "name": "Solar Midnight"
+                "name": "Solar midnight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "solar_noon": {
-                "name": "Solar Noon"
+                "name": "Solar noon",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "sun_phase": {
                 "name": "Phase",
                 "state": {
-                    "astronomical_twilight": "Astronomical Twilight",
-                    "civil_twilight": "Civil Twilight",
+                    "astronomical_twilight": "Astronomical twilight",
+                    "civil_twilight": "Civil twilight",
                     "day": "Day",
-                    "nautical_twilight": "Nautical Twilight",
+                    "nautical_twilight": "Nautical twilight",
                     "night": "Night"
+                },
+                "state_attributes": {
+                    "blue_hour": {"name": "Blue hour"},
+                    "golden_hour": {"name": "Golden hour"},
+                    "next_change": {"name": "Next change"},
+                    "rising": {"name": "Rising"}
                 }
             },
             "sunrise": {
-                "name": "Rising"
+                "name": "Rising",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             },
             "sunset": {
-                "name": "Setting"
+                "name": "Setting",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             }
         }
     }
