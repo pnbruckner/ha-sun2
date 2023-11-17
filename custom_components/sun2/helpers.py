@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from typing import Any, TypeVar, Union, cast
 
@@ -84,8 +84,8 @@ class LocData:
 class Sun2Data:
     """Sun2 shared data."""
 
-    locations: dict[LocParams | None, LocData]
-    translations: dict[str, str]
+    locations: dict[LocParams | None, LocData] = field(default_factory=dict)
+    translations: dict[str, str] = field(default_factory=dict)
 
 
 def get_loc_params(config: ConfigType) -> LocParams | None:

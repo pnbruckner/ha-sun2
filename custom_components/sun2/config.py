@@ -148,11 +148,10 @@ async def async_validate_config(
     hass: HomeAssistant, config: ConfigType
 ) -> ConfigType | None:
     """Validate configuration."""
-    hass.data[DOMAIN] = Sun2Data(
-        locations={},
-        translations=await async_get_translations(
-            hass, hass.config.language, "misc", [DOMAIN], False
-        ),
+    hass.data.setdefault(
+        DOMAIN, Sun2Data()
+    ).translations = await async_get_translations(
+        hass, hass.config.language, "misc", [DOMAIN], False
     )
 
     config = _SUN2_CONFIG_SCHEMA(config)
