@@ -261,5 +261,11 @@
                 }
             }
         }
+    },
+    "services": {
+        "reload": {
+            "name": "Herlaadt",
+            "description": "Herlaadt Zon2 vanuit de YAML-configuratie."
+        }
     }
 }

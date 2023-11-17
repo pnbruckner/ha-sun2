@@ -4,10 +4,11 @@ from __future__ import annotations
 from typing import cast
 
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
-from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform, SERVICE_RELOAD
+from homeassistant.core import Event, HomeAssistant, ServiceCall
 from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.reload import async_integration_yaml_config
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, SIG_HA_LOC_UPDATED
@@ -43,6 +44,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
             )
 
+    process_config(config)
+
+    async def reload_config(call: ServiceCall | None = None) -> None:
+        """Reload configuration."""
+        process_config(await async_integration_yaml_config(hass, DOMAIN))
+
     async def handle_core_config_update(event: Event) -> None:
         """Handle core config update."""
         if not event.data:
@@ -54,10 +61,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             dispatcher_send(hass, SIG_HA_LOC_UPDATED, loc_data)
             return
 
-        process_config(await async_integration_yaml_config(hass, DOMAIN))
+        await reload_config()
 
+    async_register_admin_service(hass, DOMAIN, SERVICE_RELOAD, reload_config)
     hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, handle_core_config_update)
-    process_config(config)
 
     return True
 

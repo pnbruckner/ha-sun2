@@ -261,5 +261,11 @@
                 }
             }
         }
+    },
+    "services": {
+        "reload": {
+            "name": "Reload",
+            "description": "Reloads Sun2 from the YAML-configuration."
+        }
     }
 }
