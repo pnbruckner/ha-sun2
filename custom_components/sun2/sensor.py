@@ -31,6 +31,7 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PLATFORM,
     CONF_SENSORS,
+    CONF_UNIQUE_ID,
     DEGREE,
     EVENT_HOMEASSISTANT_STARTED,
     EVENT_STATE_CHANGED,
@@ -179,6 +180,7 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
         entity_description: SensorEntityDescription,
         default_solar_depression: Num | str = 0,
         name: str | None = None,
+        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
         key = entity_description.key
@@ -195,7 +197,7 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
             entry = None
         entity_description.name = name
         self.entity_description = entity_description
-        super().__init__(loc_params, entry)
+        super().__init__(loc_params, entry, unique_id)
 
         if any(key.startswith(sol_dep + "_") for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = key.rsplit("_", 1)
@@ -258,6 +260,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         extra: ConfigEntry | str | None,
         name: str,
         at_time: str | time,
+        unique_id: str | None,
     ) -> None:
         """Initialize sensor."""
         if isinstance(at_time, str):
@@ -271,7 +274,9 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=2,
         )
-        super().__init__(loc_params, extra, entity_description, name=name)
+        super().__init__(
+            loc_params, extra, entity_description, name=name, unique_id=unique_id
+        )
         self._event = "solar_elevation"
 
     @property
@@ -376,6 +381,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
         sensor_type: str,
         icon: str | None,
         name: str | None = None,
+        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
         entity_description = SensorEntityDescription(
@@ -383,7 +389,9 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
             device_class=SensorDeviceClass.TIMESTAMP,
             icon=icon,
         )
-        super().__init__(loc_params, extra, entity_description, "civil", name)
+        super().__init__(
+            loc_params, extra, entity_description, "civil", name, unique_id
+        )
 
 
 class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
@@ -397,11 +405,14 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         icon: str | None,
         direction: SunDirection,
         elevation: float,
+        unique_id: str | None,
     ) -> None:
         """Initialize sensor."""
         self._direction = direction
         self._elevation = elevation
-        super().__init__(loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name)
+        super().__init__(
+            loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name, unique_id
+        )
 
     def _astral_event(
         self,
@@ -1264,6 +1275,7 @@ def _sensors(
                     config[CONF_ICON],
                     SunDirection(config[CONF_DIRECTION]),
                     config[CONF_TIME_AT_ELEVATION],
+                    config.get(CONF_UNIQUE_ID),
                 )
             )
         else:
@@ -1274,7 +1286,13 @@ def _sensors(
                 with suppress(ValueError):
                     at_time = time.fromisoformat(at_time)
             sensors.append(
-                Sun2ElevationAtTimeSensor(loc_params, extra, config[CONF_NAME], at_time)
+                Sun2ElevationAtTimeSensor(
+                    loc_params,
+                    extra,
+                    config[CONF_NAME],
+                    at_time,
+                    config.get(CONF_UNIQUE_ID),
+                )
             )
     return sensors
 

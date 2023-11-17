@@ -22,6 +22,7 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     CONF_PLATFORM,
+    CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
@@ -141,6 +142,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         extra: ConfigEntry | str | None,
         name: str,
         above: float,
+        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
         if not isinstance(extra, ConfigEntry):
@@ -151,7 +153,9 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, extra if isinstance(extra, ConfigEntry) else None)
+        super().__init__(
+            loc_params, extra if isinstance(extra, ConfigEntry) else None, unique_id
+        )
         self._event = "solar_elevation"
 
         self._threshold: float = above
@@ -357,7 +361,11 @@ def _sensors_new(
         if CONF_ELEVATION in config:
             sensors.append(
                 Sun2ElevationSensor(
-                    loc_params, extra, config[CONF_NAME], config[CONF_ELEVATION]
+                    loc_params,
+                    extra,
+                    config[CONF_NAME],
+                    config[CONF_ELEVATION],
+                    config[CONF_UNIQUE_ID],
                 )
             )
     return sensors

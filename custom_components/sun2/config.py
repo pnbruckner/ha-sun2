@@ -34,11 +34,20 @@ DEFAULT_ELEVATION = SUNSET_ELEV
 
 _SUN2_BINARY_SENSOR_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_UNIQUE_ID): cv.string,
         vol.Required(CONF_ELEVATION): vol.Any(
             vol.All(vol.Lower, "horizon"), vol.Coerce(float)
         ),
         vol.Optional(CONF_NAME): cv.string,
     }
+)
+
+ELEVATION_AT_TIME_SCHEMA = ELEVATION_AT_TIME_SCHEMA.extend(
+    {vol.Required(CONF_UNIQUE_ID): cv.string}
+)
+
+TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA.extend(
+    {vol.Required(CONF_UNIQUE_ID): cv.string}
 )
 
 _SUN2_LOCATION_CONFIG = vol.Schema(

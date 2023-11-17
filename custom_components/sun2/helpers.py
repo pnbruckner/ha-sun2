@@ -148,6 +148,7 @@ class Sun2Entity(Entity):
         self,
         loc_params: LocParams | None,
         entry: ConfigEntry | None,
+        unique_id: str | None = None,
     ) -> None:
         """Initialize base class.
 
@@ -162,7 +163,9 @@ class Sun2Entity(Entity):
                 identifiers={(DOMAIN, entry.entry_id)},
                 name=entry.title,
             )
-            self._attr_unique_id = f"{entry.title} {self.entity_description.name}"
+            self._attr_unique_id = (
+                f"{entry.unique_id}-{unique_id or self.entity_description.key}"
+            )
         else:
             self._attr_unique_id = self.name
         self._loc_params = loc_params
