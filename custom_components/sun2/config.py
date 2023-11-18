@@ -26,7 +26,7 @@ from .const import (
     DOMAIN,
     SUNSET_ELEV,
 )
-from .helpers import LOC_PARAMS, Sun2Data
+from .helpers import LOC_PARAMS, Sun2Data, translation
 from .sensor import val_tae_cfg, ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA
 
 PACKAGE_MERGE_HINT = "list"
@@ -87,13 +87,6 @@ _SUN2_CONFIG_SCHEMA = vol.Schema(
 )
 
 
-def _translation(hass: HomeAssistant, key: str) -> str:
-    """Sun2 translations."""
-    return cast(Sun2Data, hass.data[DOMAIN]).translations[
-        f"component.{DOMAIN}.misc.{key}"
-    ]
-
-
 def _val_bs_elevation(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
     """Validate elevation binary_sensor."""
     if config[CONF_ELEVATION] == "horizon":
@@ -102,15 +95,13 @@ def _val_bs_elevation(hass: HomeAssistant, config: str | ConfigType) -> ConfigTy
     if config.get(CONF_NAME):
         return config
 
-    if (elv := config[CONF_ELEVATION]) == DEFAULT_ELEVATION:
-        name = _translation(hass, "above_horizon")
+    if (elevation := config[CONF_ELEVATION]) == DEFAULT_ELEVATION:
+        name = translation(hass, "above_horizon")
     else:
-        above_str = _translation(hass, "above")
-        if elv < 0:
-            minus_str = _translation(hass, "minus")
-            name = f"{above_str} {minus_str} {-elv}"
+        if elevation < 0:
+            name = translation(hass, "above_neg_elev", {"elevation": str(-elevation)})
         else:
-            name = f"{above_str} {elv}"
+            name = translation(hass, "above_pos_elev", {"elevation": str(elevation)})
     config[CONF_NAME] = name
     return config
 
@@ -120,9 +111,9 @@ def _val_eat_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
     if config.get(CONF_NAME):
         return config
 
-    config[
-        CONF_NAME
-    ] = f"{_translation(hass, 'elevation_at')} {config[CONF_ELEVATION_AT_TIME]}"
+    config[CONF_NAME] = translation(
+        hass, "elevation_at", {"elev_time": str(config[CONF_ELEVATION_AT_TIME])}
+    )
 
     return config
 
@@ -135,11 +126,8 @@ def _val_tae_name(hass: HomeAssistant, config: str | ConfigType) -> ConfigType:
     direction = SunDirection(config[CONF_DIRECTION])
     elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
 
-    if elevation >= 0:
-        elev_str = str(elevation)
-    else:
-        elev_str = f"{_translation(hass, 'minus')} {-elevation}"
-    config[CONF_NAME] = f"{_translation(hass, direction.name.lower())} at {elev_str} °"
+    trans_key = f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev"
+    config[CONF_NAME] = translation(hass, trans_key, {"elevation": str(abs(elevation))})
 
     return config
 

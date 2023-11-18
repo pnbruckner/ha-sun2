@@ -18,7 +18,7 @@ from homeassistant.const import (
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import CALLBACK_TYPE
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType
 
@@ -107,6 +107,20 @@ def hours_to_hms(hours: Num | None) -> str | None:
         return str(timedelta(hours=cast(Num, hours))).split(".")[0]
     except TypeError:
         return None
+
+
+def translation(
+    hass: HomeAssistant, key: str, placeholders: dict[str, str] | None = None
+) -> str:
+    """Sun2 translations."""
+    trans = cast(Sun2Data, hass.data[DOMAIN]).translations[
+        f"component.{DOMAIN}.misc.{key}"
+    ]
+    if not placeholders:
+        return trans
+    for key, val in placeholders.items():
+        trans = trans.replace(f"{{{key}}}", val)
+    return trans
 
 
 _Num = TypeVar("_Num", bound=Num)

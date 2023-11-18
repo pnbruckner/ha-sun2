@@ -1,13 +1,15 @@
 {
     "title": "Sun2",
     "misc": {
-        "above": "Above",
         "above_horizon": "Above horizon",
-        "elevation_at": "Elevation at",
-        "minus": "minus",
-        "rising": "Rising",
-        "service_name": "Sun",
-        "setting": "Setting"
+        "above_neg_elev": "Above minus {elevation} °",
+        "above_pos_elev": "Above {elevation} °",
+        "elevation_at": "Elevation at {elev_time}",
+        "rising_neg_elev": "Rising at minus {elevation} °",
+        "rising_pos_elev": "Rising at {elevation} °",
+        "service_name": "{location} Sun",
+        "setting_neg_elev": "Setting at minus {elevation} °",
+        "setting_pos_elev": "Setting at {elevation} °"
     },
     "entity": {
         "binary_sensor": {
