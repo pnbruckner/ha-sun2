@@ -34,6 +34,12 @@ where `<config>` is your Home Assistant configuration directory.
 
 This custom integration supports HomeAssistant versions 2023.4.0 or newer.
 
+## Services
+
+### `sun2.reload`
+
+Reloads Sun2 from the YAML-configuration. Also adds `SUN2` to the Developers Tools -> YAML page.
+
 ## Configuration variables
 
 A list of configuration options for one or more "locations". Each location is defined by the following options.
@@ -250,3 +256,67 @@ sun2:
         elevation_at_time: input_datetime.test
         name: Elv @ test var
 ```
+
+## Converting from `platform` configuration
+
+In previous versions, configuration was done under `binary_sensor` & `sensor`.
+This is now deprecated and will generate a warning at startup.
+It should be converted to the new `sun2` format as described above.
+
+Here is an example of the old format:
+
+```yaml
+binary_sensor:
+  - platform: sun2
+    entity_namespace: London
+    latitude: 51.50739529645933
+    longitude: -0.12767666584664272
+    time_zone: Europe/London
+    elevation: 11
+    monitored_conditions:
+      - elevation:
+          above: -6
+          name: Above Civil Dawn
+sensor:
+  - platform: sun2
+    monitored_conditions:
+      - dawn
+      - sunrise
+      - sunset
+      - dusk
+      - elevation_at_time: input_datetime.arrival
+        name: Elv @ arrival
+      - time_at_elevation: -10
+        direction: setting
+        icon: mdi:weather-sunset-down
+        name: Setting past 10 deg below horizon
+```
+
+This is the equivalent configuration in the new format:
+
+```yaml
+sun2:
+  - unique_id: london
+    location: London
+    latitude: 51.50739529645933
+    longitude: -0.12767666584664272
+    time_zone: Europe/London
+    elevation: 11
+    binary_sensors:
+      - unique_id: bs1
+        elevation: -6
+        name: Above Civil Dawn
+  - unique_id: home
+    sensors:
+      - unique_id: s1
+        elevation_at_time: input_datetime.arrival
+        name: Elv @ arrival
+      - unique_id: s2
+        time_at_elevation: -10
+        direction: setting
+        icon: mdi:weather-sunset-down
+        name: Setting past 10 deg below horizon
+```
+All "simple" sensor options (e.g., `sunrise`, `sunset`, etc.) will be created automatically.
+Some will be enabled by default, but most will not.
+Simply go to the Settings -> Devices & services page, click on Sun2, then entities, and enable/disable the entities as desired.
