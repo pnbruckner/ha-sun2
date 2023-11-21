@@ -27,6 +27,7 @@ try:
     from homeassistant.helpers.device_registry import DeviceInfo
 except ImportError:
     from homeassistant.helpers.entity import DeviceInfo
+
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
@@ -40,6 +41,7 @@ from .const import (
     ATTR_YESTERDAY,
     ATTR_YESTERDAY_HMS,
     DOMAIN,
+    LOGGER,
     ONE_DAY,
     SIG_HA_LOC_UPDATED,
 )
@@ -123,6 +125,15 @@ def translation(
     return trans
 
 
+def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
+    """Sun2 device (service) info."""
+    return DeviceInfo(
+        entry_type=DeviceEntryType.SERVICE,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=translation(hass, "service_name", {"location": entry.title}),
+    )
+
+
 _Num = TypeVar("_Num", bound=Num)
 
 
@@ -136,6 +147,15 @@ def nearest_second(dttm: datetime) -> datetime:
 def next_midnight(dttm: datetime) -> datetime:
     """Return next midnight in same time zone."""
     return datetime.combine(dttm.date() + ONE_DAY, time(), dttm.tzinfo)
+
+
+@dataclass
+class Sun2EntityParams:
+    """Sun2Entity parameters."""
+
+    entry: ConfigEntry
+    device_info: DeviceInfo
+    unique_id: str | None = None
 
 
 class Sun2Entity(Entity):
@@ -161,25 +181,22 @@ class Sun2Entity(Entity):
     def __init__(
         self,
         loc_params: LocParams | None,
-        entry: ConfigEntry | None,
-        unique_id: str | None = None,
+        sun2_entity_params: Sun2EntityParams | None = None,
     ) -> None:
         """Initialize base class.
 
         self.name must be set up to return name before calling this.
         E.g., set up self.entity_description.name first.
         """
-        if entry:
-            self._attr_translation_key = self.entity_description.key
+        if sun2_entity_params:
             self._attr_has_entity_name = True
-            self._attr_device_info = DeviceInfo(
-                entry_type=DeviceEntryType.SERVICE,
-                identifiers={(DOMAIN, entry.entry_id)},
-                name=entry.title,
-            )
+            self._attr_translation_key = self.entity_description.key
+            entry = sun2_entity_params.entry
+            unique_id = sun2_entity_params.unique_id
             self._attr_unique_id = (
-                f"{entry.unique_id}-{unique_id or self.entity_description.key}"
+                f"{entry.entry_id}-{unique_id or self.entity_description.key}"
             )
+            self._attr_device_info = sun2_entity_params.device_info
         else:
             self._attr_unique_id = self.name
         self._loc_params = loc_params

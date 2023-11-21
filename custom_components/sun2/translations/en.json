@@ -11,6 +11,55 @@
         "setting_neg_elev": "Setting at minus {elevation} °",
         "setting_pos_elev": "Setting at {elevation} °"
     },
+    "config": {
+        "step": {
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location?"
+                }
+            },
+            "location_name": {
+                "title": "Location Name",
+                "data": {
+                    "name": "Name"
+                }
+            },
+            "location": {
+                "title": "Location Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "latitude": "Latitude",
+                    "longitude": "Longitude",
+                    "time_zone": "Time zone"
+                },
+                "data_description": {
+                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location?"
+                }
+            },
+            "location": {
+                "title": "Location Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "latitude": "Latitude",
+                    "location": "Location",
+                    "longitude": "Longitude",
+                    "time_zone": "Time zone"
+                },
+                "data_description": {
+                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            }
+        }
+    },
     "entity": {
         "binary_sensor": {
             "elevation": {

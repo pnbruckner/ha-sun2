@@ -78,7 +78,9 @@ from .helpers import (
     LocData,
     LocParams,
     Num,
+    sun2_dev_info,
     Sun2Entity,
+    Sun2EntityParams,
     get_loc_params,
     hours_to_hms,
     nearest_second,
@@ -110,17 +112,18 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
         """Initialize sensor."""
         name = sensor_type.replace("_", " ").title()
-        if not isinstance(extra, ConfigEntry):
+        if not isinstance(extra, Sun2EntityParams):
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{SENSOR_DOMAIN}.{slugify(sensor_type)}"
             if extra:
                 name = f"{extra} {name}"
+                extra = None
         self.entity_description = SensorEntityDescription(
             key=sensor_type,
             entity_registry_enabled_default=sensor_type in _ENABLED_SENSORS,
@@ -130,7 +133,7 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=2,
         )
-        super().__init__(loc_params, extra if isinstance(extra, ConfigEntry) else None)
+        super().__init__(loc_params, extra)
         self._event = "solar_azimuth"
 
     def _setup_fixed_updating(self) -> None:
@@ -176,28 +179,26 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         entity_description: SensorEntityDescription,
         default_solar_depression: Num | str = 0,
         name: str | None = None,
-        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
         key = entity_description.key
         if name is None:
             name = key.replace("_", " ").title()
-        if isinstance(extra, ConfigEntry):
+        if isinstance(extra, Sun2EntityParams):
             entity_description.entity_registry_enabled_default = key in _ENABLED_SENSORS
-            entry = extra
         else:
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{SENSOR_DOMAIN}.{slugify(name)}"
             if extra:
                 name = f"{extra} {name}"
-            entry = None
+                extra = None
         entity_description.name = name
         self.entity_description = entity_description
-        super().__init__(loc_params, entry, unique_id)
+        super().__init__(loc_params, extra)
 
         if any(key.startswith(sol_dep + "_") for sol_dep in _SOLAR_DEPRESSIONS):
             self._solar_depression, self._event = key.rsplit("_", 1)
@@ -257,10 +258,9 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         name: str,
         at_time: str | time,
-        unique_id: str | None,
     ) -> None:
         """Initialize sensor."""
         if isinstance(at_time, str):
@@ -274,9 +274,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=2,
         )
-        super().__init__(
-            loc_params, extra, entity_description, name=name, unique_id=unique_id
-        )
+        super().__init__(loc_params, extra, entity_description, name=name)
         self._event = "solar_elevation"
 
     @property
@@ -377,11 +375,10 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
         name: str | None = None,
-        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
         entity_description = SensorEntityDescription(
@@ -389,9 +386,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
             device_class=SensorDeviceClass.TIMESTAMP,
             icon=icon,
         )
-        super().__init__(
-            loc_params, extra, entity_description, "civil", name, unique_id
-        )
+        super().__init__(loc_params, extra, entity_description, "civil", name)
 
 
 class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
@@ -400,19 +395,16 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         name: str,
         icon: str | None,
         direction: SunDirection,
         elevation: float,
-        unique_id: str | None,
     ) -> None:
         """Initialize sensor."""
         self._direction = direction
         self._elevation = elevation
-        super().__init__(
-            loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name, unique_id
-        )
+        super().__init__(loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name)
 
     def _astral_event(
         self,
@@ -432,7 +424,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
@@ -486,7 +478,7 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
@@ -550,7 +542,7 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         entity_description: SensorEntityDescription,
         default_solar_depression: Num | str = 0,
     ) -> None:
@@ -715,7 +707,7 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
@@ -808,7 +800,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
         phase_data: PhaseData,
@@ -998,7 +990,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
@@ -1055,7 +1047,7 @@ class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         sensor_type: str,
         icon: str | None,
     ) -> None:
@@ -1229,7 +1221,7 @@ ELEVATION_AT_TIME_SCHEMA = vol.Schema(
         vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
             vol.All(cv.string, cv.entity_domain("input_datetime")),
             cv.time,
-            msg="Expected input_datetime entity ID or time string",
+            msg="expected input_datetime entity ID or time string",
         ),
         vol.Optional(CONF_NAME): cv.string,
     }
@@ -1255,45 +1247,49 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 def _sensors(
     loc_params: LocParams | None,
-    extra: ConfigEntry | str | None,
+    extra: Sun2EntityParams | str | None,
     sensors_config: Iterable[str | dict[str, Any]],
 ) -> list[Entity]:
+    """Create list of entities to add."""
     sensors = []
     for config in sensors_config:
         if isinstance(config, str):
+            if isinstance(extra, Sun2EntityParams):
+                extra.unique_id = None
             sensors.append(
                 _SENSOR_TYPES[config].cls(
                     loc_params, extra, config, _SENSOR_TYPES[config].icon
                 )
             )
-        elif CONF_TIME_AT_ELEVATION in config:
-            sensors.append(
-                Sun2TimeAtElevationSensor(
-                    loc_params,
-                    extra,
-                    config[CONF_NAME],
-                    config[CONF_ICON],
-                    SunDirection(config[CONF_DIRECTION]),
-                    config[CONF_TIME_AT_ELEVATION],
-                    config.get(CONF_UNIQUE_ID),
-                )
-            )
         else:
-            # For config entries, JSON serialization turns a time into a string.
-            # Convert back to time in that case.
-            at_time = config[CONF_ELEVATION_AT_TIME]
-            if isinstance(at_time, str):
-                with suppress(ValueError):
-                    at_time = time.fromisoformat(at_time)
-            sensors.append(
-                Sun2ElevationAtTimeSensor(
-                    loc_params,
-                    extra,
-                    config[CONF_NAME],
-                    at_time,
-                    config.get(CONF_UNIQUE_ID),
+            if isinstance(extra, Sun2EntityParams):
+                extra.unique_id = config[CONF_UNIQUE_ID]
+            if CONF_TIME_AT_ELEVATION in config:
+                sensors.append(
+                    Sun2TimeAtElevationSensor(
+                        loc_params,
+                        extra,
+                        config[CONF_NAME],
+                        config[CONF_ICON],
+                        SunDirection(config[CONF_DIRECTION]),
+                        config[CONF_TIME_AT_ELEVATION],
+                    )
                 )
-            )
+            else:
+                # For config entries, JSON serialization turns a time into a string.
+                # Convert back to time in that case.
+                at_time = config[CONF_ELEVATION_AT_TIME]
+                if isinstance(at_time, str):
+                    with suppress(ValueError):
+                        at_time = time.fromisoformat(at_time)
+                sensors.append(
+                    Sun2ElevationAtTimeSensor(
+                        loc_params,
+                        extra,
+                        config[CONF_NAME],
+                        at_time,
+                    )
+                )
     return sensors
 
 
@@ -1331,8 +1327,9 @@ async def async_setup_entry(
     config = entry.options
 
     loc_params = get_loc_params(config)
+    sun2_entity_params = Sun2EntityParams(entry, sun2_dev_info(hass, entry))
     async_add_entities(
-        _sensors(loc_params, entry, config.get(CONF_SENSORS, []))
-        + _sensors(loc_params, entry, _SENSOR_TYPES.keys()),
+        _sensors(loc_params, sun2_entity_params, config.get(CONF_SENSORS, []))
+        + _sensors(loc_params, sun2_entity_params, _SENSOR_TYPES.keys()),
         True,
     )

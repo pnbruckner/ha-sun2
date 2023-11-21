@@ -24,6 +24,7 @@ from .const import (
     CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
+    LOGGER,
     SUNSET_ELEV,
 )
 from .helpers import LOC_PARAMS, Sun2Data, translation
@@ -36,7 +37,9 @@ _SUN2_BINARY_SENSOR_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
         vol.Required(CONF_ELEVATION): vol.Any(
-            vol.All(vol.Lower, "horizon"), vol.Coerce(float)
+            vol.All(vol.Lower, "horizon"),
+            vol.Coerce(float),
+            msg="must be a float or the word horizon",
         ),
         vol.Optional(CONF_NAME): cv.string,
     }
@@ -50,6 +53,16 @@ TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA.extend(
     {vol.Required(CONF_UNIQUE_ID): cv.string}
 )
 
+
+def _sensor(config: ConfigType) -> ConfigType:
+    """Validate sensor config."""
+    if CONF_ELEVATION_AT_TIME in config:
+        return ELEVATION_AT_TIME_SCHEMA(config)
+    if CONF_TIME_AT_ELEVATION in config:
+        return TIME_AT_ELEVATION_SCHEMA(config)
+    raise vol.Invalid("expected elevation_at_time or time_at_elevation")
+
+
 _SUN2_LOCATION_CONFIG = vol.Schema(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
@@ -57,10 +70,7 @@ _SUN2_LOCATION_CONFIG = vol.Schema(
         vol.Optional(CONF_BINARY_SENSORS): vol.All(
             cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA]
         ),
-        vol.Optional(CONF_SENSORS): vol.All(
-            cv.ensure_list,
-            [vol.Any(ELEVATION_AT_TIME_SCHEMA, TIME_AT_ELEVATION_SCHEMA)],
-        ),
+        vol.Optional(CONF_SENSORS): vol.All(cv.ensure_list, [_sensor]),
         **LOC_PARAMS,
     }
 )
@@ -144,9 +154,6 @@ async def async_validate_config(
 
     config = _SUN2_CONFIG_SCHEMA(config)
     if DOMAIN not in config:
-        return config
-    if not config[DOMAIN]:
-        config[DOMAIN] = [{CONF_UNIQUE_ID: "home"}]
         return config
 
     for loc_config in config[DOMAIN]:

@@ -45,7 +45,9 @@ from .helpers import (
     LOC_PARAMS,
     LocParams,
     Num,
+    sun2_dev_info,
     Sun2Entity,
+    Sun2EntityParams,
     get_loc_params,
     nearest_second,
 )
@@ -139,23 +141,21 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: ConfigEntry | str | None,
+        extra: Sun2EntityParams | str | None,
         name: str,
         above: float,
-        unique_id: str | None = None,
     ) -> None:
         """Initialize sensor."""
-        if not isinstance(extra, ConfigEntry):
+        if not isinstance(extra, Sun2EntityParams):
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{BINARY_SENSOR_DOMAIN}.{slugify(name)}"
             if extra:
                 name = f"{extra} {name}"
+                extra = None
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(
-            loc_params, extra if isinstance(extra, ConfigEntry) else None, unique_id
-        )
+        super().__init__(loc_params, extra)
         self._event = "solar_elevation"
 
         self._threshold: float = above
@@ -334,40 +334,23 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
-def _sensors_old(
+def _sensors(
     loc_params: LocParams | None,
-    extra: ConfigEntry | str | None,
+    extra: Sun2EntityParams | str | None,
     sensors_config: Iterable[str | dict[str, Any]],
 ) -> list[Entity]:
+    """Create list of entities to add."""
     sensors = []
     for config in sensors_config:
         if CONF_ELEVATION in config:
-            options = config[CONF_ELEVATION]
-            sensors.append(
-                Sun2ElevationSensor(
-                    loc_params, extra, options[CONF_NAME], options[CONF_ABOVE]
-                )
-            )
-    return sensors
-
-
-def _sensors_new(
-    loc_params: LocParams | None,
-    extra: ConfigEntry | str | None,
-    sensors_config: Iterable[str | dict[str, Any]],
-) -> list[Entity]:
-    sensors = []
-    for config in sensors_config:
-        if CONF_ELEVATION in config:
-            sensors.append(
-                Sun2ElevationSensor(
-                    loc_params,
-                    extra,
-                    config[CONF_NAME],
-                    config[CONF_ELEVATION],
-                    config[CONF_UNIQUE_ID],
-                )
-            )
+            if isinstance(extra, Sun2EntityParams):
+                extra.unique_id = config[CONF_UNIQUE_ID]
+                name = config[CONF_NAME]
+                above = config[CONF_ELEVATION]
+            else:
+                name = config[CONF_ELEVATION][CONF_NAME]
+                above = config[CONF_ELEVATION][CONF_ABOVE]
+            sensors.append(Sun2ElevationSensor(loc_params, extra, name, above))
     return sensors
 
 
@@ -387,7 +370,7 @@ async def async_setup_platform(
     )
 
     async_add_entities(
-        _sensors_old(
+        _sensors(
             get_loc_params(config),
             config.get(CONF_ENTITY_NAMESPACE),
             config[CONF_MONITORED_CONDITIONS],
@@ -407,6 +390,10 @@ async def async_setup_entry(
         return
 
     async_add_entities(
-        _sensors_new(get_loc_params(config), entry, sensors_config),
+        _sensors(
+            get_loc_params(config),
+            Sun2EntityParams(entry, sun2_dev_info(hass, entry)),
+            sensors_config,
+        ),
         True,
     )

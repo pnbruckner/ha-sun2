@@ -11,6 +11,55 @@
         "setting_neg_elev": "Instelling bij min {elevation} °",
         "setting_pos_elev": "Instelling bij {elevation} °"
     },
+    "config": {
+        "step": {
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                }
+            },
+            "location_name": {
+                "title": "Naam van de locatie",
+                "data": {
+                    "name": "Naam"
+                }
+            },
+            "location": {
+                "title": "Locatie Opties",
+                "data": {
+                    "elevation": "Hoogtehoek",
+                    "latitude": "Breedtegraad",
+                    "longitude": "Lengtegraad",
+                    "time_zone": "Tijdzone"
+                },
+                "data_description": {
+                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                }
+            },
+            "location": {
+                "title": "Locatie Opties",
+                "data": {
+                    "elevation": "Hoogtehoek",
+                    "latitude": "Breedtegraad",
+                    "location": "Plaats",
+                    "longitude": "Lengtegraad",
+                    "time_zone": "Tijdzone"
+                },
+                "data_description": {
+                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            }
+        }
+    },
     "entity": {
         "binary_sensor": {
             "elevation": {
