@@ -13,9 +13,59 @@
     },
     "config": {
         "step": {
-            "use_home": {
+            "elevation_at_time_sensor_menu": {
+                "title": "Hoogte op tijdtype",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entiteit",
+                    "elevation_at_time_sensor_time": "Tijd"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Opties voor elevatie bij tijdsensor",
                 "data": {
-                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                    "elevation_at_time": "input_datetime entiteit",
+                    "name": "Naam"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "Tijd",
+                    "name": "Naam"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "use_horizon": "Horizon als elevatie gebruiken?"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "elevation": "Hoogte",
+                    "name": "Naam"
+                }
+            },
+            "entities_menu": {
+                "title": "Aanvullende entiteiten",
+                "menu_options": {
+                    "done": "Klaar",
+                    "elevation_at_time_sensor_menu": "Hoogte toevoegen bij tijdsensor",
+                    "elevation_binary_sensor": "Binaire sensor voor elevatie toevoegen",
+                    "time_at_elevation_sensor": "Tijd toevoegen bij hoogtesensor"
+                }
+            },
+            "location": {
+                "title": "Locatie Opties",
+                "data": {
+                    "elevation": "Hoogtehoek",
+                    "latitude": "Breedtegraad",
+                    "longitude": "Lengtegraad",
+                    "time_zone": "Tijdzone"
+                },
+                "data_description": {
+                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
                 }
             },
             "location_name": {
@@ -24,25 +74,74 @@
                     "name": "Naam"
                 }
             },
-            "location": {
-                "title": "Locatie Opties",
+            "remove_entity": {
+                "title": "{name} verwijderen?",
                 "data": {
-                    "elevation": "Hoogtehoek",
-                    "latitude": "Breedtegraad",
-                    "longitude": "Lengtegraad",
-                    "time_zone": "Tijdzone"
-                },
-                "data_description": {
-                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "remove": "ReVerwijderenmove"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Opties voor tijdsensor op hoogte",
+                "data": {
+                    "time_at_elevation": "Hoogte",
+                    "direction": "Richting van de zon",
+                    "icon": "Pictogram",
+                    "name": "Naam"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
                 }
             }
+        },
+        "error": {
+            "name_used": "De naam van de locatie is al gebruikt."
         }
     },
     "options": {
         "step": {
-            "use_home": {
+            "elevation_at_time_sensor_menu": {
+                "title": "Hoogte op tijdtype",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entiteit",
+                    "elevation_at_time_sensor_time": "Tijd"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Opties voor elevatie bij tijdsensor",
                 "data": {
-                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                    "elevation_at_time": "input_datetime entiteit",
+                    "name": "Naam"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "Tijd",
+                    "name": "Naam"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "use_horizon": "Horizon als elevatie gebruiken?"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "elevation": "Hoogte",
+                    "name": "Naam"
+                }
+            },
+            "entities_menu": {
+                "title": "Aanvullende entiteiten",
+                "menu_options": {
+                    "done": "Klaar",
+                    "elevation_at_time_sensor_menu": "Hoogte toevoegen bij tijdsensor",
+                    "elevation_binary_sensor": "Binaire sensor voor elevatie toevoegen",
+                    "time_at_elevation_sensor": "Tijd toevoegen bij hoogtesensor"
                 }
             },
             "location": {
@@ -50,12 +149,31 @@
                 "data": {
                     "elevation": "Hoogtehoek",
                     "latitude": "Breedtegraad",
-                    "location": "Plaats",
                     "longitude": "Lengtegraad",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
                     "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "remove_entity": {
+                "title": "{name} verwijderen?",
+                "data": {
+                    "remove": "ReVerwijderenmove"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Opties voor tijdsensor op hoogte",
+                "data": {
+                    "time_at_elevation": "Hoogte",
+                    "direction": "Richting van de zon",
+                    "icon": "Pictogram",
+                    "name": "Naam"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
                 }
             }
         }
@@ -310,6 +428,14 @@
                     "tomorrow": {"name": "Morgen"},
                     "yesterday": {"name": "Gisteren"}
                 }
+            }
+        }
+    },
+    "selector": {
+        "direction": {
+            "options": {
+                "rising": "Opstand",
+                "setting": "Montuur"
             }
         }
     },

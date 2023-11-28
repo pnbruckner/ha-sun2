@@ -49,6 +49,13 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util, slugify
 
+from .config import (
+    ELEVATION_AT_TIME_SCHEMA_BASE,
+    LOC_PARAMS,
+    TIME_AT_ELEVATION_SCHEMA_BASE,
+    val_elevation_at_time,
+    val_time_at_elevation,
+)
 from .const import (
     ATTR_BLUE_HOUR,
     ATTR_DAYLIGHT,
@@ -74,7 +81,6 @@ from .const import (
     SUNSET_ELEV,
 )
 from .helpers import (
-    LOC_PARAMS,
     LocData,
     LocParams,
     Num,
@@ -1161,78 +1167,14 @@ _SENSOR_TYPES = {
     "deconz_daylight": SensorParams(Sun2DeconzDaylightSensor, None),
 }
 
-_DIR_TO_ICON = {
-    SunDirection.RISING: "mdi:weather-sunset-up",
-    SunDirection.SETTING: "mdi:weather-sunset-down",
-}
-
-
-def val_tae_cfg(config: ConfigType) -> ConfigType:
-    """Validate time_at_elevation config."""
-    direction = SunDirection(config[CONF_DIRECTION])
-    if not config.get(CONF_ICON):
-        config[CONF_ICON] = _DIR_TO_ICON[direction]
-    return config
-
-
-def _tae_defaults(config: ConfigType) -> ConfigType:
-    """Fill in defaults including name."""
-    config = val_tae_cfg(config)
-
-    if config.get(CONF_NAME):
-        return config
-
-    direction = SunDirection(config[CONF_DIRECTION])
-    elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
-
-    dir_str = direction.name.title()
-    if elevation >= 0:
-        elev_str = str(elevation)
-    else:
-        elev_str = f"minus {-elevation}"
-    config[CONF_NAME] = f"{dir_str} at {elev_str} °"
-
-    return config
-
-
-def _eat_defaults(config: ConfigType) -> ConfigType:
-    """Fill in defaults including name."""
-    if not config.get(CONF_NAME):
-        config[CONF_NAME] = f"Elevation at {config[CONF_ELEVATION_AT_TIME]}"
-
-    return config
-
-
-TIME_AT_ELEVATION_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_TIME_AT_ELEVATION): vol.Coerce(float),
-        vol.Optional(CONF_DIRECTION, default=SunDirection.RISING.name): vol.All(
-            vol.Upper, cv.enum(SunDirection)
-        ),
-        vol.Optional(CONF_ICON): cv.icon,
-        vol.Optional(CONF_NAME): cv.string,
-    }
+_ELEVATION_AT_TIME_SCHEMA = vol.All(
+    ELEVATION_AT_TIME_SCHEMA_BASE, val_elevation_at_time()
 )
-
-_TIME_AT_ELEVATION_SCHEMA_W_DEFAULTS = vol.All(TIME_AT_ELEVATION_SCHEMA, _tae_defaults)
-
-ELEVATION_AT_TIME_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ELEVATION_AT_TIME): vol.Any(
-            vol.All(cv.string, cv.entity_domain("input_datetime")),
-            cv.time,
-            msg="expected input_datetime entity ID or time string",
-        ),
-        vol.Optional(CONF_NAME): cv.string,
-    }
+_TIME_AT_ELEVATION_SCHEMA = vol.All(
+    TIME_AT_ELEVATION_SCHEMA_BASE, val_time_at_elevation()
 )
-
-_ELEVATION_AT_TIME_SCHEMA_W_DEFAULTS = vol.All(ELEVATION_AT_TIME_SCHEMA, _eat_defaults)
-
 _SUN2_SENSOR_SCHEMA = vol.Any(
-    _TIME_AT_ELEVATION_SCHEMA_W_DEFAULTS,
-    _ELEVATION_AT_TIME_SCHEMA_W_DEFAULTS,
-    vol.In(_SENSOR_TYPES),
+    _ELEVATION_AT_TIME_SCHEMA, _TIME_AT_ELEVATION_SCHEMA, vol.In(_SENSOR_TYPES)
 )
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -1264,18 +1206,7 @@ def _sensors(
         else:
             if isinstance(extra, Sun2EntityParams):
                 extra.unique_id = config[CONF_UNIQUE_ID]
-            if CONF_TIME_AT_ELEVATION in config:
-                sensors.append(
-                    Sun2TimeAtElevationSensor(
-                        loc_params,
-                        extra,
-                        config[CONF_NAME],
-                        config[CONF_ICON],
-                        SunDirection(config[CONF_DIRECTION]),
-                        config[CONF_TIME_AT_ELEVATION],
-                    )
-                )
-            else:
+            if CONF_ELEVATION_AT_TIME in config:
                 # For config entries, JSON serialization turns a time into a string.
                 # Convert back to time in that case.
                 at_time = config[CONF_ELEVATION_AT_TIME]
@@ -1288,6 +1219,17 @@ def _sensors(
                         extra,
                         config[CONF_NAME],
                         at_time,
+                    )
+                )
+            else:
+                sensors.append(
+                    Sun2TimeAtElevationSensor(
+                        loc_params,
+                        extra,
+                        config[CONF_NAME],
+                        config[CONF_ICON],
+                        SunDirection(config[CONF_DIRECTION]),
+                        config[CONF_TIME_AT_ELEVATION],
                     )
                 )
     return sensors

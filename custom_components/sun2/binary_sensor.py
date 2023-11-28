@@ -32,6 +32,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util, slugify
 
+from .config import LOC_PARAMS
 from .const import (
     ATTR_NEXT_CHANGE,
     DOMAIN,
@@ -42,7 +43,6 @@ from .const import (
     SUNSET_ELEV,
 )
 from .helpers import (
-    LOC_PARAMS,
     LocParams,
     Num,
     sun2_dev_info,

@@ -9,7 +9,6 @@ from typing import Any, TypeVar, Union, cast
 
 from astral import LocationInfo
 from astral.location import Location
-import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -19,7 +18,6 @@ from homeassistant.const import (
     CONF_TIME_ZONE,
 )
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType
 
 # Device Info moved to device_registry in 2023.9
@@ -30,6 +28,7 @@ except ImportError:
 
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
@@ -48,12 +47,6 @@ from .const import (
 
 
 Num = Union[float, int]
-LOC_PARAMS = {
-    vol.Inclusive(CONF_ELEVATION, "location"): vol.Coerce(float),
-    vol.Inclusive(CONF_LATITUDE, "location"): cv.latitude,
-    vol.Inclusive(CONF_LONGITUDE, "location"): cv.longitude,
-    vol.Inclusive(CONF_TIME_ZONE, "location"): cv.time_zone,
-}
 
 
 @dataclass(frozen=True)
@@ -88,6 +81,7 @@ class Sun2Data:
 
     locations: dict[LocParams | None, LocData] = field(default_factory=dict)
     translations: dict[str, str] = field(default_factory=dict)
+    language: str | None = None
 
 
 def get_loc_params(config: ConfigType) -> LocParams | None:
@@ -111,7 +105,16 @@ def hours_to_hms(hours: Num | None) -> str | None:
         return None
 
 
-def translation(
+async def init_translations(hass: HomeAssistant) -> None:
+    """Initialize translations."""
+    data = cast(Sun2Data, hass.data.setdefault(DOMAIN, Sun2Data()))
+    if data.language != hass.config.language:
+        data.translations = await async_get_translations(
+            hass, hass.config.language, "misc", [DOMAIN], False
+        )
+
+
+def translate(
     hass: HomeAssistant, key: str, placeholders: dict[str, str] | None = None
 ) -> str:
     """Sun2 translations."""
@@ -130,7 +133,7 @@ def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         entry_type=DeviceEntryType.SERVICE,
         identifiers={(DOMAIN, entry.entry_id)},
-        name=translation(hass, "service_name", {"location": entry.title}),
+        name=translate(hass, "service_name", {"location": entry.title}),
     )
 
 

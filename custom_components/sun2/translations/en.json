@@ -13,9 +13,59 @@
     },
     "config": {
         "step": {
-            "use_home": {
+            "elevation_at_time_sensor_menu": {
+                "title": "Elevation at Time Type",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entity",
+                    "elevation_at_time_sensor_time": "Time string"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Elevation at Time Sensor Options",
                 "data": {
-                    "use_home": "Use Home Assistant name and location?"
+                    "elevation_at_time": "input_datetime entity ID",
+                    "name": "Name"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "Time",
+                    "name": "Name"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "use_horizon": "Use horizon as elevation?"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "name": "Name"
+                }
+            },
+            "entities_menu": {
+                "title": "Additional Entities",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Add elevation at time sensor",
+                    "elevation_binary_sensor": "Add elevation binary sensor",
+                    "time_at_elevation_sensor": "Add time at elevation sensor"
+                }
+            },
+            "location": {
+                "title": "Location Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "latitude": "Latitude",
+                    "longitude": "Longitude",
+                    "time_zone": "Time zone"
+                },
+                "data_description": {
+                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
                 }
             },
             "location_name": {
@@ -24,25 +74,74 @@
                     "name": "Name"
                 }
             },
-            "location": {
-                "title": "Location Options",
+            "remove_entity": {
+                "title": "Remove {name}?",
                 "data": {
-                    "elevation": "Elevation",
-                    "latitude": "Latitude",
-                    "longitude": "Longitude",
-                    "time_zone": "Time zone"
-                },
-                "data_description": {
-                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "remove": "Remove"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Time at Elevation Sensor Options",
+                "data": {
+                    "time_at_elevation": "Elevation",
+                    "direction": "Sun direction",
+                    "icon": "Icon",
+                    "name": "Name"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location?"
                 }
             }
+        },
+        "error": {
+            "name_used": "Location name has already been used."
         }
     },
     "options": {
         "step": {
-            "use_home": {
+            "elevation_at_time_sensor_menu": {
+                "title": "Elevation at Time Type",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entity",
+                    "elevation_at_time_sensor_time": "Time string"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Elevation at Time Sensor Options",
                 "data": {
-                    "use_home": "Use Home Assistant name and location?"
+                    "elevation_at_time": "input_datetime entity ID",
+                    "name": "Name"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "Time",
+                    "name": "Name"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "use_horizon": "Use horizon as elevation?"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "name": "Name"
+                }
+            },
+            "entities_menu": {
+                "title": "Additional Entities",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Add elevation at time sensor",
+                    "elevation_binary_sensor": "Add elevation binary sensor",
+                    "time_at_elevation_sensor": "Add time at elevation sensor"
                 }
             },
             "location": {
@@ -50,12 +149,31 @@
                 "data": {
                     "elevation": "Elevation",
                     "latitude": "Latitude",
-                    "location": "Location",
                     "longitude": "Longitude",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
                     "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "remove_entity": {
+                "title": "Remove {name}?",
+                "data": {
+                    "remove": "Remove"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Time at Elevation Sensor Options",
+                "data": {
+                    "time_at_elevation": "Elevation",
+                    "direction": "Sun direction",
+                    "icon": "Icon",
+                    "name": "Name"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location?"
                 }
             }
         }
@@ -310,6 +428,14 @@
                     "tomorrow": {"name": "Tomorrow"},
                     "yesterday": {"name": "Yesterday"}
                 }
+            }
+        }
+    },
+    "selector": {
+        "direction": {
+            "options": {
+                "rising": "Rising",
+                "setting": "Setting"
             }
         }
     },
