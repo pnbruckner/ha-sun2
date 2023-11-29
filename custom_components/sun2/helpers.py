@@ -105,26 +105,32 @@ def hours_to_hms(hours: Num | None) -> str | None:
         return None
 
 
+_TRANS_PREFIX = f"component.{DOMAIN}.selector.misc.options"
+
+
 async def init_translations(hass: HomeAssistant) -> None:
     """Initialize translations."""
     data = cast(Sun2Data, hass.data.setdefault(DOMAIN, Sun2Data()))
     if data.language != hass.config.language:
-        data.translations = await async_get_translations(
-            hass, hass.config.language, "misc", [DOMAIN], False
+        sel_trans = await async_get_translations(
+            hass, hass.config.language, "selector", [DOMAIN], False
         )
+        data.translations = {}
+        for sel_key, val in sel_trans.items():
+            prefix, key = sel_key.rsplit(".", 1)
+            if prefix == _TRANS_PREFIX:
+                data.translations[key] = val
 
 
 def translate(
-    hass: HomeAssistant, key: str, placeholders: dict[str, str] | None = None
+    hass: HomeAssistant, key: str, placeholders: dict[str, Any] | None = None
 ) -> str:
     """Sun2 translations."""
-    trans = cast(Sun2Data, hass.data[DOMAIN]).translations[
-        f"component.{DOMAIN}.misc.{key}"
-    ]
+    trans = cast(Sun2Data, hass.data[DOMAIN]).translations[key]
     if not placeholders:
         return trans
-    for key, val in placeholders.items():
-        trans = trans.replace(f"{{{key}}}", val)
+    for ph_key, val in placeholders.items():
+        trans = trans.replace(f"{{{ph_key}}}", str(val))
     return trans
 
 

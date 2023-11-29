@@ -1,16 +1,5 @@
 {
     "title": "Sun2",
-    "misc": {
-        "above_horizon": "Above horizon",
-        "above_neg_elev": "Above minus {elevation} °",
-        "above_pos_elev": "Above {elevation} °",
-        "elevation_at": "Elevation at {elev_time}",
-        "rising_neg_elev": "Rising at minus {elevation} °",
-        "rising_pos_elev": "Rising at {elevation} °",
-        "service_name": "{location} Sun",
-        "setting_neg_elev": "Setting at minus {elevation} °",
-        "setting_pos_elev": "Setting at {elevation} °"
-    },
     "config": {
         "step": {
             "elevation_at_time_sensor_menu": {
@@ -436,6 +425,19 @@
             "options": {
                 "rising": "Rising",
                 "setting": "Setting"
+            }
+        },
+        "misc": {
+            "options": {
+                "above_horizon": "Above horizon",
+                "above_neg_elev": "Above minus {elevation} °",
+                "above_pos_elev": "Above {elevation} °",
+                "elevation_at": "Elevation at {elev_time}",
+                "rising_neg_elev": "Rising at minus {elevation} °",
+                "rising_pos_elev": "Rising at {elevation} °",
+                "service_name": "{location} Sun",
+                "setting_neg_elev": "Setting at minus {elevation} °",
+                "setting_pos_elev": "Setting at {elevation} °"
             }
         }
     },
