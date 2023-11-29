@@ -3,10 +3,7 @@
 Creates sensors that provide information about various sun related events.
 
 Follow the installation instructions below.
-Then add the desired configuration. Here is an example of a typical configuration:
-```yaml
-sun2:
-```
+Then add one or more locations with desired sensors either via YAML, the UI or both.
 
 ## Installation
 ### With HACS
@@ -43,6 +40,8 @@ Reloads Sun2 from the YAML-configuration. Also adds `SUN2` to the Developers Too
 ## Configuration variables
 
 A list of configuration options for one or more "locations". Each location is defined by the following options.
+
+> Note: This defines configuration via YAML. However, the same sensors can be added to locations created in the UI.
 
 Key | Optional | Description
 -|-|-
@@ -132,7 +131,7 @@ Also in this case, the `sensor` entity will not have `yesterday`, `today` and `t
 
 ## Aditional Sensors
 
-Besides any sensors specified in the configuration, the following will also be created.
+Besides the sensors described above, the following will also be created automatically. Simply enable or disable these entities as desired.
 
 ### Point in Time Sensors
 
