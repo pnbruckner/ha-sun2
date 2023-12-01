@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from numbers import Real
 from typing import Any, Iterable, cast
 
 import voluptuous as vol
@@ -50,15 +49,11 @@ from .helpers import (
     Sun2EntityParams,
     get_loc_params,
     nearest_second,
+    translate,
 )
-
-DEFAULT_ELEVATION_ABOVE = SUNSET_ELEV
-DEFAULT_ELEVATION_NAME = "Above Horizon"
 
 ABOVE_ICON = "mdi:white-balance-sunny"
 BELOW_ICON = "mdi:moon-waxing-crescent"
-
-_SENSOR_TYPES = [CONF_ELEVATION]
 
 
 # elevation
@@ -68,67 +63,43 @@ _SENSOR_TYPES = [CONF_ELEVATION]
 #   name: <friendly_name>
 
 
-def _val_bs_cfg(config: str | ConfigType) -> ConfigType:
+def _val_elevation(config: str | ConfigType) -> ConfigType:
     """Validate configuration."""
     if isinstance(config, str):
-        config = {config: {}}
+        config = {CONF_ELEVATION: {}}
     else:
-        if CONF_ELEVATION in config:
-            value = config[CONF_ELEVATION]
-            if isinstance(value, Real):
-                config[CONF_ELEVATION] = {CONF_ABOVE: value}
-    if CONF_ELEVATION in config:
-        options = config[CONF_ELEVATION]
-        for key in options:
-            if key not in [CONF_ELEVATION, CONF_ABOVE, CONF_NAME]:
-                raise vol.Invalid(f"{key} not allowed for {CONF_ELEVATION}")
-        if CONF_ABOVE not in options:
-            options[CONF_ABOVE] = DEFAULT_ELEVATION_ABOVE
+        config = config.copy()
+        value = config[CONF_ELEVATION]
+        if isinstance(value, float):
+            config[CONF_ELEVATION] = {CONF_ABOVE: value}
+        else:
+            config[CONF_ELEVATION] = value.copy()
+    options = config[CONF_ELEVATION]
+    if CONF_ABOVE not in options:
+        options[CONF_ABOVE] = "horizon"
     return config
 
 
-def _val_cfg(config: str | ConfigType) -> ConfigType:
-    """Validate configuration including name."""
-    config = _val_bs_cfg(config)
-    if CONF_ELEVATION in config:
-        options = config[CONF_ELEVATION]
-        if CONF_NAME not in options:
-            above = options[CONF_ABOVE]
-            if above == DEFAULT_ELEVATION_ABOVE:
-                name = DEFAULT_ELEVATION_NAME
-            else:
-                name = "Above "
-                if above < 0:
-                    name += f"minus {-above}"
-                else:
-                    name += f"{above}"
-            options[CONF_NAME] = name
-    return config
-
-
-SUN2_BINARY_SENSOR_SCHEMA = vol.Any(
-    vol.In(_SENSOR_TYPES),
-    vol.Schema(
+_ELEVATION_SCHEMA = vol.All(
+    vol.Any(
+        CONF_ELEVATION,
         {
-            vol.Required(vol.In(_SENSOR_TYPES)): vol.Any(
+            vol.Required(CONF_ELEVATION): vol.Any(
                 vol.Coerce(float),
-                vol.Schema(
-                    {
-                        vol.Optional(CONF_ABOVE): vol.Coerce(float),
-                        vol.Optional(CONF_NAME): cv.string,
-                    }
-                ),
-            ),
-        }
+                {
+                    vol.Optional(CONF_ABOVE): vol.Coerce(float),
+                    vol.Optional(CONF_NAME): cv.string,
+                },
+            )
+        },
     ),
+    _val_elevation,
 )
-
-_SUN2_BINARY_SENSOR_SCHEMA_W_DEFAULTS = vol.All(SUN2_BINARY_SENSOR_SCHEMA, _val_cfg)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA_W_DEFAULTS]
+            cv.ensure_list, [_ELEVATION_SCHEMA]
         ),
         **LOC_PARAMS,
     }
@@ -143,7 +114,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         loc_params: LocParams | None,
         extra: Sun2EntityParams | str | None,
         name: str,
-        above: float,
+        threshold: float | str,
     ) -> None:
         """Initialize sensor."""
         if not isinstance(extra, Sun2EntityParams):
@@ -158,7 +129,10 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         super().__init__(loc_params, extra)
         self._event = "solar_elevation"
 
-        self._threshold: float = above
+        if isinstance(threshold, str):
+            self._threshold = SUNSET_ELEV
+        else:
+            self._threshold = threshold
 
     def _find_nxt_dttm(
         self, t0_dttm: datetime, t0_elev: Num, t1_dttm: datetime, t1_elev: Num
@@ -308,7 +282,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_is_on = cur_elev > self._threshold
         self._attr_icon = ABOVE_ICON if self._attr_is_on else BELOW_ICON
         LOGGER.debug(
-            "%s: above = %f, elevation = %f", self.name, self._threshold, cur_elev
+            "%s: threshold = %f, elevation = %f", self.name, self._threshold, cur_elev
         )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
@@ -334,23 +308,43 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
+def _elevation_name(
+    hass: HomeAssistant | None, name: str | None, threshold: float | str
+) -> str:
+    """Return elevation sensor name."""
+    if name:
+        return name
+    if not hass:
+        if isinstance(threshold, str):
+            return "Above Horizon"
+        if threshold < 0:
+            return f"Above minus {-threshold}"
+        return f"Above {threshold}"
+    if isinstance(threshold, str):
+        return translate(hass, "above_horizon")
+    if threshold < 0:
+        return translate(hass, "above_neg_elev", {"elevation": str(-threshold)})
+    return translate(hass, "above_pos_elev", {"elevation": str(threshold)})
+
+
 def _sensors(
     loc_params: LocParams | None,
     extra: Sun2EntityParams | str | None,
     sensors_config: Iterable[str | dict[str, Any]],
+    hass: HomeAssistant | None = None,
 ) -> list[Entity]:
     """Create list of entities to add."""
     sensors = []
     for config in sensors_config:
-        if CONF_ELEVATION in config:
-            if isinstance(extra, Sun2EntityParams):
-                extra.unique_id = config[CONF_UNIQUE_ID]
-                name = config[CONF_NAME]
-                above = config[CONF_ELEVATION]
-            else:
-                name = config[CONF_ELEVATION][CONF_NAME]
-                above = config[CONF_ELEVATION][CONF_ABOVE]
-            sensors.append(Sun2ElevationSensor(loc_params, extra, name, above))
+        if isinstance(extra, Sun2EntityParams):
+            extra.unique_id = config[CONF_UNIQUE_ID]
+            threshold = config[CONF_ELEVATION]
+            name = config.get(CONF_NAME)
+        else:
+            threshold = config[CONF_ELEVATION][CONF_ABOVE]
+            name = config[CONF_ELEVATION].get(CONF_NAME)
+        name = _elevation_name(hass, name, threshold)
+        sensors.append(Sun2ElevationSensor(loc_params, extra, name, threshold))
     return sensors
 
 
@@ -386,14 +380,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     config = entry.options
-    if not (sensors_config := config.get(CONF_BINARY_SENSORS)):
-        return
-
     async_add_entities(
         _sensors(
             get_loc_params(config),
             Sun2EntityParams(entry, sun2_dev_info(hass, entry)),
-            sensors_config,
+            config.get(CONF_BINARY_SENSORS, []),
+            hass,
         ),
         True,
     )

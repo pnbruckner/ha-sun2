@@ -53,8 +53,6 @@ from .config import (
     ELEVATION_AT_TIME_SCHEMA_BASE,
     LOC_PARAMS,
     TIME_AT_ELEVATION_SCHEMA_BASE,
-    val_elevation_at_time,
-    val_time_at_elevation,
 )
 from .const import (
     ATTR_BLUE_HOUR,
@@ -91,6 +89,7 @@ from .helpers import (
     hours_to_hms,
     nearest_second,
     next_midnight,
+    translate,
 )
 
 _ENABLED_SENSORS = [
@@ -408,6 +407,11 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         elevation: float,
     ) -> None:
         """Initialize sensor."""
+        if not icon:
+            icon = {
+                SunDirection.RISING: "mdi:weather-sunset-up",
+                SunDirection.SETTING: "mdi:weather-sunset-down",
+            }[direction]
         self._direction = direction
         self._elevation = elevation
         super().__init__(loc_params, extra, CONF_TIME_AT_ELEVATION, icon, name)
@@ -1167,30 +1171,68 @@ _SENSOR_TYPES = {
     "deconz_daylight": SensorParams(Sun2DeconzDaylightSensor, None),
 }
 
-_ELEVATION_AT_TIME_SCHEMA = vol.All(
-    ELEVATION_AT_TIME_SCHEMA_BASE, val_elevation_at_time()
-)
-_TIME_AT_ELEVATION_SCHEMA = vol.All(
-    TIME_AT_ELEVATION_SCHEMA_BASE, val_time_at_elevation()
-)
-_SUN2_SENSOR_SCHEMA = vol.Any(
-    _ELEVATION_AT_TIME_SCHEMA, _TIME_AT_ELEVATION_SCHEMA, vol.In(_SENSOR_TYPES)
-)
+
+def _sensor(config: str | ConfigType) -> ConfigType:
+    """Validate sensor config."""
+    if isinstance(config, str):
+        return vol.In(_SENSOR_TYPES)(config)
+    if CONF_ELEVATION_AT_TIME in config:
+        return ELEVATION_AT_TIME_SCHEMA_BASE(config)
+    if CONF_TIME_AT_ELEVATION in config:
+        return TIME_AT_ELEVATION_SCHEMA_BASE(config)
+    raise vol.Invalid(
+        f"value must be one of {', '.join(sorted(_SENSOR_TYPES))}"
+        f" or a dictionary containing key {CONF_ELEVATION_AT_TIME} or {CONF_TIME_AT_ELEVATION}"
+    )
+
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [_SUN2_SENSOR_SCHEMA]
-        ),
+        vol.Required(CONF_MONITORED_CONDITIONS): vol.All(cv.ensure_list, [_sensor]),
         **LOC_PARAMS,
     }
 )
+
+
+def _elevation_at_time_name(
+    hass: HomeAssistant | None, name: str | None, at_time: str | time
+) -> str:
+    """Return elevation_at_time sensor name."""
+    if name:
+        return name
+    if not hass:
+        return f"Elevation at {at_time}"
+    return translate(hass, "elevation_at", {"elev_time": str(at_time)})
+
+
+def _time_at_elevation_name(
+    hass: HomeAssistant | None,
+    name: str | None,
+    direction: SunDirection,
+    elevation: float,
+) -> str:
+    """Return time_at_elevation sensor name."""
+    if name:
+        return name
+    if not hass:
+        dir_str = direction.name.title()
+        if elevation >= 0:
+            elev_str = str(elevation)
+        else:
+            elev_str = f"minus {-elevation}"
+        return f"{dir_str} at {elev_str} °"
+    return translate(
+        hass,
+        f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev",
+        {"elevation": str(abs(elevation))},
+    )
 
 
 def _sensors(
     loc_params: LocParams | None,
     extra: Sun2EntityParams | str | None,
     sensors_config: Iterable[str | dict[str, Any]],
+    hass: HomeAssistant | None = None,
 ) -> list[Entity]:
     """Create list of entities to add."""
     sensors = []
@@ -1217,19 +1259,28 @@ def _sensors(
                     Sun2ElevationAtTimeSensor(
                         loc_params,
                         extra,
-                        config[CONF_NAME],
+                        _elevation_at_time_name(hass, config.get(CONF_NAME), at_time),
                         at_time,
                     )
                 )
             else:
+                direction = SunDirection.__getitem__(
+                    cast(str, config[CONF_DIRECTION]).upper()
+                )
+                elevation = config[CONF_TIME_AT_ELEVATION]
                 sensors.append(
                     Sun2TimeAtElevationSensor(
                         loc_params,
                         extra,
-                        config[CONF_NAME],
-                        config[CONF_ICON],
-                        SunDirection(config[CONF_DIRECTION]),
-                        config[CONF_TIME_AT_ELEVATION],
+                        _time_at_elevation_name(
+                            hass,
+                            config.get(CONF_NAME),
+                            direction,
+                            elevation,
+                        ),
+                        config.get(CONF_ICON),
+                        direction,
+                        elevation,
                     )
                 )
     return sensors
@@ -1271,7 +1322,7 @@ async def async_setup_entry(
     loc_params = get_loc_params(config)
     sun2_entity_params = Sun2EntityParams(entry, sun2_dev_info(hass, entry))
     async_add_entities(
-        _sensors(loc_params, sun2_entity_params, config.get(CONF_SENSORS, []))
-        + _sensors(loc_params, sun2_entity_params, _SENSOR_TYPES.keys()),
+        _sensors(loc_params, sun2_entity_params, config.get(CONF_SENSORS, []), hass)
+        + _sensors(loc_params, sun2_entity_params, _SENSOR_TYPES.keys(), hass),
         True,
     )

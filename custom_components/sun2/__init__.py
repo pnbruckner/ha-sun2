@@ -4,9 +4,12 @@ from __future__ import annotations
 import asyncio
 from typing import cast
 
+from astral import SunDirection
+
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import (
     CONF_LATITUDE,
+    CONF_SENSORS,
     CONF_UNIQUE_ID,
     EVENT_CORE_CONFIG_UPDATE,
     Platform,
@@ -18,7 +21,7 @@ from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN, SIG_HA_LOC_UPDATED
+from .const import CONF_DIRECTION, CONF_TIME_AT_ELEVATION, DOMAIN, SIG_HA_LOC_UPDATED
 from .helpers import LocData, LocParams, Sun2Data
 
 
@@ -112,6 +115,17 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up config entry."""
+    # From 3.0.0b8 or older: Convert config direction from -1, 1 -> "setting", "rising"
+    options = dict(entry.options)
+    for sensor in options.get(CONF_SENSORS, []):
+        if CONF_TIME_AT_ELEVATION not in sensor:
+            continue
+        if isinstance(direction := sensor[CONF_DIRECTION], str):
+            continue
+        sensor[CONF_DIRECTION] = SunDirection(direction).name.lower()
+    if options != entry.options:
+        hass.config_entries.async_update_entry(entry, options=options)
+
     entry.async_on_unload(entry.add_update_listener(entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

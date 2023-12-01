@@ -1,9 +1,6 @@
 """Sun2 config validation."""
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import cast
-
 from astral import SunDirection
 import voluptuous as vol
 
@@ -28,12 +25,10 @@ from .const import (
     CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
-    SUNSET_ELEV,
 )
-from .helpers import init_translations, translate
+from .helpers import init_translations
 
 PACKAGE_MERGE_HINT = "list"
-DEFAULT_ELEVATION = SUNSET_ELEV
 
 LOC_PARAMS = {
     vol.Inclusive(CONF_ELEVATION, "location"): vol.Coerce(float),
@@ -65,7 +60,7 @@ ELEVATION_AT_TIME_SCHEMA_BASE = vol.Schema(
     }
 )
 
-ELEVATION_AT_TIME_SCHEMA = ELEVATION_AT_TIME_SCHEMA_BASE.extend(
+_ELEVATION_AT_TIME_SCHEMA = ELEVATION_AT_TIME_SCHEMA_BASE.extend(
     {vol.Required(CONF_UNIQUE_ID): cv.string}
 )
 
@@ -73,18 +68,18 @@ val_elevation = vol.All(
     vol.Coerce(float), vol.Range(min=-90, max=90), msg="invalid elevation"
 )
 
+_DIRECTIONS = [dir.lower() for dir in SunDirection.__members__]
+
 TIME_AT_ELEVATION_SCHEMA_BASE = vol.Schema(
     {
         vol.Required(CONF_TIME_AT_ELEVATION): val_elevation,
-        vol.Optional(CONF_DIRECTION, default=SunDirection.RISING.name): vol.All(
-            vol.Upper, cv.enum(SunDirection)
-        ),
+        vol.Optional(CONF_DIRECTION, default=_DIRECTIONS[0]): vol.In(_DIRECTIONS),
         vol.Optional(CONF_ICON): cv.icon,
         vol.Optional(CONF_NAME): cv.string,
     }
 )
 
-TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA_BASE.extend(
+_TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA_BASE.extend(
     {vol.Required(CONF_UNIQUE_ID): cv.string}
 )
 
@@ -92,16 +87,16 @@ TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA_BASE.extend(
 def _sensor(config: ConfigType) -> ConfigType:
     """Validate sensor config."""
     if CONF_ELEVATION_AT_TIME in config:
-        return ELEVATION_AT_TIME_SCHEMA(config)
+        return _ELEVATION_AT_TIME_SCHEMA(config)
     if CONF_TIME_AT_ELEVATION in config:
-        return TIME_AT_ELEVATION_SCHEMA(config)
+        return _TIME_AT_ELEVATION_SCHEMA(config)
     raise vol.Invalid(f"expected {CONF_ELEVATION_AT_TIME} or {CONF_TIME_AT_ELEVATION}")
 
 
 _SUN2_LOCATION_CONFIG = vol.Schema(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
-        vol.Optional(CONF_LOCATION): cv.string,
+        vol.Inclusive(CONF_LOCATION, "location"): cv.string,
         vol.Optional(CONF_BINARY_SENSORS): vol.All(
             cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA]
         ),
@@ -132,111 +127,10 @@ _SUN2_CONFIG_SCHEMA = vol.Schema(
 )
 
 
-def val_bs_elevation(hass: HomeAssistant | None = None) -> Callable[[dict], dict]:
-    """Validate elevation binary_sensor config."""
-
-    def validate(config: ConfigType) -> ConfigType:
-        """Validate the config."""
-        if config[CONF_ELEVATION] == "horizon":
-            config[CONF_ELEVATION] = DEFAULT_ELEVATION
-
-        if config.get(CONF_NAME):
-            return config
-
-        if (elevation := config[CONF_ELEVATION]) == DEFAULT_ELEVATION:
-            name = translate(hass, "above_horizon")
-        else:
-            if elevation < 0:
-                name = translate(hass, "above_neg_elev", {"elevation": str(-elevation)})
-            else:
-                name = translate(hass, "above_pos_elev", {"elevation": str(elevation)})
-        config[CONF_NAME] = name
-        return config
-
-    return validate
-
-
-def val_elevation_at_time(hass: HomeAssistant | None = None) -> Callable[[dict], dict]:
-    """Validate elevation_at_time sensor config."""
-
-    def validate(config: ConfigType) -> ConfigType:
-        """Validate the config."""
-        if config.get(CONF_NAME):
-            return config
-
-        at_time = config[CONF_ELEVATION_AT_TIME]
-        if hass:
-            name = translate(hass, "elevation_at", {"elev_time": str(at_time)})
-        else:
-            name = f"Elevation at {at_time}"
-        config[CONF_NAME] = name
-        return config
-
-    return validate
-
-
-_DIR_TO_ICON = {
-    SunDirection.RISING: "mdi:weather-sunset-up",
-    SunDirection.SETTING: "mdi:weather-sunset-down",
-}
-
-
-def val_time_at_elevation(hass: HomeAssistant | None = None) -> Callable[[dict], dict]:
-    """Validate time_at_elevation sensor config."""
-
-    def validate(config: ConfigType) -> ConfigType:
-        """Validate the config."""
-        direction = SunDirection(config[CONF_DIRECTION])
-        if not config.get(CONF_ICON):
-            config[CONF_ICON] = _DIR_TO_ICON[direction]
-
-        if config.get(CONF_NAME):
-            return config
-
-        elevation = cast(float, config[CONF_TIME_AT_ELEVATION])
-        if hass:
-            name = translate(
-                hass,
-                f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev",
-                {"elevation": str(abs(elevation))},
-            )
-        else:
-            dir_str = direction.name.title()
-            if elevation >= 0:
-                elev_str = str(elevation)
-            else:
-                elev_str = f"minus {-elevation}"
-            name = f"{dir_str} at {elev_str} °"
-        config[CONF_NAME] = name
-        return config
-
-    return validate
-
-
 async def async_validate_config(
     hass: HomeAssistant, config: ConfigType
 ) -> ConfigType | None:
     """Validate configuration."""
     await init_translations(hass)
 
-    config = _SUN2_CONFIG_SCHEMA(config)
-    if DOMAIN not in config:
-        return config
-
-    _val_bs_elevation = val_bs_elevation(hass)
-    _val_elevation_at_time = val_elevation_at_time(hass)
-    _val_time_at_elevation = val_time_at_elevation(hass)
-    for loc_config in config[DOMAIN]:
-        if CONF_BINARY_SENSORS in loc_config:
-            loc_config[CONF_BINARY_SENSORS] = [
-                _val_bs_elevation(cfg) for cfg in loc_config[CONF_BINARY_SENSORS]
-            ]
-        if CONF_SENSORS in loc_config:
-            sensor_configs = []
-            for sensor_config in loc_config[CONF_SENSORS]:
-                if CONF_ELEVATION_AT_TIME in sensor_config:
-                    sensor_configs.append(_val_elevation_at_time(sensor_config))
-                else:
-                    sensor_configs.append(_val_time_at_elevation(sensor_config))
-            loc_config[CONF_SENSORS] = sensor_configs
-    return config
+    return _SUN2_CONFIG_SCHEMA(config)

@@ -44,12 +44,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util.uuid import random_uuid_hex
 
-from .config import (
-    val_bs_elevation,
-    val_elevation,
-    val_elevation_at_time,
-    val_time_at_elevation,
-)
+from .config import val_elevation
 from .const import (
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
@@ -127,7 +122,7 @@ class Sun2Flow(ABC):
         if user_input is not None:
             if user_input["use_horizon"]:
                 return await self.async_finish_sensor(
-                    {CONF_ELEVATION: "horizon"}, val_bs_elevation, CONF_BINARY_SENSORS
+                    {CONF_ELEVATION: "horizon"}, CONF_BINARY_SENSORS
                 )
             return await self.async_step_elevation_binary_sensor_2()
 
@@ -142,9 +137,7 @@ class Sun2Flow(ABC):
     ) -> FlowResult:
         """Handle additional elevation binary sensor options."""
         if user_input is not None:
-            return await self.async_finish_sensor(
-                user_input, val_bs_elevation, CONF_BINARY_SENSORS
-            )
+            return await self.async_finish_sensor(user_input, CONF_BINARY_SENSORS)
 
         schema = {
             vol.Required(CONF_ELEVATION, default=0.0): NumberSelector(
@@ -177,9 +170,7 @@ class Sun2Flow(ABC):
     ) -> FlowResult:
         """Handle elevation_at_time sensor options w/ input_datetime entity."""
         if user_input is not None:
-            return await self.async_finish_sensor(
-                user_input, val_elevation_at_time, CONF_SENSORS
-            )
+            return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
         schema = {
             vol.Required(CONF_ELEVATION_AT_TIME): EntitySelector(
@@ -198,9 +189,7 @@ class Sun2Flow(ABC):
     ) -> FlowResult:
         """Handle elevation_at_time sensor options w/ time string."""
         if user_input is not None:
-            return await self.async_finish_sensor(
-                user_input, val_elevation_at_time, CONF_SENSORS
-            )
+            return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
         schema = {
             vol.Required(CONF_ELEVATION_AT_TIME): TimeSelector(),
@@ -220,9 +209,7 @@ class Sun2Flow(ABC):
             user_input[CONF_DIRECTION] = vol.All(vol.Upper, cv.enum(SunDirection))(
                 user_input[CONF_DIRECTION]
             )
-            return await self.async_finish_sensor(
-                user_input, val_time_at_elevation, CONF_SENSORS
-            )
+            return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
         schema = {
             vol.Required(CONF_TIME_AT_ELEVATION, default=0.0): NumberSelector(
@@ -247,13 +234,11 @@ class Sun2Flow(ABC):
     async def async_finish_sensor(
         self,
         config: dict[str, Any],
-        validator: Callable[[HomeAssistant], Callable[[dict], dict]],
         sensor_type: str,
     ) -> FlowResult:
         """Finish elevation binary sensor."""
-        sensor_option = validator(self.hass)(config)
-        sensor_option[CONF_UNIQUE_ID] = random_uuid_hex()
-        self.options.setdefault(sensor_type, []).append(sensor_option)
+        config[CONF_UNIQUE_ID] = random_uuid_hex()
+        self.options.setdefault(sensor_type, []).append(config)
         return await self.async_step_entities_menu()
 
     @abstractmethod
