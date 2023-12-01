@@ -46,7 +46,7 @@ A list of configuration options for one or more "locations". Each location is de
 Key | Optional | Description
 -|-|-
 `unique_id` | no | Unique identifier for location. This allows any of the remaining options to be changed without looking like a new location.
-`location` | yes | Name of location. Default is Home Assistant's current location name.
+`location` | yes* | Name of location
 `latitude` | yes* | The location's latitude (in degrees)
 `longitude` | yes* | The location's longitude (in degrees)
 `time_zone` | yes* | The location's time zone. (See the "TZ database name" column at http://en.wikipedia.org/wiki/List_of_tz_database_time_zones.)
@@ -54,7 +54,7 @@ Key | Optional | Description
 `binary_sensors` | yes | Binary sensor configurations as defined [here](#binary-sensor-configurations)
 `sensors` | yes | Sensor configurations as defined [here](#sensor-configurations)
 
-\* These must all be used together. If not used, the default is Home Assistant's location configuration.
+\* These must all be used together. If not used, the default is Home Assistant's location & name configuration.
 
 ### Binary Sensor Configurations
 
