@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from contextlib import suppress
 from typing import Any, cast
 
-from astral import SunDirection
 import voluptuous as vol
 
 from homeassistant.config_entries import (
@@ -27,7 +25,7 @@ from homeassistant.const import (
     CONF_TIME_ZONE,
     CONF_UNIQUE_ID,
 )
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
@@ -44,7 +42,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util.uuid import random_uuid_hex
 
-from .config import val_elevation
+from .config import SUN_DIRECTIONS, val_elevation
 from .const import (
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
@@ -206,9 +204,6 @@ class Sun2Flow(ABC):
     ) -> FlowResult:
         """Handle time_at_elevation sensor options."""
         if user_input is not None:
-            user_input[CONF_DIRECTION] = vol.All(vol.Upper, cv.enum(SunDirection))(
-                user_input[CONF_DIRECTION]
-            )
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
         schema = {
@@ -219,7 +214,7 @@ class Sun2Flow(ABC):
             ),
             vol.Required(CONF_DIRECTION): SelectSelector(
                 SelectSelectorConfig(
-                    options=["rising", "setting"], translation_key="direction"
+                    options=SUN_DIRECTIONS, translation_key="direction"
                 )
             ),
             vol.Optional(CONF_ICON): IconSelector(),
@@ -277,21 +272,17 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     async def async_step_import(self, data: dict[str, Any]) -> FlowResult:
         """Import config entry from configuration."""
-        self._location_name = cast(
-            str, data.pop(CONF_LOCATION, self.hass.config.location_name)
-        )
+        title = cast(str, data.pop(CONF_LOCATION, self.hass.config.location_name))
         if existing_entry := await self.async_set_unique_id(data.pop(CONF_UNIQUE_ID)):
             if not self.hass.config_entries.async_update_entry(
-                existing_entry, title=self._location_name, options=data
+                existing_entry, title=title, options=data
             ):
                 self.hass.async_create_task(
                     self.hass.config_entries.async_reload(existing_entry.entry_id)
                 )
             return self.async_abort(reason="already_configured")
 
-        self.options.clear()
-        self.options.update(data)
-        return await self.async_step_done()
+        return self.async_create_entry(title=title, data={}, options=data)
 
     async def async_step_user(self, _: dict[str, Any] | None = None) -> FlowResult:
         """Start user config flow."""
