@@ -24,12 +24,11 @@ from homeassistant.helpers.device_registry import DeviceEntryType
 try:
     from homeassistant.helpers.device_registry import DeviceInfo
 except ImportError:
-    from homeassistant.helpers.entity import DeviceInfo
+    from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.translation import async_get_translations
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -40,11 +39,9 @@ from .const import (
     ATTR_YESTERDAY,
     ATTR_YESTERDAY_HMS,
     DOMAIN,
-    LOGGER,
     ONE_DAY,
     SIG_HA_LOC_UPDATED,
 )
-
 
 Num = Union[float, int]
 
@@ -84,7 +81,7 @@ class Sun2Data:
     language: str | None = None
 
 
-def get_loc_params(config: ConfigType) -> LocParams | None:
+def get_loc_params(config: Mapping[str, Any]) -> LocParams | None:
     """Get location parameters from configuration."""
     try:
         return LocParams(
@@ -100,7 +97,7 @@ def get_loc_params(config: ConfigType) -> LocParams | None:
 def hours_to_hms(hours: Num | None) -> str | None:
     """Convert hours to HH:MM:SS string."""
     try:
-        return str(timedelta(hours=cast(Num, hours))).split(".")[0]
+        return str(timedelta(hours=int(cast(Num, hours))))
     except TypeError:
         return None
 
@@ -207,7 +204,7 @@ class Sun2Entity(Entity):
             )
             self._attr_device_info = sun2_entity_params.device_info
         else:
-            self._attr_unique_id = self.name
+            self._attr_unique_id = cast(str, self.name)
         self._loc_params = loc_params
         self.async_on_remove(self._cancel_update)
 
@@ -265,11 +262,9 @@ class Sun2Entity(Entity):
     @abstractmethod
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        pass
 
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
-        pass
 
     def _astral_event(
         self,
@@ -287,13 +282,12 @@ class Sun2Entity(Entity):
         try:
             if event in ("solar_midnight", "solar_noon"):
                 return getattr(loc, event.split("_")[1])(date_or_dttm)
-            elif event == "time_at_elevation":
+            if event == "time_at_elevation":
                 return loc.time_at_elevation(
                     kwargs["elevation"], date_or_dttm, kwargs["direction"]
                 )
-            else:
-                return getattr(loc, event)(
-                    date_or_dttm, observer_elevation=self._loc_data.elv
-                )
+            return getattr(loc, event)(
+                date_or_dttm, observer_elevation=self._loc_data.elv
+            )
         except (TypeError, ValueError):
             return None

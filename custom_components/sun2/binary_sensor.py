@@ -1,16 +1,17 @@
 """Sun2 Binary Sensor."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Iterable, cast
+from typing import cast
 
 import voluptuous as vol
 
 from homeassistant.components.binary_sensor import (
-    BinarySensorEntity,
-    BinarySensorEntityDescription,
     DOMAIN as BINARY_SENSOR_DOMAIN,
     PLATFORM_SCHEMA,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -44,11 +45,11 @@ from .const import (
 from .helpers import (
     LocParams,
     Num,
-    sun2_dev_info,
     Sun2Entity,
     Sun2EntityParams,
     get_loc_params,
     nearest_second,
+    sun2_dev_info,
     translate,
 )
 
@@ -126,7 +127,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, extra)
+        super().__init__(loc_params, cast(Sun2EntityParams | None, extra))
         self._event = "solar_elevation"
 
         if isinstance(threshold, str):
@@ -230,7 +231,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
                 else:
                     t0_dttm = evt_dttm3
                     t1_dttm = evt_dttm4
-            else:
+            else:  # noqa: PLR5501
                 if not self._attr_is_on:
                     t0_dttm = cur_dttm
                     t1_dttm = evt_dttm4
@@ -298,13 +299,12 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
                 self.hass, schedule_update, nxt_dttm
             )
             nxt_dttm = dt_util.as_local(nxt_dttm)
-        else:
-            if self.hass.state == CoreState.running:
-                LOGGER.error(
-                    "%s: Sun elevation never reaches %f at this location",
-                    self.name,
-                    self._threshold,
-                )
+        elif self.hass.state == CoreState.running:
+            LOGGER.error(
+                "%s: Sun elevation never reaches %f at this location",
+                self.name,
+                self._threshold,
+            )
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
@@ -330,11 +330,11 @@ def _elevation_name(
 def _sensors(
     loc_params: LocParams | None,
     extra: Sun2EntityParams | str | None,
-    sensors_config: Iterable[str | dict[str, Any]],
+    sensors_config: Iterable[ConfigType],
     hass: HomeAssistant | None = None,
 ) -> list[Entity]:
     """Create list of entities to add."""
-    sensors = []
+    sensors: list[Entity] = []
     for config in sensors_config:
         if isinstance(extra, Sun2EntityParams):
             extra.unique_id = config[CONF_UNIQUE_ID]
@@ -356,7 +356,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up sensors."""
     LOGGER.warning(
-        "%s: %s under %s is deprecated. Move to %s: ...",
+        "%s: %s under %s is deprecated. Move to %s:",
         CONF_PLATFORM,
         DOMAIN,
         BINARY_SENSOR_DOMAIN,

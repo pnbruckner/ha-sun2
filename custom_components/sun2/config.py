@@ -1,6 +1,8 @@
 """Sun2 config validation."""
 from __future__ import annotations
 
+from typing import cast
+
 from astral import SunDirection
 import voluptuous as vol
 
@@ -87,9 +89,9 @@ _TIME_AT_ELEVATION_SCHEMA = TIME_AT_ELEVATION_SCHEMA_BASE.extend(
 def _sensor(config: ConfigType) -> ConfigType:
     """Validate sensor config."""
     if CONF_ELEVATION_AT_TIME in config:
-        return _ELEVATION_AT_TIME_SCHEMA(config)
+        return cast(ConfigType, _ELEVATION_AT_TIME_SCHEMA(config))
     if CONF_TIME_AT_ELEVATION in config:
-        return _TIME_AT_ELEVATION_SCHEMA(config)
+        return cast(ConfigType, _TIME_AT_ELEVATION_SCHEMA(config))
     raise vol.Invalid(f"expected {CONF_ELEVATION_AT_TIME} or {CONF_TIME_AT_ELEVATION}")
 
 
@@ -133,4 +135,4 @@ async def async_validate_config(
     """Validate configuration."""
     await init_translations(hass)
 
-    return _SUN2_CONFIG_SCHEMA(config)
+    return cast(ConfigType, _SUN2_CONFIG_SCHEMA(config))

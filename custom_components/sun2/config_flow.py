@@ -1,17 +1,17 @@
 """Config flow for Sun2 integration."""
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from contextlib import suppress
 from typing import Any, cast
 
 import voluptuous as vol
 
 from homeassistant.config_entries import (
+    SOURCE_IMPORT,
     ConfigEntry,
     ConfigFlow,
     OptionsFlowWithConfigEntry,
-    SOURCE_IMPORT,
 )
 from homeassistant.const import (
     CONF_BINARY_SENSORS,
@@ -26,7 +26,7 @@ from homeassistant.const import (
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowHandler, FlowResult
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
     EntitySelector,
@@ -54,7 +54,7 @@ from .helpers import init_translations
 _LOCATION_OPTIONS = [CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
 
 
-class Sun2Flow(ABC):
+class Sun2Flow(FlowHandler):
     """Sun2 flow mixin."""
 
     _existing_entries: list[ConfigEntry] | None = None
@@ -65,6 +65,11 @@ class Sun2Flow(ABC):
         if self._existing_entries is None:
             self._existing_entries = self.hass.config_entries.async_entries(DOMAIN)
         return self._existing_entries
+
+    @abstractmethod
+    @property
+    def options(self) -> dict[str, Any]:
+        """Return mutable copy of options."""
 
     def _any_using_ha_loc(self) -> bool:
         """Determine if a config is using Home Assistant location."""
@@ -250,7 +255,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize config flow."""
-        self.options = {}
+        self._options: dict[str, Any] = {}
 
     @staticmethod
     @callback
@@ -269,6 +274,11 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         if config_entry.source == SOURCE_IMPORT:
             return False
         return True
+
+    @property
+    def options(self) -> dict[str, Any]:
+        """Return mutable copy of options."""
+        return self._options
 
     async def async_step_import(self, data: dict[str, Any]) -> FlowResult:
         """Import config entry from configuration."""
