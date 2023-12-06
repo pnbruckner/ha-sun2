@@ -66,8 +66,8 @@ class Sun2Flow(FlowHandler):
             self._existing_entries = self.hass.config_entries.async_entries(DOMAIN)
         return self._existing_entries
 
-    @abstractmethod
     @property
+    @abstractmethod
     def options(self) -> dict[str, Any]:
         """Return mutable copy of options."""
 
