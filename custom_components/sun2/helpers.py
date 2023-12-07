@@ -97,7 +97,7 @@ def get_loc_params(config: Mapping[str, Any]) -> LocParams | None:
 def hours_to_hms(hours: Num | None) -> str | None:
     """Convert hours to HH:MM:SS string."""
     try:
-        return str(timedelta(hours=int(cast(Num, hours))))
+        return str(timedelta(seconds=int(cast(Num, hours) * 3600)))
     except TypeError:
         return None
 
