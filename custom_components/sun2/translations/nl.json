@@ -26,7 +26,7 @@
             "elevation_binary_sensor": {
                 "title": "Opties voor binaire elevatiesensoren",
                 "data": {
-                    "use_horizon": "Horizon als elevatie gebruiken?"
+                    "use_horizon": "Gebruik horizon als elevatie"
                 }
             },
             "elevation_binary_sensor_2": {
@@ -49,8 +49,7 @@
                 "title": "Locatie Opties",
                 "data": {
                     "elevation": "Hoogtehoek",
-                    "latitude": "Breedtegraad",
-                    "longitude": "Lengtegraad",
+                    "location": "Plaats",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
@@ -61,12 +60,6 @@
                 "title": "Naam van de locatie",
                 "data": {
                     "name": "Naam"
-                }
-            },
-            "remove_entity": {
-                "title": "{name} verwijderen?",
-                "data": {
-                    "remove": "ReVerwijderenmove"
                 }
             },
             "time_at_elevation_sensor": {
@@ -80,7 +73,7 @@
             },
             "use_home": {
                 "data": {
-                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken"
                 }
             }
         },
@@ -114,7 +107,7 @@
             "elevation_binary_sensor": {
                 "title": "Opties voor binaire elevatiesensoren",
                 "data": {
-                    "use_horizon": "Horizon als elevatie gebruiken?"
+                    "use_horizon": "Gebruik horizon als elevatie"
                 }
             },
             "elevation_binary_sensor_2": {
@@ -137,18 +130,11 @@
                 "title": "Locatie Opties",
                 "data": {
                     "elevation": "Hoogtehoek",
-                    "latitude": "Breedtegraad",
-                    "longitude": "Lengtegraad",
+                    "location": "Plaats",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
                     "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
-                }
-            },
-            "remove_entity": {
-                "title": "{name} verwijderen?",
-                "data": {
-                    "remove": "ReVerwijderenmove"
                 }
             },
             "time_at_elevation_sensor": {
@@ -162,7 +148,7 @@
             },
             "use_home": {
                 "data": {
-                    "use_home": "De naam en locatie van de Home Assistant gebruiken?"
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken"
                 }
             }
         }

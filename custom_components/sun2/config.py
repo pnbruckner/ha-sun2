@@ -66,15 +66,13 @@ _ELEVATION_AT_TIME_SCHEMA = ELEVATION_AT_TIME_SCHEMA_BASE.extend(
     {vol.Required(CONF_UNIQUE_ID): cv.string}
 )
 
-val_elevation = vol.All(
-    vol.Coerce(float), vol.Range(min=-90, max=90), msg="invalid elevation"
-)
-
 SUN_DIRECTIONS = [dir.lower() for dir in SunDirection.__members__]
 
 TIME_AT_ELEVATION_SCHEMA_BASE = vol.Schema(
     {
-        vol.Required(CONF_TIME_AT_ELEVATION): val_elevation,
+        vol.Required(CONF_TIME_AT_ELEVATION): vol.All(
+            vol.Coerce(float), vol.Range(min=-90, max=90), msg="invalid elevation"
+        ),
         vol.Optional(CONF_DIRECTION, default=SUN_DIRECTIONS[0]): vol.In(SUN_DIRECTIONS),
         vol.Optional(CONF_ICON): cv.icon,
         vol.Optional(CONF_NAME): cv.string,

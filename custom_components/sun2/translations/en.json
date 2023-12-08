@@ -6,7 +6,7 @@
                 "title": "Elevation at Time Type",
                 "menu_options": {
                     "elevation_at_time_sensor_entity": "input_datetime entity",
-                    "elevation_at_time_sensor_time": "Time string"
+                    "elevation_at_time_sensor_time": "Time"
                 }
             },
             "elevation_at_time_sensor_entity": {
@@ -26,7 +26,7 @@
             "elevation_binary_sensor": {
                 "title": "Elevation Binary Sensor Options",
                 "data": {
-                    "use_horizon": "Use horizon as elevation?"
+                    "use_horizon": "Use horizon as elevation"
                 }
             },
             "elevation_binary_sensor_2": {
@@ -49,8 +49,7 @@
                 "title": "Location Options",
                 "data": {
                     "elevation": "Elevation",
-                    "latitude": "Latitude",
-                    "longitude": "Longitude",
+                    "location": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
@@ -61,12 +60,6 @@
                 "title": "Location Name",
                 "data": {
                     "name": "Name"
-                }
-            },
-            "remove_entity": {
-                "title": "Remove {name}?",
-                "data": {
-                    "remove": "Remove"
                 }
             },
             "time_at_elevation_sensor": {
@@ -80,7 +73,7 @@
             },
             "use_home": {
                 "data": {
-                    "use_home": "Use Home Assistant name and location?"
+                    "use_home": "Use Home Assistant name and location"
                 }
             }
         },
@@ -94,7 +87,7 @@
                 "title": "Elevation at Time Type",
                 "menu_options": {
                     "elevation_at_time_sensor_entity": "input_datetime entity",
-                    "elevation_at_time_sensor_time": "Time string"
+                    "elevation_at_time_sensor_time": "Time"
                 }
             },
             "elevation_at_time_sensor_entity": {
@@ -114,7 +107,7 @@
             "elevation_binary_sensor": {
                 "title": "Elevation Binary Sensor Options",
                 "data": {
-                    "use_horizon": "Use horizon as elevation?"
+                    "use_horizon": "Use horizon as elevation"
                 }
             },
             "elevation_binary_sensor_2": {
@@ -137,18 +130,11 @@
                 "title": "Location Options",
                 "data": {
                     "elevation": "Elevation",
-                    "latitude": "Latitude",
-                    "longitude": "Longitude",
+                    "location": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
                     "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
-                }
-            },
-            "remove_entity": {
-                "title": "Remove {name}?",
-                "data": {
-                    "remove": "Remove"
                 }
             },
             "time_at_elevation_sensor": {
@@ -162,7 +148,7 @@
             },
             "use_home": {
                 "data": {
-                    "use_home": "Use Home Assistant name and location?"
+                    "use_home": "Use Home Assistant name and location"
                 }
             }
         }

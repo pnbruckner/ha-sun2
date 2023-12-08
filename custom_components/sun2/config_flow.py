@@ -29,9 +29,11 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
     IconSelector,
+    LocationSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -42,7 +44,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util.uuid import random_uuid_hex
 
-from .config import SUN_DIRECTIONS, val_elevation
+from .config import SUN_DIRECTIONS
 from .const import (
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
@@ -81,28 +83,44 @@ class Sun2Flow(FlowHandler):
         """Handle location options."""
         if user_input is not None:
             user_input[CONF_TIME_ZONE] = cv.time_zone(user_input[CONF_TIME_ZONE])
+            location: dict[str, Any] = user_input.pop(CONF_LOCATION)
+            user_input[CONF_LATITUDE] = location[CONF_LATITUDE]
+            user_input[CONF_LONGITUDE] = location[CONF_LONGITUDE]
             self.options.update(user_input)
             return await self.async_step_entities_menu()
 
-        schema = {
-            vol.Required(
-                CONF_LATITUDE, default=self.options.get(CONF_LATITUDE, vol.UNDEFINED)
-            ): cv.latitude,
-            vol.Required(
-                CONF_LONGITUDE,
-                default=self.options.get(CONF_LONGITUDE, vol.UNDEFINED),
-            ): cv.longitude,
-            vol.Required(
-                CONF_ELEVATION,
-                default=self.options.get(CONF_ELEVATION, vol.UNDEFINED),
-            ): val_elevation,
-            vol.Required(
-                CONF_TIME_ZONE,
-                default=self.options.get(CONF_TIME_ZONE, vol.UNDEFINED),
-            ): cv.string,
-        }
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_LOCATION): LocationSelector(),
+                vol.Required(CONF_ELEVATION): NumberSelector(
+                    NumberSelectorConfig(step="any", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(CONF_TIME_ZONE): TextSelector(),
+            }
+        )
+        if CONF_LATITUDE in self.options:
+            suggested_values = {
+                CONF_LOCATION: {
+                    CONF_LATITUDE: self.options[CONF_LATITUDE],
+                    CONF_LONGITUDE: self.options[CONF_LONGITUDE],
+                },
+                CONF_ELEVATION: self.options[CONF_ELEVATION],
+                CONF_TIME_ZONE: self.options[CONF_TIME_ZONE],
+            }
+        else:
+            suggested_values = {
+                CONF_LOCATION: {
+                    CONF_LATITUDE: self.hass.config.latitude,
+                    CONF_LONGITUDE: self.hass.config.longitude,
+                },
+                CONF_ELEVATION: self.hass.config.elevation,
+                CONF_TIME_ZONE: self.hass.config.time_zone,
+            }
+        data_schema = self.add_suggested_values_to_schema(
+            data_schema, suggested_values
+        )
         return self.async_show_form(
-            step_id="location", data_schema=vol.Schema(schema), last_step=False
+            step_id="location", data_schema=data_schema, last_step=False
         )
 
     async def async_step_entities_menu(
@@ -131,7 +149,7 @@ class Sun2Flow(FlowHandler):
 
         return self.async_show_form(
             step_id="elevation_binary_sensor",
-            data_schema=vol.Schema({vol.Required("use_horizon", default=False): bool}),
+            data_schema=vol.Schema({vol.Required("use_horizon"): BooleanSelector()}),
             last_step=False,
         )
 
@@ -142,17 +160,22 @@ class Sun2Flow(FlowHandler):
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_BINARY_SENSORS)
 
-        schema = {
-            vol.Required(CONF_ELEVATION, default=0.0): NumberSelector(
-                NumberSelectorConfig(
-                    min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(CONF_NAME): TextSelector(),
-        }
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_ELEVATION): NumberSelector(
+                    NumberSelectorConfig(
+                        min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(CONF_NAME): TextSelector(),
+            }
+        )
+        data_schema = self.add_suggested_values_to_schema(
+            data_schema, {CONF_ELEVATION: 0.0}
+        )
         return self.async_show_form(
             step_id="elevation_binary_sensor_2",
-            data_schema=vol.Schema(schema),
+            data_schema=data_schema,
             last_step=False,
         )
 
@@ -175,15 +198,17 @@ class Sun2Flow(FlowHandler):
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
-        schema = {
-            vol.Required(CONF_ELEVATION_AT_TIME): EntitySelector(
-                EntitySelectorConfig(domain="input_datetime")
-            ),
-            vol.Optional(CONF_NAME): TextSelector(),
-        }
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_ELEVATION_AT_TIME): EntitySelector(
+                    EntitySelectorConfig(domain="input_datetime")
+                ),
+                vol.Optional(CONF_NAME): TextSelector(),
+            }
+        )
         return self.async_show_form(
             step_id="elevation_at_time_sensor_entity",
-            data_schema=vol.Schema(schema),
+            data_schema=data_schema,
             last_step=False,
         )
 
@@ -194,13 +219,15 @@ class Sun2Flow(FlowHandler):
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
-        schema = {
-            vol.Required(CONF_ELEVATION_AT_TIME): TimeSelector(),
-            vol.Optional(CONF_NAME): TextSelector(),
-        }
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_ELEVATION_AT_TIME): TimeSelector(),
+                vol.Optional(CONF_NAME): TextSelector(),
+            }
+        )
         return self.async_show_form(
             step_id="elevation_at_time_sensor_time",
-            data_schema=vol.Schema(schema),
+            data_schema=data_schema,
             last_step=False,
         )
 
@@ -211,23 +238,28 @@ class Sun2Flow(FlowHandler):
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
 
-        schema = {
-            vol.Required(CONF_TIME_AT_ELEVATION, default=0.0): NumberSelector(
-                NumberSelectorConfig(
-                    min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(CONF_DIRECTION): SelectSelector(
-                SelectSelectorConfig(
-                    options=SUN_DIRECTIONS, translation_key="direction"
-                )
-            ),
-            vol.Optional(CONF_ICON): IconSelector(),
-            vol.Optional(CONF_NAME): TextSelector(),
-        }
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_TIME_AT_ELEVATION): NumberSelector(
+                    NumberSelectorConfig(
+                        min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Required(CONF_DIRECTION): SelectSelector(
+                    SelectSelectorConfig(
+                        options=SUN_DIRECTIONS, translation_key="direction"
+                    )
+                ),
+                vol.Optional(CONF_ICON): IconSelector(),
+                vol.Optional(CONF_NAME): TextSelector(),
+            }
+        )
+        data_schema = self.add_suggested_values_to_schema(
+            data_schema, {CONF_TIME_AT_ELEVATION: 0.0}
+        )
         return self.async_show_form(
             step_id="time_at_elevation_sensor",
-            data_schema=vol.Schema(schema),
+            data_schema=data_schema,
             last_step=False,
         )
 
@@ -251,7 +283,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     VERSION = 1
 
-    _location_name: str | vol.UNDEFINED = vol.UNDEFINED
+    _location_name: str | None = None
 
     def __init__(self) -> None:
         """Initialize config flow."""
@@ -313,9 +345,10 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
                 return await self.async_step_entities_menu()
             return await self.async_step_location_name()
 
-        schema = {vol.Required("use_home", default=True): bool}
         return self.async_show_form(
-            step_id="use_home", data_schema=vol.Schema(schema), last_step=False
+            step_id="use_home",
+            data_schema=vol.Schema({vol.Required("use_home"): BooleanSelector()}),
+            last_step=False,
         )
 
     async def async_step_location_name(
@@ -325,15 +358,19 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            self._location_name = user_input[CONF_NAME]
+            self._location_name = cast(str, user_input[CONF_NAME])
             if not any(entry.title == self._location_name for entry in self._entries):
                 return await self.async_step_location()
             errors[CONF_NAME] = "name_used"
 
-        schema = {vol.Required(CONF_NAME, default=self._location_name): TextSelector()}
+        data_schema = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
+        if self._location_name is not None:
+            data_schema = self.add_suggested_values_to_schema(
+                data_schema, {CONF_NAME: self._location_name}
+            )
         return self.async_show_form(
             step_id="location_name",
-            data_schema=vol.Schema(schema),
+            data_schema=data_schema,
             errors=errors,
             last_step=False,
         )
@@ -341,7 +378,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
     async def async_step_done(self, _: dict[str, Any] | None = None) -> FlowResult:
         """Finish the flow."""
         return self.async_create_entry(
-            title=self._location_name, data={}, options=self.options
+            title=cast(str, self._location_name), data={}, options=self.options
         )
 
 
