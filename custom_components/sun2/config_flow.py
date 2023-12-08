@@ -116,9 +116,7 @@ class Sun2Flow(FlowHandler):
                 CONF_ELEVATION: self.hass.config.elevation,
                 CONF_TIME_ZONE: self.hass.config.time_zone,
             }
-        data_schema = self.add_suggested_values_to_schema(
-            data_schema, suggested_values
-        )
+        data_schema = self.add_suggested_values_to_schema(data_schema, suggested_values)
         return self.async_show_form(
             step_id="location", data_schema=data_schema, last_step=False
         )

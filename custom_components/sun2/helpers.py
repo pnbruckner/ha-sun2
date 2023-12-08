@@ -197,11 +197,7 @@ class Sun2Entity(Entity):
         if sun2_entity_params:
             self._attr_has_entity_name = True
             self._attr_translation_key = self.entity_description.key
-            entry = sun2_entity_params.entry
-            unique_id = sun2_entity_params.unique_id
-            self._attr_unique_id = (
-                f"{entry.entry_id}-{unique_id or self.entity_description.key}"
-            )
+            self._attr_unique_id = sun2_entity_params.unique_id
             self._attr_device_info = sun2_entity_params.device_info
         else:
             self._attr_unique_id = cast(str, self.name)

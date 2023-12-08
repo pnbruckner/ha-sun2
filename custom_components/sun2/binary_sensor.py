@@ -13,7 +13,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     CONF_ABOVE,
     CONF_BINARY_SENSORS,
@@ -337,7 +337,10 @@ def _sensors(
     sensors: list[Entity] = []
     for config in sensors_config:
         if isinstance(extra, Sun2EntityParams):
-            extra.unique_id = config[CONF_UNIQUE_ID]
+            unique_id = config[CONF_UNIQUE_ID]
+            if extra.entry.source == SOURCE_IMPORT:
+                unique_id = f"{extra.entry.entry_id}-{unique_id}"
+            extra.unique_id = unique_id
             threshold = config[CONF_ELEVATION]
             name = config.get(CONF_NAME)
         else:

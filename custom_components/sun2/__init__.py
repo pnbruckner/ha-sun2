@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Coroutine
+import re
 from typing import Any, cast
 
 from astral import SunDirection
@@ -17,6 +18,7 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import Event, HomeAssistant, ServiceCall
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
@@ -26,6 +28,7 @@ from .const import CONF_DIRECTION, CONF_TIME_AT_ELEVATION, DOMAIN, SIG_HA_LOC_UP
 from .helpers import LocData, LocParams, Sun2Data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+_OLD_UNIQUE_ID = re.compile(r"[0-9a-f]{32}-([0-9a-f]{32})")
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -128,6 +131,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sensor[CONF_DIRECTION] = SunDirection(direction).name.lower()
     if options != entry.options:
         hass.config_entries.async_update_entry(entry, options=options)
+
+    # From 3.0.0b9 or older: Convert unique_id from entry.entry_id-unique_id -> unique_id
+    ent_reg = er.async_get(hass)
+    for entity in ent_reg.entities.values():
+        if entity.platform != DOMAIN:
+            continue
+        if m := _OLD_UNIQUE_ID.fullmatch(entity.unique_id):
+            ent_reg.async_update_entity(entity.entity_id, new_unique_id=m.group(1))
 
     entry.async_on_unload(entry.add_update_listener(entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

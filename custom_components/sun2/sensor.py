@@ -21,7 +21,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     ATTR_ICON,
     CONF_ENTITY_NAMESPACE,
@@ -1230,7 +1230,7 @@ def _sensors(
     for config in sensors_config:
         if isinstance(config, str):
             if isinstance(extra, Sun2EntityParams):
-                extra.unique_id = None
+                extra.unique_id = f"{extra.entry.entry_id}-{config}"
             sensors.append(
                 _SENSOR_TYPES[config].cls(
                     loc_params, extra, config, _SENSOR_TYPES[config].icon
@@ -1238,7 +1238,10 @@ def _sensors(
             )
         else:
             if isinstance(extra, Sun2EntityParams):
-                extra.unique_id = config[CONF_UNIQUE_ID]
+                unique_id = config[CONF_UNIQUE_ID]
+                if extra.entry.source == SOURCE_IMPORT:
+                    unique_id = f"{extra.entry.entry_id}-{unique_id}"
+                extra.unique_id = unique_id
             if CONF_ELEVATION_AT_TIME in config:
                 # For config entries, JSON serialization turns a time into a string.
                 # Convert back to time in that case.
