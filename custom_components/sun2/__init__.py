@@ -10,6 +10,7 @@ from astral import SunDirection
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
+    CONF_BINARY_SENSORS,
     CONF_LATITUDE,
     CONF_SENSORS,
     CONF_UNIQUE_ID,
@@ -29,6 +30,7 @@ from .helpers import LocData, LocParams, Sun2Data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 _OLD_UNIQUE_ID = re.compile(r"[0-9a-f]{32}-([0-9a-f]{32})")
+_UUID_UNIQUE_ID = re.compile(r"[0-9a-f]{32}")
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -116,6 +118,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle config entry update."""
+    # Remove entity registry entries for additional sensors that were deleted.
+    unqiue_ids = [
+        sensor[CONF_UNIQUE_ID]
+        for sensor_type in (CONF_BINARY_SENSORS, CONF_SENSORS)
+        for sensor in entry.options.get(sensor_type, [])
+    ]
+    ent_reg = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        unique_id = entity.unique_id
+        # Only sensors that were added via the UI have UUID type unique IDs.
+        if _UUID_UNIQUE_ID.fullmatch(unique_id) and unique_id not in unqiue_ids:
+            ent_reg.async_remove(entity.entity_id)
     await hass.config_entries.async_reload(entry.entry_id)
 
 

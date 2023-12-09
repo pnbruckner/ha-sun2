@@ -7,6 +7,8 @@ from typing import Any, cast
 
 import voluptuous as vol
 
+from homeassistant.components.binary_sensor import DOMAIN as BS_DOMAIN
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import (
     SOURCE_IMPORT,
     ConfigEntry,
@@ -27,6 +29,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
+from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -60,6 +63,7 @@ class Sun2Flow(FlowHandler):
     """Sun2 flow mixin."""
 
     _existing_entries: list[ConfigEntry] | None = None
+    _existing_entities: dict[str, str] | None = None
 
     @property
     def _entries(self) -> list[ConfigEntry]:
@@ -67,6 +71,27 @@ class Sun2Flow(FlowHandler):
         if self._existing_entries is None:
             self._existing_entries = self.hass.config_entries.async_entries(DOMAIN)
         return self._existing_entries
+
+    @property
+    def _entities(self) -> dict[str, str]:
+        """Get existing configured entities."""
+        if self._existing_entities is not None:
+            return self._existing_entities
+
+        ent_reg = er.async_get(self.hass)
+        existing_entities: dict[str, str] = {}
+        for key, domain in {
+            CONF_BINARY_SENSORS: BS_DOMAIN,
+            CONF_SENSORS: SENSOR_DOMAIN,
+        }.items():
+            for sensor in self.options.get(key, []):
+                unique_id = cast(str, sensor[CONF_UNIQUE_ID])
+                entity_id = cast(
+                    str, ent_reg.async_get_entity_id(domain, DOMAIN, unique_id)
+                )
+                existing_entities[entity_id] = unique_id
+        self._existing_entities = existing_entities
+        return existing_entities
 
     @property
     @abstractmethod
@@ -126,13 +151,25 @@ class Sun2Flow(FlowHandler):
     ) -> FlowResult:
         """Handle entity options."""
         await init_translations(self.hass)
+        menu_options = ["add_entities_menu"]
+        if self.options.get(CONF_BINARY_SENSORS) or self.options.get(CONF_SENSORS):
+            menu_options.append("remove_entities")
+        menu_options.append("done")
+        return self.async_show_menu(step_id="entities_menu", menu_options=menu_options)
+
+    async def async_step_add_entities_menu(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Add entities."""
         menu_options = [
             "elevation_binary_sensor",
             "elevation_at_time_sensor_menu",
             "time_at_elevation_sensor",
             "done",
         ]
-        return self.async_show_menu(step_id="entities_menu", menu_options=menu_options)
+        return self.async_show_menu(
+            step_id="add_entities_menu", menu_options=menu_options
+        )
 
     async def async_step_elevation_binary_sensor(
         self, user_input: dict[str, Any] | None = None
@@ -269,7 +306,42 @@ class Sun2Flow(FlowHandler):
         """Finish elevation binary sensor."""
         config[CONF_UNIQUE_ID] = random_uuid_hex()
         self.options.setdefault(sensor_type, []).append(config)
-        return await self.async_step_entities_menu()
+        return await self.async_step_add_entities_menu()
+
+    async def async_step_remove_entities(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Remove entities added previously."""
+
+        def delete_entity(unique_id: str) -> None:
+            """Remove entity with given unique ID."""
+            for sensor_type in (CONF_BINARY_SENSORS, CONF_SENSORS):
+                for idx, sensor in enumerate(self.options.get(sensor_type, [])):
+                    if sensor[CONF_UNIQUE_ID] == unique_id:
+                        del self.options[sensor_type][idx]
+                        if not self.options[sensor_type]:
+                            del self.options[sensor_type]
+                        return
+            assert False
+
+        if user_input is not None:
+            for entity_id in user_input["choices"]:
+                delete_entity(self._entities[entity_id])
+            return await self.async_step_done()
+
+        entity_ids = list(self._entities)
+        data_schema = vol.Schema(
+            {
+                vol.Required("choices"): EntitySelector(
+                    EntitySelectorConfig(include_entities=entity_ids, multiple=True)
+                )
+            }
+        )
+        return self.async_show_form(
+            step_id="remove_entities",
+            data_schema=data_schema,
+            last_step=False,
+        )
 
     @abstractmethod
     async def async_step_done(self, _: dict[str, Any] | None = None) -> FlowResult:

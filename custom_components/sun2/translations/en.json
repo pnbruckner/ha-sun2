@@ -2,6 +2,16 @@
     "title": "Sun2",
     "config": {
         "step": {
+            "add_entities_menu": {
+                "title": "Add Entities",
+                "description": "Choose type of entity to add",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Elevation at time sensor",
+                    "elevation_binary_sensor": "Elevation binary sensor",
+                    "time_at_elevation_sensor": "Time at elevation sensor"
+                }
+            },
             "elevation_at_time_sensor_menu": {
                 "title": "Elevation at Time Type",
                 "menu_options": {
@@ -39,10 +49,8 @@
             "entities_menu": {
                 "title": "Additional Entities",
                 "menu_options": {
-                    "done": "Done",
-                    "elevation_at_time_sensor_menu": "Add elevation at time sensor",
-                    "elevation_binary_sensor": "Add elevation binary sensor",
-                    "time_at_elevation_sensor": "Add time at elevation sensor"
+                    "add_entities_menu": "Add entities",
+                    "done": "Done"
                 }
             },
             "location": {
@@ -83,6 +91,16 @@
     },
     "options": {
         "step": {
+            "add_entities_menu": {
+                "title": "Add Entities",
+                "description": "Choose type of entity to add",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Elevation at time sensor",
+                    "elevation_binary_sensor": "Elevation binary sensor",
+                    "time_at_elevation_sensor": "Time at elevation sensor"
+                }
+            },
             "elevation_at_time_sensor_menu": {
                 "title": "Elevation at Time Type",
                 "menu_options": {
@@ -120,10 +138,9 @@
             "entities_menu": {
                 "title": "Additional Entities",
                 "menu_options": {
+                    "add_entities_menu": "Add entities",
                     "done": "Done",
-                    "elevation_at_time_sensor_menu": "Add elevation at time sensor",
-                    "elevation_binary_sensor": "Add elevation binary sensor",
-                    "time_at_elevation_sensor": "Add time at elevation sensor"
+                    "remove_entities": "Remove entities"
                 }
             },
             "location": {
@@ -135,6 +152,12 @@
                 },
                 "data_description": {
                     "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "remove_entities": {
+                "title": "Remove Entities",
+                "data": {
+                    "choices": "Select entities to remove"
                 }
             },
             "time_at_elevation_sensor": {
