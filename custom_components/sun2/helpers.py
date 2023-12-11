@@ -167,7 +167,7 @@ class Sun2EntityParams:
 class Sun2Entity(Entity):
     """Sun2 Entity."""
 
-    _unreported_attributes = frozenset(
+    _unrecorded_attributes = frozenset(
         {
             ATTR_NEXT_CHANGE,
             ATTR_TODAY_HMS,
