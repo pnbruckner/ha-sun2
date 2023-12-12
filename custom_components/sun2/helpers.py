@@ -3,41 +3,47 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from typing import Any, TypeVar, Union, cast
 
 from astral import LocationInfo
 from astral.location import Location
-import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ELEVATION,
     CONF_LATITUDE,
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
-    EVENT_CORE_CONFIG_UPDATE,
 )
-from homeassistant.core import CALLBACK_TYPE, Event
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    dispatcher_send,
-)
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntryType
+
+# Device Info moved to device_registry in 2023.9
+try:
+    from homeassistant.helpers.device_registry import DeviceInfo
+except ImportError:
+    from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
+
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import ConfigType
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.helpers.translation import async_get_translations
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, ONE_DAY, SIG_HA_LOC_UPDATED
-
+from .const import (
+    ATTR_NEXT_CHANGE,
+    ATTR_TODAY_HMS,
+    ATTR_TOMORROW,
+    ATTR_TOMORROW_HMS,
+    ATTR_YESTERDAY,
+    ATTR_YESTERDAY_HMS,
+    DOMAIN,
+    ONE_DAY,
+    SIG_HA_LOC_UPDATED,
+)
 
 Num = Union[float, int]
-LOC_PARAMS = {
-    vol.Inclusive(CONF_ELEVATION, "location"): vol.Coerce(float),
-    vol.Inclusive(CONF_LATITUDE, "location"): cv.latitude,
-    vol.Inclusive(CONF_LONGITUDE, "location"): cv.longitude,
-    vol.Inclusive(CONF_TIME_ZONE, "location"): cv.time_zone,
-}
 
 
 @dataclass(frozen=True)
@@ -66,7 +72,16 @@ class LocData:
         object.__setattr__(self, "tzi", dt_util.get_time_zone(lp.time_zone))
 
 
-def get_loc_params(config: ConfigType) -> LocParams | None:
+@dataclass
+class Sun2Data:
+    """Sun2 shared data."""
+
+    locations: dict[LocParams | None, LocData] = field(default_factory=dict)
+    translations: dict[str, str] = field(default_factory=dict)
+    language: str | None = None
+
+
+def get_loc_params(config: Mapping[str, Any]) -> LocParams | None:
     """Get location parameters from configuration."""
     try:
         return LocParams(
@@ -82,9 +97,47 @@ def get_loc_params(config: ConfigType) -> LocParams | None:
 def hours_to_hms(hours: Num | None) -> str | None:
     """Convert hours to HH:MM:SS string."""
     try:
-        return str(timedelta(hours=cast(Num, hours))).split(".")[0]
+        return str(timedelta(seconds=int(cast(Num, hours) * 3600)))
     except TypeError:
         return None
+
+
+_TRANS_PREFIX = f"component.{DOMAIN}.selector.misc.options"
+
+
+async def init_translations(hass: HomeAssistant) -> None:
+    """Initialize translations."""
+    data = cast(Sun2Data, hass.data.setdefault(DOMAIN, Sun2Data()))
+    if data.language != hass.config.language:
+        sel_trans = await async_get_translations(
+            hass, hass.config.language, "selector", [DOMAIN], False
+        )
+        data.translations = {}
+        for sel_key, val in sel_trans.items():
+            prefix, key = sel_key.rsplit(".", 1)
+            if prefix == _TRANS_PREFIX:
+                data.translations[key] = val
+
+
+def translate(
+    hass: HomeAssistant, key: str, placeholders: dict[str, Any] | None = None
+) -> str:
+    """Sun2 translations."""
+    trans = cast(Sun2Data, hass.data[DOMAIN]).translations[key]
+    if not placeholders:
+        return trans
+    for ph_key, val in placeholders.items():
+        trans = trans.replace(f"{{{ph_key}}}", str(val))
+    return trans
+
+
+def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
+    """Sun2 device (service) info."""
+    return DeviceInfo(
+        entry_type=DeviceEntryType.SERVICE,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=translate(hass, "service_name", {"location": entry.title}),
+    )
 
 
 _Num = TypeVar("_Num", bound=Num)
@@ -102,9 +155,28 @@ def next_midnight(dttm: datetime) -> datetime:
     return datetime.combine(dttm.date() + ONE_DAY, time(), dttm.tzinfo)
 
 
+@dataclass
+class Sun2EntityParams:
+    """Sun2Entity parameters."""
+
+    entry: ConfigEntry
+    device_info: DeviceInfo
+    unique_id: str | None = None
+
+
 class Sun2Entity(Entity):
     """Sun2 Entity."""
 
+    _unrecorded_attributes = frozenset(
+        {
+            ATTR_NEXT_CHANGE,
+            ATTR_TODAY_HMS,
+            ATTR_TOMORROW,
+            ATTR_TOMORROW_HMS,
+            ATTR_YESTERDAY,
+            ATTR_YESTERDAY_HMS,
+        }
+    )
     _attr_should_poll = False
     _loc_data: LocData = None  # type: ignore[assignment]
     _unsub_update: CALLBACK_TYPE | None = None
@@ -113,17 +185,28 @@ class Sun2Entity(Entity):
 
     @abstractmethod
     def __init__(
-        self, loc_params: LocParams | None, domain: str, object_id: str
+        self,
+        loc_params: LocParams | None,
+        sun2_entity_params: Sun2EntityParams | None = None,
     ) -> None:
         """Initialize base class.
 
         self.name must be set up to return name before calling this.
         E.g., set up self.entity_description.name first.
         """
-        # Note that entity_platform will add namespace prefix to object ID.
-        self.entity_id = f"{domain}.{slugify(object_id)}"
-        self._attr_unique_id = self.name
+        if sun2_entity_params:
+            self._attr_has_entity_name = True
+            self._attr_translation_key = self.entity_description.key
+            self._attr_unique_id = sun2_entity_params.unique_id
+            self._attr_device_info = sun2_entity_params.device_info
+        else:
+            self._attr_unique_id = cast(str, self.name)
         self._loc_params = loc_params
+        self.async_on_remove(self._cancel_update)
+
+    @property
+    def _sun2_data(self) -> Sun2Data:
+        return cast(Sun2Data, self.hass.data[DOMAIN])
 
     async def async_update(self) -> None:
         """Update state."""
@@ -134,10 +217,6 @@ class Sun2Entity(Entity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         self._setup_fixed_updating()
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Run when entity will be removed from hass."""
-        self._cancel_update()
 
     def _cancel_update(self) -> None:
         """Cancel update."""
@@ -150,30 +229,10 @@ class Sun2Entity(Entity):
 
         loc_params = None -> Use location parameters from HA's config.
         """
-        if DOMAIN not in self.hass.data:
-            self.hass.data[DOMAIN] = {}
-
-            def update_local_loc_data(event: Event | None = None) -> None:
-                """Update local location data from HA's config."""
-                self.hass.data[DOMAIN][None] = loc_data = LocData(
-                    LocParams(
-                        self.hass.config.elevation,
-                        self.hass.config.latitude,
-                        self.hass.config.longitude,
-                        str(self.hass.config.time_zone),
-                    )
-                )
-                if event:
-                    # Signal all instances that location data has changed.
-                    dispatcher_send(self.hass, SIG_HA_LOC_UPDATED, loc_data)
-
-            update_local_loc_data()
-            self.hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, update_local_loc_data)
-
         try:
-            loc_data = cast(LocData, self.hass.data[DOMAIN][self._loc_params])
+            loc_data = self._sun2_data.locations[self._loc_params]
         except KeyError:
-            loc_data = self.hass.data[DOMAIN][self._loc_params] = LocData(
+            loc_data = self._sun2_data.locations[self._loc_params] = LocData(
                 cast(LocParams, self._loc_params)
             )
 
@@ -199,11 +258,9 @@ class Sun2Entity(Entity):
     @abstractmethod
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        pass
 
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
-        pass
 
     def _astral_event(
         self,
@@ -221,13 +278,12 @@ class Sun2Entity(Entity):
         try:
             if event in ("solar_midnight", "solar_noon"):
                 return getattr(loc, event.split("_")[1])(date_or_dttm)
-            elif event == "time_at_elevation":
+            if event == "time_at_elevation":
                 return loc.time_at_elevation(
                     kwargs["elevation"], date_or_dttm, kwargs["direction"]
                 )
-            else:
-                return getattr(loc, event)(
-                    date_or_dttm, observer_elevation=self._loc_data.elv
-                )
+            return getattr(loc, event)(
+                date_or_dttm, observer_elevation=self._loc_data.elv
+            )
         except (TypeError, ValueError):
             return None

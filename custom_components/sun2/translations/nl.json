@@ -1,0 +1,459 @@
+{
+    "title": "Zon2",
+    "config": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Entiteiten toevoegen",
+                "description": "Kies het type entiteit dat u wilt toevoegen",
+                "menu_options": {
+                    "done": "Klaar",
+                    "elevation_at_time_sensor_menu": "Hoogte toevoegen bij tijdsensor",
+                    "elevation_binary_sensor": "Binaire sensor voor elevatie toevoegen",
+                    "time_at_elevation_sensor": "Tijd toevoegen bij hoogtesensor"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Hoogte op tijdtype",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entiteit",
+                    "elevation_at_time_sensor_time": "Tijd"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "input_datetime entiteit",
+                    "name": "Naam"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "Tijd",
+                    "name": "Naam"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "use_horizon": "Gebruik horizon als elevatie"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "elevation": "Hoogte",
+                    "name": "Naam"
+                }
+            },
+            "entities_menu": {
+                "title": "Aanvullende entiteiten",
+                "menu_options": {
+                    "add_entities_menu": "Entiteiten toevoegen",
+                    "done": "Klaar"
+                }
+            },
+            "location": {
+                "title": "Locatie Opties",
+                "data": {
+                    "elevation": "Hoogtehoek",
+                    "location": "Plaats",
+                    "time_zone": "Tijdzone"
+                },
+                "data_description": {
+                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "location_name": {
+                "title": "Naam van de locatie",
+                "data": {
+                    "name": "Naam"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Opties voor tijdsensor op hoogte",
+                "data": {
+                    "time_at_elevation": "Hoogte",
+                    "direction": "Richting van de zon",
+                    "icon": "Pictogram",
+                    "name": "Naam"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken"
+                }
+            }
+        },
+        "error": {
+            "name_used": "De naam van de locatie is al gebruikt."
+        }
+    },
+    "options": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Entiteiten toevoegen",
+                "description": "Kies het type entiteit dat u wilt toevoegen",
+                "menu_options": {
+                    "done": "Klaar",
+                    "elevation_at_time_sensor_menu": "Hoogte toevoegen bij tijdsensor",
+                    "elevation_binary_sensor": "Binaire sensor voor elevatie toevoegen",
+                    "time_at_elevation_sensor": "Tijd toevoegen bij hoogtesensor"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Hoogte op tijdtype",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entiteit",
+                    "elevation_at_time_sensor_time": "Tijd"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "input_datetime entiteit",
+                    "name": "Naam"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Opties voor elevatie bij tijdsensor",
+                "data": {
+                    "elevation_at_time": "Tijd",
+                    "name": "Naam"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "use_horizon": "Gebruik horizon als elevatie"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Opties voor binaire elevatiesensoren",
+                "data": {
+                    "elevation": "Hoogte",
+                    "name": "Naam"
+                }
+            },
+            "entities_menu": {
+                "title": "Aanvullende entiteiten",
+                "menu_options": {
+                    "add_entities_menu": "Entiteiten toevoegen",
+                    "done": "Klaar",
+                    "remove_entities": "Entiteiten verwijderen"
+                }
+            },
+            "location": {
+                "title": "Locatie Opties",
+                "data": {
+                    "elevation": "Hoogtehoek",
+                    "location": "Plaats",
+                    "time_zone": "Tijdzone"
+                },
+                "data_description": {
+                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "remove_entities": {
+                "title": "Entiteiten verwijderen",
+                "data": {
+                    "choices": "Entiteiten selecteren die u wilt verwijderen"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Opties voor tijdsensor op hoogte",
+                "data": {
+                    "time_at_elevation": "Hoogte",
+                    "direction": "Richting van de zon",
+                    "icon": "Pictogram",
+                    "name": "Naam"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "De naam en locatie van de Home Assistant gebruiken"
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            }
+        },
+        "sensor": {
+            "astronomical_daylight": {
+                "name": "Astronomisch daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "astronomical_dawn": {
+                "name": "Astronomische dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "astronomical_dusk": {
+                "name": "Astronomische schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "astronomical_night": {
+                "name": "Astronomische nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "azimuth": {"name": "Azimut"},
+            "civil_daylight": {
+                "name": "Civiel daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "civil_night": {
+                "name": "Civiele nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "daylight": {
+                "name": "Daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "dawn": {
+                "name": "Dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "deconz_daylight": {
+                "name": "deCONZ daglicht",
+                "state": {
+                    "dawn": "Dageraad",
+                    "dusk": "Schemer",
+                    "golden_hour_1": "Gouden uur 1",
+                    "golden_hour_2": "Gouden uur 2",
+                    "nadir": "Nadir",
+                    "nautical_dawn": "Nautische dageraad",
+                    "nautical_dusk": "Nautische schemer",
+                    "night_end": "Nachteinde",
+                    "night_start": "Nachtbegin",
+                    "solar_noon": "Middagzon",
+                    "sunrise_end": "Zonsopkomsteinde",
+                    "sunrise_start": "Zonsopkomstbegin"
+                },
+                "state_attributes": {
+                    "daylight": {"name": "Daglicht"},
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "dusk": {
+                "name": "Schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "elevation": {
+                "name": "Hoogtehoek",
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "max_elevation": {
+                "name": "Maximale hoogtehoek",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "min_elevation": {
+                "name": "Minimale hoogtehoek",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "nautical_daylight": {
+                "name": "Nautisch daglicht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "nautical_dawn": {
+                "name": "Nautische dageraad",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "nautical_dusk": {
+                "name": "Nautische schemer",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "nautical_night": {
+                "name": "Nautische nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "night": {
+                "name": "Nacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "today_hms": {"name": "Vandaag umt"},
+                    "tomorrow": {"name": "Morgen"},
+                    "tomorrow_hms": {"name": "Morgen umt"},
+                    "yesterday": {"name": "Gisteren"},
+                    "yesterday_hms": {"name": "Gisteren umt"}
+                }
+            },
+            "solar_midnight": {
+                "name": "Zonne-middernacht",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "solar_noon": {
+                "name": "Middagzon",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "sun_phase": {
+                "name": "Fase",
+                "state": {
+                    "astronomical_twilight": "Astronomische schemering",
+                    "civil_twilight": "Civiele schemering",
+                    "day": "Dag",
+                    "nautical_twilight": "Nautische schemering",
+                    "night": "Nacht"
+                },
+                "state_attributes": {
+                    "blue_hour": {"name": "Blauw uur"},
+                    "golden_hour": {"name": "Gouden uur"},
+                    "next_change": {"name": "Volgende wijziging"},
+                    "rising": {"name": "Zonsopkomst"}
+                }
+            },
+            "sunrise": {
+                "name": "Zonsopkomst",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "sunset": {
+                "name": "Zonsondergang",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "time_at_elevation": {
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            }
+        }
+    },
+    "selector": {
+        "direction": {
+            "options": {
+                "rising": "Opstand",
+                "setting": "Montuur"
+            }
+        },
+        "misc": {
+            "options": {
+                "above_horizon": "Boven horizon",
+                "above_neg_elev": "Boven min {elevation} °",
+                "above_pos_elev": "Boven {elevation} °",
+                "elevation_at": "Hoogte bij {elev_time}",
+                "rising_neg_elev": "Stijgend bij min {elevation} °",
+                "rising_pos_elev": "Stijgend bij {elevation} °",
+                "service_name": "{location} Zon",
+                "setting_neg_elev": "Instelling bij min {elevation} °",
+                "setting_pos_elev": "Instelling bij {elevation} °"
+            }
+        }
+    },
+    "services": {
+        "reload": {
+            "name": "Herlaadt",
+            "description": "Herlaadt Zon2 vanuit de YAML-configuratie."
+        }
+    }
+}

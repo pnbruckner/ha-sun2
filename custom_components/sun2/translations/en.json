@@ -1,0 +1,459 @@
+{
+    "title": "Sun2",
+    "config": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Add Entities",
+                "description": "Choose type of entity to add",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Elevation at time sensor",
+                    "elevation_binary_sensor": "Elevation binary sensor",
+                    "time_at_elevation_sensor": "Time at elevation sensor"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Elevation at Time Type",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entity",
+                    "elevation_at_time_sensor_time": "Time"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "input_datetime entity ID",
+                    "name": "Name"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "Time",
+                    "name": "Name"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "use_horizon": "Use horizon as elevation"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "name": "Name"
+                }
+            },
+            "entities_menu": {
+                "title": "Additional Entities",
+                "menu_options": {
+                    "add_entities_menu": "Add entities",
+                    "done": "Done"
+                }
+            },
+            "location": {
+                "title": "Location Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "location": "Location",
+                    "time_zone": "Time zone"
+                },
+                "data_description": {
+                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "location_name": {
+                "title": "Location Name",
+                "data": {
+                    "name": "Name"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Time at Elevation Sensor Options",
+                "data": {
+                    "time_at_elevation": "Elevation",
+                    "direction": "Sun direction",
+                    "icon": "Icon",
+                    "name": "Name"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location"
+                }
+            }
+        },
+        "error": {
+            "name_used": "Location name has already been used."
+        }
+    },
+    "options": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Add Entities",
+                "description": "Choose type of entity to add",
+                "menu_options": {
+                    "done": "Done",
+                    "elevation_at_time_sensor_menu": "Elevation at time sensor",
+                    "elevation_binary_sensor": "Elevation binary sensor",
+                    "time_at_elevation_sensor": "Time at elevation sensor"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Elevation at Time Type",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "input_datetime entity",
+                    "elevation_at_time_sensor_time": "Time"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "input_datetime entity ID",
+                    "name": "Name"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Elevation at Time Sensor Options",
+                "data": {
+                    "elevation_at_time": "Time",
+                    "name": "Name"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "use_horizon": "Use horizon as elevation"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Elevation Binary Sensor Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "name": "Name"
+                }
+            },
+            "entities_menu": {
+                "title": "Additional Entities",
+                "menu_options": {
+                    "add_entities_menu": "Add entities",
+                    "done": "Done",
+                    "remove_entities": "Remove entities"
+                }
+            },
+            "location": {
+                "title": "Location Options",
+                "data": {
+                    "elevation": "Elevation",
+                    "location": "Location",
+                    "time_zone": "Time zone"
+                },
+                "data_description": {
+                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "remove_entities": {
+                "title": "Remove Entities",
+                "data": {
+                    "choices": "Select entities to remove"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Time at Elevation Sensor Options",
+                "data": {
+                    "time_at_elevation": "Elevation",
+                    "direction": "Sun direction",
+                    "icon": "Icon",
+                    "name": "Name"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Use Home Assistant name and location"
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            }
+        },
+        "sensor": {
+            "astronomical_daylight": {
+                "name": "Astronomical daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "astronomical_dawn": {
+                "name": "Astronomical dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "astronomical_dusk": {
+                "name": "Astronomical dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "astronomical_night": {
+                "name": "Astronomical night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "azimuth": {"name": "Azimuth"},
+            "civil_daylight": {
+                "name": "Civil daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "civil_night": {
+                "name": "Civil night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "daylight": {
+                "name": "Daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "dawn": {
+                "name": "Dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "deconz_daylight": {
+                "name": "deCONZ daylight",
+                "state": {
+                    "dawn": "Dawn",
+                    "dusk": "Dusk",
+                    "golden_hour_1": "Golden hour 1",
+                    "golden_hour_2": "Golden hour 2",
+                    "nadir": "Nadir",
+                    "nautical_dawn": "Nautial dawn",
+                    "nautical_dusk": "Nautial dusk",
+                    "night_end": "Night end",
+                    "night_start": "Night start",
+                    "solar_noon": "Solar noon",
+                    "sunrise_end": "Sunrise end",
+                    "sunrise_start": "Sunrise start"
+                },
+                "state_attributes": {
+                    "daylight": {"name": "Daylight"},
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "dusk": {
+                "name": "Dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "elevation": {
+                "name": "Elevation",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "max_elevation": {
+                "name": "Maximum elevation",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "min_elevation": {
+                "name": "Minimum elevation",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "nautical_daylight": {
+                "name": "Nautical daylight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "nautical_dawn": {
+                "name": "Nautical dawn",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "nautical_dusk": {
+                "name": "Nautical dusk",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "nautical_night": {
+                "name": "Nautical night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "night": {
+                "name": "Night",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "today_hms": {"name": "Today hms"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "tomorrow_hms": {"name": "Tomorrow hms"},
+                    "yesterday": {"name": "Yesterday"},
+                    "yesterday_hms": {"name": "Yesterday hms"}
+                }
+            },
+            "solar_midnight": {
+                "name": "Solar midnight",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "solar_noon": {
+                "name": "Solar noon",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "sun_phase": {
+                "name": "Phase",
+                "state": {
+                    "astronomical_twilight": "Astronomical twilight",
+                    "civil_twilight": "Civil twilight",
+                    "day": "Day",
+                    "nautical_twilight": "Nautical twilight",
+                    "night": "Night"
+                },
+                "state_attributes": {
+                    "blue_hour": {"name": "Blue hour"},
+                    "golden_hour": {"name": "Golden hour"},
+                    "next_change": {"name": "Next change"},
+                    "rising": {"name": "Rising"}
+                }
+            },
+            "sunrise": {
+                "name": "Rising",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "sunset": {
+                "name": "Setting",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            }
+        }
+    },
+    "selector": {
+        "direction": {
+            "options": {
+                "rising": "Rising",
+                "setting": "Setting"
+            }
+        },
+        "misc": {
+            "options": {
+                "above_horizon": "Above horizon",
+                "above_neg_elev": "Above minus {elevation} °",
+                "above_pos_elev": "Above {elevation} °",
+                "elevation_at": "Elevation at {elev_time}",
+                "rising_neg_elev": "Rising at minus {elevation} °",
+                "rising_pos_elev": "Rising at {elevation} °",
+                "service_name": "{location} Sun",
+                "setting_neg_elev": "Setting at minus {elevation} °",
+                "setting_pos_elev": "Setting at {elevation} °"
+            }
+        }
+    },
+    "services": {
+        "reload": {
+            "name": "Reload",
+            "description": "Reloads Sun2 from the YAML-configuration."
+        }
+    }
+}
