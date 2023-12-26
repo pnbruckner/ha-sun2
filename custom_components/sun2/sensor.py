@@ -189,17 +189,19 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
     ) -> None:
         """Initialize sensor."""
         key = entity_description.key
-        if name is None:
-            name = key.replace("_", " ").title()
         if isinstance(extra, Sun2EntityParams):
-            entity_description.entity_registry_enabled_default = key in _ENABLED_SENSORS
+            if name:
+                self._attr_name = name
+            self._attr_entity_registry_enabled_default = key in _ENABLED_SENSORS
         else:
+            if name is None:
+                name = key.replace("_", " ").title()
             # Note that entity_platform will add namespace prefix to object ID.
             self.entity_id = f"{SENSOR_DOMAIN}.{slugify(name)}"
             if extra:
                 name = f"{extra} {name}"
                 extra = None
-        entity_description.name = name
+            self._attr_name = name
         self.entity_description = entity_description
         super().__init__(loc_params, cast(Sun2EntityParams | None, extra))
 
