@@ -50,11 +50,16 @@ Key | Optional | Description
 `latitude` | yes* | The location's latitude (in degrees)
 `longitude` | yes* | The location's longitude (in degrees)
 `time_zone` | yes* | The location's time zone. (See the "TZ database name" column at http://en.wikipedia.org/wiki/List_of_tz_database_time_zones.)
-`elevation` | yes* | The location's elevation above sea level (in meters)
+`elevation` | yes* | The observer's elevation above ground level at specified location (in meters)
 `binary_sensors` | yes | Binary sensor configurations as defined [here](#binary-sensor-configurations)
 `sensors` | yes | Sensor configurations as defined [here](#sensor-configurations)
 
-\* These must all be used together. If not used, the default is Home Assistant's location & name configuration.
+\* These must all be used together. If not used, the default is Home Assistant's location, elevation & name configuration.
+
+> NOTE: Home Assistant describes the elevation setting as "above sea level."
+> For the purpose of determining sunrise, etc., that is incorrect.
+> It should be the observer's elevation above ground level at the specified location.
+> For more details, see [Effect of Elevation](https://sffjunkie.github.io/astral/#effect-of-elevation)
 
 ### Binary Sensor Configurations
 
@@ -231,7 +236,7 @@ sun2:
     latitude: 51.50739529645933
     longitude: -0.12767666584664272
     time_zone: Europe/London
-    elevation: 11
+    elevation: 0
     binary_sensors:
       - unique_id: bs1
         elevation
@@ -271,7 +276,7 @@ binary_sensor:
     latitude: 51.50739529645933
     longitude: -0.12767666584664272
     time_zone: Europe/London
-    elevation: 11
+    elevation: 0
     monitored_conditions:
       - elevation:
           above: -6
@@ -300,7 +305,7 @@ sun2:
     latitude: 51.50739529645933
     longitude: -0.12767666584664272
     time_zone: Europe/London
-    elevation: 11
+    elevation: 0
     binary_sensors:
       - unique_id: bs1
         elevation: -6
