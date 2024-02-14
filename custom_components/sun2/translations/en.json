@@ -56,7 +56,7 @@
             "location": {
                 "title": "Location Options",
                 "data": {
-                    "elevation": "Elevation",
+                    "elevation": "Elevation above ground level",
                     "location": "Location",
                     "time_zone": "Time zone"
                 },
@@ -146,7 +146,7 @@
             "location": {
                 "title": "Location Options",
                 "data": {
-                    "elevation": "Elevation",
+                    "elevation": "Elevation above ground level",
                     "location": "Location",
                     "time_zone": "Time zone"
                 },

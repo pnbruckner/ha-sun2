@@ -56,7 +56,7 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Hoogtehoek",
+                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
                     "time_zone": "Tijdzone"
                 },
@@ -146,7 +146,7 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Hoogtehoek",
+                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
                     "time_zone": "Tijdzone"
                 },
