@@ -37,7 +37,7 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import CALLBACK_TYPE, CoreState, Event, HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
@@ -443,7 +443,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             device_class=SensorDeviceClass.DURATION,
             icon=icon,
             native_unit_of_measurement=UnitOfTime.HOURS,
-            suggested_display_precision=3,
+            state_class=SensorStateClass.MEASUREMENT,
         )
         super().__init__(loc_params, extra, entity_description, SUN_APPARENT_RADIUS)
 
@@ -459,6 +459,30 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             }
         )
         return data
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+
+        # In 3.1.0 and earlier, entity_description.suggested_display_precision was set
+        # to 3. Starting with HA 2024.2, that causes the state to be displayed as a
+        # float instead of HH:MM:SS. To fix that
+        # entity_description.suggested_display_precision is no longer being set.
+        # However, due to a bug in the sensor component, that value is not getting
+        # properly removed from the entity registry, causing the state to still be
+        # displayed as a float. To work around that bug, we'll forcibly remove it from
+        # the registry here if necessary.
+        ent_reg = er.async_get(self.hass)
+        sensor_options: Mapping[str, Any] = ent_reg.entities[
+            self.entity_id
+        ].options.get(SENSOR_DOMAIN, {})
+        if sensor_options.get("suggested_display_precision") is None:
+            return
+        sensor_options = dict(sensor_options)
+        del sensor_options["suggested_display_precision"]
+        ent_reg.async_update_entity_options(
+            self.entity_id, SENSOR_DOMAIN, sensor_options or None
+        )
 
     def _astral_event(
         self,
