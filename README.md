@@ -6,26 +6,41 @@ Follow the installation instructions below.
 Then add one or more locations with desired sensors either via YAML, the UI or both.
 
 ## Installation
-### With HACS
+
+<details>
+<summary>With HACS</summary>
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
 
 You can use HACS to manage the installation and provide update notifications.
 
-1. Add this repo as a [custom repository](https://hacs.xyz/docs/faq/custom_repositories/):
+1. Add this repo as a [custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
+   It should then appear as a new integration. Click on it. If necessary, search for "sun2".
 
-```text
-https://github.com/pnbruckner/ha-sun2
-```
+   ```text
+   https://github.com/pnbruckner/ha-sun2
+   ```
+   Or use this button:
+   
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pnbruckner&repository=ha-sun2&category=integration)
 
-2. Install the integration using the appropriate button on the HACS Integrations page. Search for "sun2".
 
-### Manual
+1. Download the integration using the appropriate button.
+
+</details>
+
+<details>
+<summary>Manual</summary>
 
 Place a copy of the files from [`custom_components/sun2`](custom_components/sun2)
 in `<config>/custom_components/sun2`,
 where `<config>` is your Home Assistant configuration directory.
 
 >__NOTE__: When downloading, make sure to use the `Raw` button from each file's page.
+
+</details>
+
+After it has been downloaded you will need to restart Home Assistant.
 
 ### Versions
 
@@ -37,11 +52,21 @@ This custom integration supports HomeAssistant versions 2023.4.0 or newer.
 
 Reloads Sun2 from the YAML-configuration. Also adds `SUN2` to the Developers Tools -> YAML page.
 
-## Configuration variables
+## Configuration
 
-A list of configuration options for one or more "locations". Each location is defined by the following options.
+One or more "locations" can be added for this integration.
+Each location is defined by a set of parameters (latitude, etc.)
+Sensors will be created for each location that provide sun related data for that location.
+A location can be added either via the UI or YAML.
 
-> Note: This defines configuration via YAML. However, the same sensors can be added to locations created in the UI.
+To add a location via the UI, you can use this My Button:
+
+[![add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=sun2)
+
+Alternatively, go to Settings -> Devices & services and click the **`+ ADD INTEGRATION`** button.
+Find or search for "sun2", click on it, then follow the prompts.
+
+The remainder of this section defines the list of YAML configuration options for each location.
 
 Key | Optional | Description
 -|-|-
@@ -148,9 +173,9 @@ Solar Midnight | yes | The time when the sun is at its lowest point closest to 0
 Astronomical Dawn | no | The time in the morning when the sun is 18 degrees below the horizon
 Nautical Dawn | no | The time in the morning when the sun is 12 degrees below the horizon
 Dawn | yes | The time in the morning when the sun is 6 degrees below the horizon
-Rising | yes | The time in the morning when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+Rising | yes | AKA Sunrise. The time in the morning when the sun is 0.833 degrees below the horizon. This is to account for refraction.
 Solar Noon | yes | The time when the sun is at its highest point
-Setting | yes | The time in the evening when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+Setting | yes | AKA Sunset. The time in the evening when the sun is 0.833 degrees below the horizon. This is to account for refraction.
 Dusk | yes | The time in the evening when the sun is a 6 degrees below the horizon
 Nautical Dusk | no | The time in the evening when the sun is a 12 degrees below the horizon
 Astronomical Dusk | no | The time in the evening when the sun is a 18 degrees below the horizon
@@ -261,66 +286,6 @@ sun2:
         name: Elv @ test var
 ```
 
-## Converting from `platform` configuration
-
-In previous versions, configuration was done under `binary_sensor` & `sensor`.
-This is now deprecated and will generate a warning at startup.
-It should be converted to the new `sun2` format as described above.
-
-Here is an example of the old format:
-
-```yaml
-binary_sensor:
-  - platform: sun2
-    entity_namespace: London
-    latitude: 51.50739529645933
-    longitude: -0.12767666584664272
-    time_zone: Europe/London
-    elevation: 0
-    monitored_conditions:
-      - elevation:
-          above: -6
-          name: Above Civil Dawn
-sensor:
-  - platform: sun2
-    monitored_conditions:
-      - dawn
-      - sunrise
-      - sunset
-      - dusk
-      - elevation_at_time: input_datetime.arrival
-        name: Elv @ arrival
-      - time_at_elevation: -10
-        direction: setting
-        icon: mdi:weather-sunset-down
-        name: Setting past 10 deg below horizon
-```
-
-This is the equivalent configuration in the new format:
-
-```yaml
-sun2:
-  - unique_id: london
-    location: London
-    latitude: 51.50739529645933
-    longitude: -0.12767666584664272
-    time_zone: Europe/London
-    elevation: 0
-    binary_sensors:
-      - unique_id: bs1
-        elevation: -6
-        name: Above Civil Dawn
-  - unique_id: home
-    sensors:
-      - unique_id: s1
-        elevation_at_time: input_datetime.arrival
-        name: Elv @ arrival
-      - unique_id: s2
-        time_at_elevation: -10
-        direction: setting
-        icon: mdi:weather-sunset-down
-        name: Setting past 10 deg below horizon
-```
-All "simple" sensor options (e.g., `sunrise`, `sunset`, etc.) will be created automatically.
+All "simple" sensor options (e.g., `dawn`, `daylight`, etc.) will be created automatically.
 Some will be enabled by default, but most will not.
 Simply go to the Settings -> Devices & services page, click on Sun2, then entities, and enable/disable the entities as desired.
