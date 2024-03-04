@@ -187,20 +187,13 @@ class Sun2Entity(Entity):
     def __init__(
         self,
         loc_params: LocParams | None,
-        sun2_entity_params: Sun2EntityParams | None = None,
+        sun2_entity_params: Sun2EntityParams,
     ) -> None:
-        """Initialize base class.
-
-        self.name must be set up to return name before calling this.
-        E.g., set up self.entity_description.name first.
-        """
-        if sun2_entity_params:
-            self._attr_has_entity_name = True
-            self._attr_translation_key = self.entity_description.key
-            self._attr_unique_id = sun2_entity_params.unique_id
-            self._attr_device_info = sun2_entity_params.device_info
-        else:
-            self._attr_unique_id = cast(str, self.name)
+        """Initialize base class."""
+        self._attr_has_entity_name = True
+        self._attr_translation_key = self.entity_description.key
+        self._attr_unique_id = sun2_entity_params.unique_id
+        self._attr_device_info = sun2_entity_params.device_info
         self._loc_params = loc_params
         self.async_on_remove(self._cancel_update)
 
