@@ -5,43 +5,25 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import cast
 
-import voluptuous as vol
-
 from homeassistant.components.binary_sensor import (
-    DOMAIN as BINARY_SENSOR_DOMAIN,
-    PLATFORM_SCHEMA,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
-    CONF_ABOVE,
     CONF_BINARY_SENSORS,
     CONF_ELEVATION,
-    CONF_ENTITY_NAMESPACE,
-    CONF_MONITORED_CONDITIONS,
     CONF_NAME,
-    CONF_PLATFORM,
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
-from .config import LOC_PARAMS
-from .const import (
-    ATTR_NEXT_CHANGE,
-    DOMAIN,
-    LOGGER,
-    MAX_ERR_BIN,
-    ONE_DAY,
-    ONE_SEC,
-    SUNSET_ELEV,
-)
+from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
     LocParams,
     Num,
@@ -57,77 +39,21 @@ ABOVE_ICON = "mdi:white-balance-sunny"
 BELOW_ICON = "mdi:moon-waxing-crescent"
 
 
-# elevation
-# elevation: <threshold>
-# elevation:
-#   above: <threshold>
-#   name: <friendly_name>
-
-
-def _val_elevation(config: str | ConfigType) -> ConfigType:
-    """Validate configuration."""
-    if isinstance(config, str):
-        config = {CONF_ELEVATION: {}}
-    else:
-        config = config.copy()
-        value = config[CONF_ELEVATION]
-        if isinstance(value, float):
-            config[CONF_ELEVATION] = {CONF_ABOVE: value}
-        else:
-            config[CONF_ELEVATION] = value.copy()
-    options = config[CONF_ELEVATION]
-    if CONF_ABOVE not in options:
-        options[CONF_ABOVE] = "horizon"
-    return config
-
-
-_ELEVATION_SCHEMA = vol.All(
-    vol.Any(
-        CONF_ELEVATION,
-        {
-            vol.Required(CONF_ELEVATION): vol.Any(
-                vol.Coerce(float),
-                {
-                    vol.Optional(CONF_ABOVE): vol.Coerce(float),
-                    vol.Optional(CONF_NAME): cv.string,
-                },
-            )
-        },
-    ),
-    _val_elevation,
-)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_MONITORED_CONDITIONS): vol.All(
-            cv.ensure_list, [_ELEVATION_SCHEMA]
-        ),
-        **LOC_PARAMS,
-    }
-)
-
-
 class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(
         self,
         loc_params: LocParams | None,
-        extra: Sun2EntityParams | str | None,
+        sun2_entity_params: Sun2EntityParams,
         name: str,
         threshold: float | str,
     ) -> None:
         """Initialize sensor."""
-        if not isinstance(extra, Sun2EntityParams):
-            # Note that entity_platform will add namespace prefix to object ID.
-            self.entity_id = f"{BINARY_SENSOR_DOMAIN}.{slugify(name)}"
-            if extra:
-                name = f"{extra} {name}"
-                extra = None
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, cast(Sun2EntityParams | None, extra))
+        super().__init__(loc_params, sun2_entity_params)
         self._event = "solar_elevation"
 
         if isinstance(threshold, str):
@@ -309,17 +235,11 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
 
 
 def _elevation_name(
-    hass: HomeAssistant | None, name: str | None, threshold: float | str
+    hass: HomeAssistant, name: str | None, threshold: float | str
 ) -> str:
     """Return elevation sensor name."""
     if name:
         return name
-    if not hass:
-        if isinstance(threshold, str):
-            return "Above Horizon"
-        if threshold < 0:
-            return f"Above minus {-threshold}"
-        return f"Above {threshold}"
     if isinstance(threshold, str):
         return translate(hass, "above_horizon")
     if threshold < 0:
@@ -329,51 +249,24 @@ def _elevation_name(
 
 def _sensors(
     loc_params: LocParams | None,
-    extra: Sun2EntityParams | str | None,
+    sun2_entity_params: Sun2EntityParams,
     sensors_config: Iterable[ConfigType],
-    hass: HomeAssistant | None = None,
+    hass: HomeAssistant,
 ) -> list[Entity]:
     """Create list of entities to add."""
     sensors: list[Entity] = []
     for config in sensors_config:
-        if isinstance(extra, Sun2EntityParams):
-            unique_id = config[CONF_UNIQUE_ID]
-            if extra.entry.source == SOURCE_IMPORT:
-                unique_id = f"{extra.entry.entry_id}-{unique_id}"
-            extra.unique_id = unique_id
-            threshold = config[CONF_ELEVATION]
-            name = config.get(CONF_NAME)
-        else:
-            threshold = config[CONF_ELEVATION][CONF_ABOVE]
-            name = config[CONF_ELEVATION].get(CONF_NAME)
+        unique_id = config[CONF_UNIQUE_ID]
+        if sun2_entity_params.entry.source == SOURCE_IMPORT:
+            unique_id = f"{sun2_entity_params.entry.entry_id}-{unique_id}"
+        sun2_entity_params.unique_id = unique_id
+        threshold = config[CONF_ELEVATION]
+        name = config.get(CONF_NAME)
         name = _elevation_name(hass, name, threshold)
-        sensors.append(Sun2ElevationSensor(loc_params, extra, name, threshold))
+        sensors.append(
+            Sun2ElevationSensor(loc_params, sun2_entity_params, name, threshold)
+        )
     return sensors
-
-
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
-) -> None:
-    """Set up sensors."""
-    LOGGER.warning(
-        "%s: %s under %s is deprecated. Move to %s:",
-        CONF_PLATFORM,
-        DOMAIN,
-        BINARY_SENSOR_DOMAIN,
-        DOMAIN,
-    )
-
-    async_add_entities(
-        _sensors(
-            get_loc_params(config),
-            config.get(CONF_ENTITY_NAMESPACE),
-            config[CONF_MONITORED_CONDITIONS],
-        ),
-        True,
-    )
 
 
 async def async_setup_entry(
