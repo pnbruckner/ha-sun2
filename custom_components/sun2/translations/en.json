@@ -56,7 +56,6 @@
             "location": {
                 "title": "Location Options",
                 "data": {
-                    "elevation": "Elevation above ground level",
                     "location": "Location",
                     "time_zone": "Time zone"
                 },
@@ -64,10 +63,40 @@
                     "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
                 }
             },
+            "location_menu": {
+                "title": "Location Entry Method",
+                "menu_options": {
+                    "location_manual": "Manually enter latitude, longitude",
+                    "location_map": "Use a map to specify location"
+                }
+            },
             "location_name": {
                 "title": "Location Name",
                 "data": {
                     "name": "Name"
+                }
+            },
+            "observer_elevation": {
+                "title": "Observer Elevation",
+                "description": "For each direction, choose if sun events are affected by an obstruction, such as a mountain.",
+                "data": {
+                    "sunrise_obstruction": "Sunrise & dawn are affected by an obstruction",
+                    "sunset_obstruction": "Sunset & dusk are affected by an obstruction"
+                }
+            },
+            "obs_elv_values": {
+                "title": "Observer Elevation Values",
+                "data": {
+                    "above_ground": "Elevation",
+                    "sunrise_distance": "Distance to sunrise obstruction",
+                    "sunrise_relative_height": "Relative height of sunrise obstruction",
+                    "sunset_distance": "Distance to sunset obstruction",
+                    "sunset_relative_height": "Relative height of sunset obstruction"
+                },
+                "data_description": {
+                    "above_ground": "Your elevation above GROUND level (not SEA level).",
+                    "sunrise_relative_height": "Height relative to yourself, which may be negative if obstruction is below you.",
+                    "sunset_relative_height": "Height relative to yourself, which may be negative if obstruction is below you."
                 }
             },
             "time_at_elevation_sensor": {
@@ -86,6 +115,7 @@
             }
         },
         "error": {
+            "invalid_location": "Invalid location value. Enter as: latitude, longitude",
             "name_used": "Location name has already been used."
         }
     },
@@ -146,12 +176,43 @@
             "location": {
                 "title": "Location Options",
                 "data": {
-                    "elevation": "Elevation above ground level",
                     "location": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
                     "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "location_menu": {
+                "title": "Location Entry Method",
+                "description": "Current location: {location}\nCurrent time zone: {time_zone}",
+                "menu_options": {
+                    "observer_elevation": "Keep current settings",
+                    "location_manual": "Manually enter latitude, longitude",
+                    "location_map": "Use a map to specify location"
+                }
+            },
+            "observer_elevation": {
+                "title": "Observer Elevation",
+                "description": "For each direction, choose if sun events are affected by an obstruction, such as a mountain.",
+                "data": {
+                    "sunrise_obstruction": "Sunrise & dawn are affected by an obstruction",
+                    "sunset_obstruction": "Sunset & dusk are affected by an obstruction"
+                }
+            },
+            "obs_elv_values": {
+                "title": "Observer Elevation Values",
+                "data": {
+                    "above_ground": "Elevation",
+                    "sunrise_distance": "Distance to sunrise obstruction",
+                    "sunrise_relative_height": "Relative height of sunrise obstruction",
+                    "sunset_distance": "Distance to sunset obstruction",
+                    "sunset_relative_height": "Relative height of sunset obstruction"
+                },
+                "data_description": {
+                    "above_ground": "Your elevation above GROUND level (not SEA level).",
+                    "sunrise_relative_height": "Height relative to yourself, which may be negative if obstruction is below you.",
+                    "sunset_relative_height": "Height relative to yourself, which may be negative if obstruction is below you."
                 }
             },
             "remove_entities": {
@@ -174,6 +235,9 @@
                     "use_home": "Use Home Assistant name and location"
                 }
             }
+        },
+        "error": {
+            "invalid_location": "Invalid location value. Enter as: latitude, longitude"
         }
     },
     "entity": {
