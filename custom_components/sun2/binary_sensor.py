@@ -29,7 +29,6 @@ from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
-    get_loc_params,
     nearest_second,
     sun2_dev_info,
     translate,
@@ -275,12 +274,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    config = entry.options
+    options = entry.options
     async_add_entities(
         _sensors(
-            get_loc_params(config),
+            LocParams.from_entry_options(options),
             Sun2EntityParams(entry, sun2_dev_info(hass, entry)),
-            config.get(CONF_BINARY_SENSORS, []),
+            options.get(CONF_BINARY_SENSORS, []),
             hass,
         ),
         True,

@@ -17,8 +17,14 @@ ONE_SEC = timedelta(seconds=1)
 
 LOGGER = logging.getLogger(__package__)
 
+CONF_ABOVE_GROUND = "above_ground"
 CONF_DIRECTION = "direction"
+CONF_DISTANCE = "distance"
 CONF_ELEVATION_AT_TIME = "elevation_at_time"
+CONF_OBS_ELV = "observer_elevation"
+CONF_RELATIVE_HEIGHT = "relative_height"
+CONF_SUNRISE_OBSTRUCTION = "sunrise_obstruction"
+CONF_SUNSET_OBSTRUCTION = "sunset_obstruction"
 CONF_TIME_AT_ELEVATION = "time_at_elevation"
 
 ATTR_BLUE_HOUR = "blue_hour"

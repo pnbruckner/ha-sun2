@@ -24,7 +24,7 @@ from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, SIG_HA_LOC_UPDATED
-from .helpers import LocData, LocParams, Sun2Data
+from .helpers import LocData, Sun2Data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 _OLD_UNIQUE_ID = re.compile(r"[0-9a-f]{32}-([0-9a-f]{32})")
@@ -36,14 +36,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     def update_local_loc_data() -> LocData:
         """Update local location data from HA's config."""
-        cast(Sun2Data, hass.data[DOMAIN]).locations[None] = loc_data = LocData(
-            LocParams(
-                hass.config.elevation,
-                hass.config.latitude,
-                hass.config.longitude,
-                str(hass.config.time_zone),
-            )
-        )
+        loc_data = LocData.from_hass_config(hass)
+        cast(Sun2Data, hass.data[DOMAIN]).locations[None] = loc_data
         return loc_data
 
     async def process_config(
