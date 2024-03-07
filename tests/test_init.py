@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pytest
 from pytest_homeassistant_custom_component.common import assert_setup_component
 
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
@@ -10,8 +12,17 @@ from homeassistant.util import dt as dt_util, slugify
 from custom_components.sun2.const import DOMAIN
 
 
+@pytest.fixture
+async def cleanup(hass: HomeAssistant):
+    yield
+    if (MAJOR_VERSION, MINOR_VERSION) > (2023, 5):
+        return
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        await hass.config_entries.async_unload(entry.entry_id)
+
+
 async def test_basic_yaml_config(
-    hass: HomeAssistant, entity_registry: EntityRegistry
+    hass: HomeAssistant, entity_registry: EntityRegistry, cleanup: None
 ) -> None:
     """Test basic YAML configuration."""
     with assert_setup_component(1, DOMAIN):
