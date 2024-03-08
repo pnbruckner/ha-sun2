@@ -28,7 +28,7 @@ LOC_2B = {
     "latitude": 39.50924426436838,
     "longitude": -98.43369506033378,
     "elevation": 10,
-    "time_zone": "CST",
+    "time_zone": "America/Chicago",
 }
 CONFIG_2B = {
     "unique_id": "Test 2",
