@@ -1,33 +1,22 @@
 from __future__ import annotations
 
-import pytest
+from unittest.mock import patch
 from pytest_homeassistant_custom_component.common import assert_setup_component
 
-from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.util import slugify
 
 from custom_components.sun2.const import DOMAIN
 
 
-@pytest.fixture
-async def cleanup(hass: HomeAssistant):
-    yield
-    if (MAJOR_VERSION, MINOR_VERSION) > (2023, 5):
-        return
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        await hass.config_entries.async_unload(entry.entry_id)
-
-
 async def test_basic_yaml_config(
-    hass: HomeAssistant, entity_registry: EntityRegistry, cleanup: None
+    hass: HomeAssistant, entity_registry: EntityRegistry
 ) -> None:
     """Test basic YAML configuration."""
     with assert_setup_component(1, DOMAIN):
         await async_setup_component(hass, DOMAIN, {DOMAIN: [{"unique_id": 1}]})
-
     await hass.async_block_till_done()
 
     expected_entities = (
@@ -77,3 +66,85 @@ async def test_basic_yaml_config(
             )
             assert entry
             assert entry.disabled != enabled
+
+
+async def test_reload_service(
+    hass: HomeAssistant, entity_registry: EntityRegistry
+) -> None:
+    """Test basic YAML configuration."""
+    config_1 = {"unique_id": "1"}
+
+    loc_2a = {
+        "latitude": 40.68954412564642,
+        "longitude": -74.04486696480146,
+        "elevation": 0,
+        "time_zone": "America/New_York",
+    }
+    config_2a = {
+        "unique_id": "Test 2",
+        "location": "Statue of Liberty",
+    } | loc_2a
+
+    loc_2b = {
+        "latitude": 39.50924426436838,
+        "longitude": -98.43369506033378,
+        "elevation": 10,
+        "time_zone": "CST",
+    }
+    config_2b = {
+        "unique_id": "Test 2",
+        "location": "World's Largest Ball of Twine",
+    } | loc_2b
+
+    loc_3 = {
+        "latitude": 34.134092337996336,
+        "longitude": -118.32154780135669,
+        "elevation": 391,
+        "time_zone": "America/Los_Angeles",
+    }
+    config_3 = {
+        "unique_id": "3",
+        "location": "Hollywood Sign",
+    } | loc_3
+
+    init_config = [config_1, config_2a]
+    with assert_setup_component(len(init_config), DOMAIN):
+        await async_setup_component(hass, DOMAIN, {DOMAIN: init_config})
+    await hass.async_block_till_done()
+
+    # Check config entries match config.
+    config_entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(config_entries) == 2
+    config_entry_1 = config_entries[0]
+    assert config_entry_1.unique_id == config_1["unique_id"]
+    assert config_entry_1.title == hass.config.location_name
+    assert config_entry_1.options == {}
+    config_entry_2 = config_entries[1]
+    assert config_entry_2.unique_id == config_2a["unique_id"]
+    assert config_entry_2.title == config_2a["location"]
+    assert config_entry_2.options == loc_2a
+
+    # Check reload service exists.
+    assert hass.services.has_service(DOMAIN, "reload")
+
+    # Reload config.
+    reload_config = [config_2b, config_3]
+    with patch(
+        "custom_components.sun2.async_integration_yaml_config",
+        autospec=True,
+        return_value={DOMAIN: reload_config},
+    ):
+        await hass.services.async_call(DOMAIN, "reload")
+        await hass.async_block_till_done()
+
+    # Check config entries match config.
+    config_entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(config_entries) == 2
+    config_entry_1 = config_entries[0]
+    assert config_entry_1.unique_id == config_2b["unique_id"]
+    assert config_entry_1.title == config_2b["location"]
+    assert config_entry_1.options == loc_2b
+    config_entry_2 = config_entries[1]
+    assert config_entry_2.unique_id == config_3["unique_id"]
+    assert config_entry_2.title == config_3["location"]
+    assert config_entry_2.options == loc_3
