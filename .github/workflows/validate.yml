@@ -4,23 +4,66 @@ on:
   pull_request:
   push:
 
+permissions:
+  contents: read
+
 jobs:
   validate-hassfest:
     runs-on: ubuntu-latest
     name: With hassfest
     steps:
-    - name: 📥 Checkout the repository
-      uses: actions/checkout@v4
-
-    - name: 🏃 Hassfest validation
-      uses: "home-assistant/actions/hassfest@master"
+      - name: 📥 Checkout the repository
+        uses: actions/checkout@v4
+      - name: 🏃 Hassfest validation
+        uses: "home-assistant/actions/hassfest@master"
 
   validate-hacs:
     runs-on: ubuntu-latest
     name: With HACS Action
     steps:
-    - name: 🏃 HACS validation
-      uses: hacs/action@main
-      with:
-        category: integration
-        ignore: brands
+      - name: 🏃 HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          # ignore: brands
+
+  validate-pytest:
+    runs-on: ubuntu-latest
+    name: With pytest
+    needs:
+      - validate-hassfest
+      - validate-hacs
+    strategy:
+      matrix:
+        # HA 2023.2 -> 3.10
+        # HA 2023.3 -> 3.10, 3.11
+        # HA 2023.8 -> 3.11
+        # HA 2023.11 -> 3.11, 3.12
+        # 0.13.17 -> HA 2023.4.0
+        # 0.13.107 -> HA 2024.3.0
+        include:
+          - hass-test-cc-version: "0.13.17"
+            python-version: "3.10"
+          - hass-test-cc-version: "0.13.17"
+            python-version: "3.11"
+          - hass-test-cc-version: "0.13.107"
+            python-version: "3.11"
+          - hass-test-cc-version: "0.13.107"
+            python-version: "3.12"
+    steps:
+      - name: 📥 Checkout the repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install pytest-homeassistant-custom-component==${{ matrix.hass-test-cc-version }}
+      - name: 🏃 Validate with pytest
+        run: |
+          pytest
