@@ -127,7 +127,7 @@ async def test_reload_service(
     # Check reload service exists.
     assert hass.services.has_service(DOMAIN, "reload")
 
-    # Reload config.
+    # Reload new config.
     reload_config = [config_2b, config_3]
     with patch(
         "custom_components.sun2.async_integration_yaml_config",
@@ -148,3 +148,42 @@ async def test_reload_service(
     assert config_entry_2.unique_id == config_3["unique_id"]
     assert config_entry_2.title == config_3["location"]
     assert config_entry_2.options == loc_3
+
+    # Reload with same config.
+    reload_config = [config_2b, config_3]
+    with patch(
+        "custom_components.sun2.async_integration_yaml_config",
+        autospec=True,
+        return_value={DOMAIN: reload_config},
+    ):
+        await hass.services.async_call(DOMAIN, "reload")
+        await hass.async_block_till_done()
+
+    # Check config entries haven't changed.
+    assert config_entries == hass.config_entries.async_entries(DOMAIN)
+
+    # Reload config with config removed.
+    with patch(
+        "custom_components.sun2.async_integration_yaml_config",
+        autospec=True,
+        return_value={},
+    ):
+        await hass.services.async_call(DOMAIN, "reload")
+        await hass.async_block_till_done()
+
+    # Check there are no config entries.
+    assert not hass.config_entries.async_entries(DOMAIN)
+
+    # Reload config again with config removed.
+    # This also covers the case where there are no imported entries to remove, and not
+    # imported entries to create or update.
+    with patch(
+        "custom_components.sun2.async_integration_yaml_config",
+        autospec=True,
+        return_value={},
+    ):
+        await hass.services.async_call(DOMAIN, "reload")
+        await hass.async_block_till_done()
+
+    # Check there are still no config entries.
+    assert not hass.config_entries.async_entries(DOMAIN)
