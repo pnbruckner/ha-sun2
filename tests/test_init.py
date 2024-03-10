@@ -12,7 +12,15 @@ from homeassistant.util import slugify
 
 from custom_components.sun2.const import DOMAIN
 
-from .const import HOME_CONFIG, HW_CONFIG, HW_LOC, NY_CONFIG, NY_LOC, TWINE_CONFIG, TWINE_LOC
+from .const import (
+    HOME_CONFIG,
+    HW_CONFIG,
+    HW_LOC,
+    NY_CONFIG,
+    NY_LOC,
+    TWINE_CONFIG,
+    TWINE_LOC,
+)
 
 
 async def test_basic_yaml_config(
