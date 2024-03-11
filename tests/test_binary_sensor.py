@@ -3,15 +3,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
-import pytest
-from pytest import LogCaptureFixture
 
 from astral import LocationInfo
 from astral.location import Location
-
+from custom_components.sun2.const import DOMAIN
+import pytest
+from pytest import LogCaptureFixture
 from pytest_homeassistant_custom_component.common import (
-    async_fire_time_changed,
     assert_setup_component,
+    async_fire_time_changed,
 )
 
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -19,8 +19,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util, slugify
-
-from custom_components.sun2.const import DOMAIN
 
 from .const import NY_CONFIG
 
@@ -74,6 +72,7 @@ async def test_yaml_binary_sensor(
     expected_id = f"binary_sensor.{slugify(NY_CONFIG['location'])}_sun_{slug}"
     assert entity_id == expected_id
     state = hass.states.get(entity_id)
+    assert state
     # Sun is always below the horizon at midnight in New York.
     assert state.state == STATE_OFF
     # And is always above the horizon at noon.
@@ -88,6 +87,7 @@ async def test_yaml_binary_sensor(
         async_fire_time_changed(hass, next_change)
         await hass.async_block_till_done()
     state = hass.states.get(entity_id)
+    assert state
     assert state.state == STATE_ON
 
 

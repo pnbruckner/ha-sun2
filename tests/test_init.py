@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+
+from custom_components.sun2.const import DOMAIN
 from pytest_homeassistant_custom_component.common import assert_setup_component
 
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
@@ -9,8 +11,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
 from homeassistant.util import slugify
-
-from custom_components.sun2.const import DOMAIN
 
 from .const import (
     HOME_CONFIG,

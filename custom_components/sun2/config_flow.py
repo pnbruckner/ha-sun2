@@ -389,6 +389,10 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
             if not self.hass.config_entries.async_update_entry(
                 existing_entry, title=title, options=data
             ):
+                # If HA language and/or location name config changes, it will cause a
+                # config reload. Since the YAML config is not changing, we can't count
+                # on async_update_entry triggering a reload of the config entry, so do
+                # that here.
                 self.hass.async_create_task(
                     self.hass.config_entries.async_reload(existing_entry.entry_id)
                 )
