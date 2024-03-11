@@ -1,48 +1,50 @@
 """Test init module."""
 from __future__ import annotations
-from collections.abc import Generator
 
-from unittest.mock import AsyncMock, Mock, patch
+from collections.abc import Generator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.sun2 import async_setup
 from custom_components.sun2.const import DOMAIN, SIG_HA_LOC_UPDATED
 from custom_components.sun2.helpers import init_translations
 import pytest
 from pytest import FixtureRequest
-from pytest_homeassistant_custom_component.common import MockConfigEntry, assert_setup_component
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.config_entries import SOURCE_IMPORT
+from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity_registry import EntityRegistry
-from homeassistant.setup import async_setup_component
-from homeassistant.util import slugify
 
-from .const import (
-    HOME_CONFIG,
-    HW_CONFIG,
-    HW_LOC,
-    NY_CONFIG,
-    NY_LOC,
-    TWINE_CONFIG,
-    TWINE_LOC,
-)
-
+from .const import HOME_CONFIG, NY_CONFIG
 
 # ========== Fixtures ==================================================================
 
 
 @pytest.fixture(autouse=True)
 async def setup(hass: HomeAssistant) -> None:
-    """Setup tests in this module."""
+    """Set up tests in this module."""
     await init_translations(hass)
 
 
 @pytest.fixture
-def mock_remove_config(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
+def mock_config_remove(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
     """Mock config_entries.async_remove."""
     with patch.object(hass.config_entries, "async_remove", autospec=True) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_config_update(hass: HomeAssistant) -> Generator[MagicMock, None, None]:
+    """Mock config_entries.async_update_entry."""
+    with patch.object(hass.config_entries, "async_update_entry", autospec=True) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_config_reload(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
+    """Mock config_entries.async_reload."""
+    with patch.object(hass.config_entries, "async_reload", autospec=True) as mock:
         yield mock
 
 
@@ -54,7 +56,7 @@ def mock_flow_init(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
 
 
 @pytest.fixture
-def mock_load_yaml(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
+def mock_yaml_load(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
     """Mock async_integration_yaml_config."""
     with patch(
         "custom_components.sun2.async_integration_yaml_config", autospec=True
@@ -71,38 +73,60 @@ def mock_dispatch_listener(hass: HomeAssistant) -> Generator[AsyncMock, None, No
 
 
 @pytest.fixture
-async def init_yaml_config_entry(
+async def setup_w_config_entry(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
     request: FixtureRequest,
-) -> MockConfigEntry:
-    """Initialize a YAML config entry.
+) -> MockConfigEntry | None:
+    """Call async_setup & create a "Home" config entry.
 
     Pass config:
-    @pytest.mark.entry_config(CONFIG)\n
-    async def test_abc(init_yaml_config_entry: MockConfigEntry) -> None:
+    @pytest.mark.entry_config(
+        *, yaml: bool = True, loc_config: data[str, Any] | None = HOME_CONFIG
+    )
+
+    async def test_abc(setup_w_config_entry: MockConfigEntry | None) -> None:
        ...
     """
-    marker = request.node.get_closest_marker("entry_config")
-    if marker is None:
-        config = HOME_CONFIG
+    yaml = True
+    loc_config = HOME_CONFIG
+    if marker := request.node.get_closest_marker("entry_config"):
+        if "yaml" in marker.kwargs:
+            yaml = marker.kwargs["yaml"]
+        if "loc_config" in marker.kwargs:
+            loc_config = marker.kwargs["loc_config"]
+
+    if loc_config:
+        config = {DOMAIN: [loc_config]} if yaml else {}
+        title = loc_config.get("location", hass.config.location_name)
+        unique_id = loc_config["unique_id"] if yaml else None
     else:
-        config = marker.args[0]
-    await async_setup(hass, {DOMAIN: [config]})
+        config = {}
+
+    await async_setup(hass, config)
     await hass.async_block_till_done()
-    mock_remove_config.reset_mock()
+    mock_config_remove.reset_mock()
+    mock_config_update.reset_mock()
     mock_flow_init.reset_mock()
-    mock_load_yaml.reset_mock()
-    mock_load_yaml.return_value = {DOMAIN: [HOME_CONFIG]}
+    mock_yaml_load.reset_mock()
+    mock_yaml_load.return_value = config
     mock_dispatch_listener.reset_mock()
+    if loc_config is None:
+        return None
     config_entry = MockConfigEntry(
         domain=DOMAIN,
-        source=SOURCE_IMPORT,
-        title=config.get("location", hass.config.location_name),
-        unique_id=config["unique_id"],
+        source=SOURCE_IMPORT if yaml else SOURCE_USER,
+        title=title,
+        options={
+            k: v
+            for k, v in loc_config.items()
+            if k in ("latitude", "longitude", "time_zone", "elevation")
+        },
+        unique_id=unique_id,
     )
     config_entry.add_to_hass(hass)
     return config_entry
@@ -113,48 +137,58 @@ async def init_yaml_config_entry(
 
 async def test_setup_no_config(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
 ) -> None:
     """Test async_setup with no configuration."""
     await async_setup(hass, {})
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     assert not mock_flow_init.called
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     assert not mock_dispatch_listener.called
     assert hass.services.has_service(DOMAIN, "reload")
 
 
-# ========== async_setup Tests: YAML Config Tests ======================================
+# ========== async_setup Tests: YAML Config ============================================
 
 
 async def test_setup_yaml_config_new(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
 ) -> None:
     """Test async_setup with new YAML configuration."""
     await async_setup(hass, {DOMAIN: [HOME_CONFIG]})
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     mock_flow_init.assert_called_once_with(
         DOMAIN, context={"source": SOURCE_IMPORT}, data=HOME_CONFIG
     )
     mock_flow_init.assert_awaited_once()
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     assert not mock_dispatch_listener.called
 
 
 async def test_setup_yaml_config_changed(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
 ) -> None:
     """Test async_setup with changed YAML configuration."""
@@ -169,20 +203,24 @@ async def test_setup_yaml_config_changed(
 
     await async_setup(hass, {DOMAIN: [new_config]})
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     mock_flow_init.assert_called_once_with(
         DOMAIN, context={"source": SOURCE_IMPORT}, data=new_config
     )
     mock_flow_init.assert_awaited_once()
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     assert not mock_dispatch_listener.called
 
 
 async def test_setup_yaml_config_removed(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
 ) -> None:
     """Test async_setup with removed YAML configuration."""
@@ -196,31 +234,37 @@ async def test_setup_yaml_config_removed(
 
     await async_setup(hass, {})
     await hass.async_block_till_done()
-    mock_remove_config.assert_called_once_with(config_entry.entry_id)
-    mock_remove_config.assert_awaited_once()
+    mock_config_remove.assert_called_once_with(config_entry.entry_id)
+    mock_config_remove.assert_awaited_once()
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     assert not mock_flow_init.called
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     assert not mock_dispatch_listener.called
 
 
 async def test_setup_yaml_config_reload(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
-    init_yaml_config_entry: MockConfigEntry,
+    setup_w_config_entry: MockConfigEntry | None,
 ) -> None:
     """Test reload of YAML configuration."""
     await hass.services.async_call(DOMAIN, "reload")
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     mock_flow_init.assert_called_once_with(
         DOMAIN, context={"source": SOURCE_IMPORT}, data=HOME_CONFIG
     )
     mock_flow_init.assert_awaited_once()
-    mock_load_yaml.assert_called_once_with(hass, DOMAIN)
-    mock_load_yaml.assert_awaited_once()
+    mock_yaml_load.assert_called_once_with(hass, DOMAIN)
+    mock_yaml_load.assert_awaited_once()
     assert not mock_dispatch_listener.called
 
 
@@ -229,55 +273,118 @@ async def test_setup_yaml_config_reload(
 
 async def test_setup_ha_config_updated_no_data(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
-    init_yaml_config_entry: MockConfigEntry,
+    setup_w_config_entry: MockConfigEntry | None,
 ) -> None:
     """Test EVENT_CORE_CONFIG_UPDATE."""
     hass.bus.async_fire(EVENT_CORE_CONFIG_UPDATE)
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     assert not mock_flow_init.called
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     assert not mock_dispatch_listener.called
 
 
 async def test_setup_ha_config_updated_loc_only(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
-    init_yaml_config_entry: MockConfigEntry,
+    setup_w_config_entry: MockConfigEntry | None,
 ) -> None:
     """Test EVENT_CORE_CONFIG_UPDATE w/ location data only."""
     await hass.config.async_update(latitude=hass.config.latitude + 10)
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     assert not mock_flow_init.called
-    assert not mock_load_yaml.called
+    assert not mock_yaml_load.called
     mock_dispatch_listener.assert_called_once()
     mock_dispatch_listener.assert_awaited_once()
 
 
 async def test_setup_ha_config_updated_name_yaml(
     hass: HomeAssistant,
-    mock_remove_config: AsyncMock,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
     mock_flow_init: AsyncMock,
-    mock_load_yaml: AsyncMock,
+    mock_yaml_load: AsyncMock,
     mock_dispatch_listener: AsyncMock,
-    init_yaml_config_entry: MockConfigEntry,
+    setup_w_config_entry: MockConfigEntry | None,
 ) -> None:
     """Test EVENT_CORE_CONFIG_UPDATE w/ name changed, YAML config."""
     await hass.config.async_update(location_name=f"New {hass.config.location_name}")
     await hass.async_block_till_done()
-    assert not mock_remove_config.called
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert not mock_config_reload.called
     mock_flow_init.assert_called_once()
     mock_flow_init.assert_awaited_once()
-    mock_load_yaml.assert_called_once()
-    mock_load_yaml.assert_awaited_once()
+    mock_yaml_load.assert_called_once()
+    mock_yaml_load.assert_awaited_once()
+    assert not mock_dispatch_listener.called
+
+
+@pytest.mark.entry_config(yaml=False)
+async def test_setup_ha_config_updated_name_ui_home(
+    hass: HomeAssistant,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
+    mock_flow_init: AsyncMock,
+    mock_yaml_load: AsyncMock,
+    mock_dispatch_listener: AsyncMock,
+    setup_w_config_entry: MockConfigEntry | None,
+) -> None:
+    """Test EVENT_CORE_CONFIG_UPDATE w/ name changed, UI Home config."""
+    new_name = f"New {hass.config.location_name}"
+    mock_config_update.return_value = True
+
+    await hass.config.async_update(location_name=new_name)
+    await hass.async_block_till_done()
+    assert not mock_config_remove.called
+    mock_config_update.assert_called_once_with(setup_w_config_entry, title=new_name)
+    assert not mock_config_reload.called
+    assert not mock_flow_init.called
+    mock_yaml_load.assert_called_once()
+    mock_yaml_load.assert_awaited_once()
+    assert not mock_dispatch_listener.called
+
+
+@pytest.mark.entry_config(yaml=False, loc_config=NY_CONFIG)
+async def test_setup_ha_config_updated_name_ui_other(
+    hass: HomeAssistant,
+    mock_config_remove: AsyncMock,
+    mock_config_update: MagicMock,
+    mock_config_reload: AsyncMock,
+    mock_flow_init: AsyncMock,
+    mock_yaml_load: AsyncMock,
+    mock_dispatch_listener: AsyncMock,
+    setup_w_config_entry: MockConfigEntry | None,
+) -> None:
+    """Test EVENT_CORE_CONFIG_UPDATE w/ name changed, UI other config."""
+    await hass.config.async_update(location_name=f"New {hass.config.location_name}")
+    await hass.async_block_till_done()
+    assert not mock_config_remove.called
+    assert not mock_config_update.called
+    assert setup_w_config_entry
+    mock_config_reload.assert_called_once_with(setup_w_config_entry.entry_id)
+    mock_config_reload.assert_awaited_once()
+    assert not mock_flow_init.called
+    mock_yaml_load.assert_called_once()
+    mock_yaml_load.assert_awaited_once()
     assert not mock_dispatch_listener.called
 
 
