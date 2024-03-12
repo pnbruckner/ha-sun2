@@ -91,6 +91,10 @@ async def test_yaml_binary_sensor(
     assert state.state == STATE_ON
 
 
+_SUN_NEVER_REACHES = "Sun elevation never reaches"
+
+
+@pytest.mark.cleanup_params(ignore_phrases=[_SUN_NEVER_REACHES])
 @pytest.mark.parametrize(
     "elevation,expected_state",
     (
@@ -140,7 +144,7 @@ async def test_always_on_or_off(
 
     # Check that there is an appropraite ERROR message.
     assert any(
-        rec.levelname == "ERROR" and "Sun elevation never reaches" in rec.message
+        rec.levelname == "ERROR" and _SUN_NEVER_REACHES in rec.message
         for rec in caplog.get_records("call")
     )
 
@@ -155,12 +159,6 @@ async def test_always_on_or_off(
     assert state
     assert state.state == expected_state
     assert state.attributes["next_change"] is None
-
-    # Check that there is an appropraite ERROR message.
-    assert any(
-        rec.levelname == "ERROR" and "Sun elevation never reaches" in rec.message
-        for rec in caplog.get_records("call")
-    )
 
 
 @pytest.mark.parametrize(
