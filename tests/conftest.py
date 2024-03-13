@@ -6,11 +6,10 @@ import logging
 
 from custom_components.sun2.const import DOMAIN
 import pytest
-from pytest import LogCaptureFixture
+from pytest import FixtureRequest, LogCaptureFixture
 
 from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
-from pytest import FixtureRequest
 
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
@@ -22,6 +21,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 def pytest_configure(config):
+    """Register fixture parameters."""
     config.addinivalue_line(
         "markers", "cleanup_params(*, check_log_errors: bool = True)"
     )
@@ -54,7 +54,7 @@ async def cleanup(
         for when in ("setup", "call"):
             messages = [
                 x.message
-                for x in caplog.get_records(when)
+                for x in caplog.get_records(when)  # type: ignore[arg-type]
                 if x.levelno == logging.ERROR
                 and not any(phrase in x.message for phrase in ignore_phrases)
             ]
