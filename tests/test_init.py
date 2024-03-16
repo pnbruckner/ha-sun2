@@ -1,9 +1,12 @@
 """Test init module."""
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from copy import deepcopy
+from typing import Any
 from unittest.mock import AsyncMock, call, patch
 
+from custom_components.sun2 import PLATFORMS
 from custom_components.sun2.const import DOMAIN, SIG_HA_LOC_UPDATED
 from custom_components.sun2.helpers import LocData, LocParams
 import pytest
@@ -16,105 +19,12 @@ from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
 
 from .const import HOME_CONFIG, NY_CONFIG, NY_LOC, TWINE_CONFIG
 
 # ========== Fixtures ==================================================================
-
-
-# @pytest.fixture(autouse=True)
-# async def setup(hass: HomeAssistant) -> None:
-#     """Set up tests in this module."""
-#     await init_translations(hass)
-
-
-# @pytest.fixture
-# def mock_config_remove(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
-#     """Mock config_entries.async_remove."""
-#     with patch.object(hass.config_entries, "async_remove", autospec=True) as mock:
-#         yield mock
-
-
-# @pytest.fixture
-# def mock_config_update(hass: HomeAssistant) -> Generator[MagicMock, None, None]:
-#     """Mock config_entries.async_update_entry."""
-#     with patch.object(hass.config_entries, "async_update_entry", autospec=True) as mock:
-#         yield mock
-
-
-# @pytest.fixture
-# def mock_config_reload(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
-#     """Mock config_entries.async_reload."""
-#     with patch.object(hass.config_entries, "async_reload", autospec=True) as mock:
-#         yield mock
-
-
-# @pytest.fixture
-# def mock_flow_init(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
-#     """Mock config_entries.flow.async_init."""
-#     with patch.object(hass.config_entries.flow, "async_init", autospec=True) as mock:
-#         yield mock
-
-
-# @pytest.fixture
-# async def setup_w_config_entry(
-#     hass: HomeAssistant,
-#     mock_config_remove: AsyncMock,
-#     mock_config_update: MagicMock,
-#     mock_flow_init: AsyncMock,
-#     mock_yaml_load: AsyncMock,
-#     mock_dispatch_listener: AsyncMock,
-#     request: FixtureRequest,
-# ) -> MockConfigEntry | None:
-#     """Call async_setup & create a "Home" config entry.
-
-#     Pass config:
-#     @pytest.mark.entry_config(
-#         *, yaml: bool = True, loc_config: data[str, Any] | None = HOME_CONFIG
-#     )
-
-#     async def test_abc(setup_w_config_entry: MockConfigEntry | None) -> None:
-#        ...
-#     """
-#     yaml = True
-#     loc_config = HOME_CONFIG
-#     if marker := request.node.get_closest_marker("entry_config"):
-#         if "yaml" in marker.kwargs:
-#             yaml = marker.kwargs["yaml"]
-#         if "loc_config" in marker.kwargs:
-#             loc_config = marker.kwargs["loc_config"]
-
-#     if loc_config:
-#         config = {DOMAIN: [loc_config]} if yaml else {}
-#         title = loc_config.get("location", hass.config.location_name)
-#         unique_id = loc_config["unique_id"] if yaml else None
-#     else:
-#         config = {}
-
-#     await async_setup(hass, config)
-#     await hass.async_block_till_done()
-#     mock_config_remove.reset_mock()
-#     mock_config_update.reset_mock()
-#     mock_flow_init.reset_mock()
-#     mock_yaml_load.reset_mock()
-#     mock_yaml_load.return_value = config
-#     mock_dispatch_listener.reset_mock()
-#     if loc_config is None:
-#         return None
-#     config_entry = MockConfigEntry(
-#         domain=DOMAIN,
-#         source=SOURCE_IMPORT if yaml else SOURCE_USER,
-#         title=title,
-#         options={
-#             k: v
-#             for k, v in loc_config.items()
-#             if k in ("latitude", "longitude", "time_zone", "elevation")
-#         },
-#         unique_id=unique_id,
-#     )
-#     config_entry.add_to_hass(hass)
-#     return config_entry
 
 
 @pytest.fixture
@@ -151,6 +61,15 @@ def mock_dispatch_listener(hass: HomeAssistant) -> AsyncMock:
 
 
 @pytest.fixture
+def mock_fwd_entry_setup(hass: HomeAssistant) -> Generator[AsyncMock, None, None]:
+    """Mock config_entries.async_reload."""
+    with patch.object(
+        hass.config_entries, "async_forward_entry_setups", autospec=True
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture
 async def basic_setup(
     hass: HomeAssistant,
     mock_setup_entry: AsyncMock,
@@ -167,16 +86,16 @@ async def basic_setup(
 
     Return: A tuple of those config entries, in that order.
     """
-    ui_home_config = MockConfigEntry(
+    ui_home_entry = MockConfigEntry(
         domain=DOMAIN,
         source=SOURCE_USER,
         title=hass.config.location_name,
     )
-    ui_home_config.add_to_hass(hass)
-    ui_ny_config = MockConfigEntry(
+    ui_home_entry.add_to_hass(hass)
+    ui_ny_entry = MockConfigEntry(
         domain=DOMAIN, source=SOURCE_USER, title=NY_CONFIG["location"], options=NY_LOC
     )
-    ui_ny_config.add_to_hass(hass)
+    ui_ny_entry.add_to_hass(hass)
 
     await async_setup_component(hass, DOMAIN, {DOMAIN: [TWINE_CONFIG]})
     await hass.async_block_till_done()
@@ -192,7 +111,7 @@ async def basic_setup(
             yaml_twine_entry = config_entry
             break
 
-    return ui_home_config, ui_ny_config, yaml_twine_entry
+    return ui_home_entry, ui_ny_entry, yaml_twine_entry
 
 
 # ========== async_setup Tests: No Config ==============================================
@@ -463,58 +382,111 @@ async def test_setup_ha_config_updated_name(
     assert yaml_twine_entry.as_dict() == yaml_twine_values
 
 
-# async def test_basic_yaml_config(
-#     hass: HomeAssistant, entity_registry: EntityRegistry
-# ) -> None:
-#     """Test basic YAML configuration."""
-#     with assert_setup_component(1, DOMAIN):
-#         await async_setup_component(hass, DOMAIN, {DOMAIN: [HOME_CONFIG]})
-#     await hass.async_block_till_done()
+# ========== async_setup_entry & entry_updated Tests: ==================================
 
-#     expected_entities = (
-#         (True, ("dawn", "dusk", "rising", "setting", "solar_midnight", "solar_noon")),
-#         (
-#             False,
-#             (
-#                 "astronomical_dawn",
-#                 "astronomical_daylight",
-#                 "astronomical_dusk",
-#                 "astronomical_night",
-#                 "azimuth",
-#                 "civil_daylight",
-#                 "civil_night",
-#                 "daylight",
-#                 "deconz_daylight",
-#                 "elevation",
-#                 "maximum_elevation",
-#                 "minimum_elevation",
-#                 "nautical_dawn",
-#                 "nautical_daylight",
-#                 "nautical_dusk",
-#                 "nautical_night",
-#                 "night",
-#                 "phase",
-#             ),
-#         ),
-#     )
 
-#     # Check that the expected number of entities were created.
-#     n_expected_entities = sum(len(x[1]) for x in expected_entities)
-#     n_actual_entities = len(
-#         [
-#             entry
-#             for entry in entity_registry.entities.values()
-#             if entry.platform == DOMAIN
-#         ]
-#     )
-#     assert n_actual_entities == n_expected_entities
+async def test_entry_updated(
+    hass: HomeAssistant,
+    entity_registry: EntityRegistry,
+    mock_unload_entry: AsyncMock,
+    mock_fwd_entry_setup: AsyncMock,
+) -> None:
+    """Test entry_updated."""
 
-#     # Check that the created entities have the correct IDs and enabled status.
-#     location_name = hass.config.location_name
-#     for enabled, suffixes in expected_entities:
-#         for suffix in suffixes:
-#             entry = entity_registry.async_get(
-#                 f"sensor.{slugify(location_name)}_sun_{suffix}"
-#             )
-#             assert entry
-#             assert entry.disabled != enabled
+    def create_options(uid: Callable[[int], str]) -> dict[str, Any]:
+        """Create options dictionary."""
+        return {
+            "binary_sensors": [
+                {"unique_id": uid(i), "elevation": float(i)} for i in range(2)
+            ],
+            "sensors": [
+                {"unique_id": uid(i), "elevation_at_time": f"{i:02d}:00:00"}
+                for i in range(2)
+            ],
+        }
+
+    ui_uid = lambda i: f"{i:032d}"
+    ui_options = create_options(ui_uid)
+    ui_home_entry = MockConfigEntry(
+        domain=DOMAIN,
+        source=SOURCE_USER,
+        title=hass.config.location_name,
+        options=ui_options,
+    )
+    ui_home_entry.add_to_hass(hass)
+
+    yaml_uid = lambda i: str(i)
+    yaml_options = create_options(yaml_uid)
+    yaml_config = NY_CONFIG | yaml_options
+    await async_setup_component(hass, DOMAIN, {DOMAIN: [yaml_config]})
+    await hass.async_block_till_done()
+
+    for config_entry in hass.config_entries.async_entries(DOMAIN):
+        if config_entry.source == SOURCE_IMPORT:
+            yaml_ny_entry = config_entry
+            break
+
+    assert mock_fwd_entry_setup.call_count == 2
+    assert mock_fwd_entry_setup.await_count == 2
+    calls = [call(ui_home_entry, PLATFORMS), call(yaml_ny_entry, PLATFORMS)]
+    for a_call in mock_fwd_entry_setup.call_args_list:
+        assert a_call in calls
+
+    mock_unload_entry.reset_mock()
+    mock_fwd_entry_setup.reset_mock()
+
+    # Config entries are now loaded, but entities have not been created due to test
+    # patching, and therefore, entities have not been added to entity registry. Do that
+    # now to simulate normal operation.
+    for entry, options in ((ui_home_entry, ui_options), (yaml_ny_entry, yaml_options)):
+        for key, sensor_type in (
+            ("binary_sensors", "binary_sensor"),
+            ("sensors", "sensor"),
+        ):
+            for sensor in options[key]:
+                entity_registry.async_get_or_create(
+                    sensor_type,
+                    DOMAIN,
+                    sensor["unique_id"],
+                    config_entry=entry,
+                )
+
+    # Update UI config entry to remove a binary_sensor and a sensor.
+    options = deepcopy(ui_options)
+    removed_bs_uid = options["binary_sensors"].pop()["unique_id"]
+    removed_s_uid = options["sensors"].pop()["unique_id"]
+    remaining_bs_uids = [sensor["unique_id"] for sensor in options["binary_sensors"]]
+    remaining_s_uids = [sensor["unique_id"] for sensor in options["sensors"]]
+
+    assert hass.config_entries.async_update_entry(ui_home_entry, options=options)
+    await hass.async_block_till_done()
+
+    # For UI entry, check that removed sensors have been removed from entity registry,
+    # and others remain.
+    assert (
+        entity_registry.async_get_entity_id("binary_sensor", DOMAIN, removed_bs_uid)
+        is None
+    )
+    assert entity_registry.async_get_entity_id("sensor", DOMAIN, removed_s_uid) is None
+    for uid in remaining_bs_uids:
+        assert entity_registry.async_get_entity_id("binary_sensor", DOMAIN, uid)
+    for uid in remaining_s_uids:
+        assert entity_registry.async_get_entity_id("sensor", DOMAIN, uid)
+
+    # Update YAML config entry to remove a binary_sensor and a sensor.
+    options = deepcopy(yaml_options)
+    removed_bs_uid = options["binary_sensors"].pop()["unique_id"]
+    removed_s_uid = options["sensors"].pop()["unique_id"]
+    remaining_bs_uids = [sensor["unique_id"] for sensor in options["binary_sensors"]]
+    remaining_s_uids = [sensor["unique_id"] for sensor in options["sensors"]]
+
+    assert hass.config_entries.async_update_entry(yaml_ny_entry, options=options)
+    await hass.async_block_till_done()
+
+    # For YAML entry, check that all sensors remain in entity registry.
+    # NOTE: This may not be correct, but is how it currently works. Honestly, I can't
+    #       remember why.
+    for uid in [removed_bs_uid] + remaining_bs_uids:
+        assert entity_registry.async_get_entity_id("binary_sensor", DOMAIN, uid)
+    for uid in [removed_s_uid] + remaining_s_uids:
+        assert entity_registry.async_get_entity_id("sensor", DOMAIN, uid)
