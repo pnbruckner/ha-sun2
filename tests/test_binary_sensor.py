@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from unittest.mock import patch
 
 from astral import LocationInfo
 from astral.location import Location
@@ -19,8 +18,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util, slugify
+from tests.common import DtNowMock
 
 from .const import NY_CONFIG
+
+# ========== Fixtures ==================================================================
+
+
+# ========== Tests =====================================================================
 
 
 @pytest.mark.parametrize(
@@ -35,11 +40,14 @@ from .const import NY_CONFIG
 async def test_yaml_binary_sensor(
     hass: HomeAssistant,
     entity_registry: EntityRegistry,
+    dt_now: DtNowMock,
     elevation: str | float,
     name: str | None,
     slug: str,
 ) -> None:
     """Test YAML configured elevation binary sensor."""
+    dt_now_real, dt_now_mock = dt_now
+
     config = NY_CONFIG | {
         "binary_sensors": [
             {
@@ -52,15 +60,15 @@ async def test_yaml_binary_sensor(
         config["binary_sensors"][0]["name"] = name
 
     tz = dt_util.get_time_zone(NY_CONFIG["time_zone"])
-    base_time = dt_util.now(tz)
+    base_time = dt_now_real(tz)
 
     # Set time to 00:00:00 tommorow.
     now = datetime.combine((base_time + timedelta(1)).date(), time()).replace(tzinfo=tz)
 
-    with patch("homeassistant.util.dt.now", return_value=now):
-        with assert_setup_component(1, DOMAIN):
-            await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
-        await hass.async_block_till_done()
+    dt_now_mock.return_value = now
+    with assert_setup_component(1, DOMAIN):
+        await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
+    await hass.async_block_till_done()
 
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
 
@@ -83,9 +91,9 @@ async def test_yaml_binary_sensor(
     assert now < next_change < noon
 
     # Move time to next_change and make sure state has changed.
-    with patch("homeassistant.util.dt.now", return_value=next_change):
-        async_fire_time_changed(hass, next_change)
-        await hass.async_block_till_done()
+    dt_now_mock.return_value = next_change
+    async_fire_time_changed(hass, next_change)
+    await hass.async_block_till_done()
     state = hass.states.get(entity_id)
     assert state
     assert state.state == STATE_ON
@@ -105,11 +113,14 @@ _SUN_NEVER_REACHES = "Sun elevation never reaches"
 async def test_always_on_or_off(
     hass: HomeAssistant,
     entity_registry: EntityRegistry,
+    dt_now: DtNowMock,
     caplog: LogCaptureFixture,
     elevation: float,
     expected_state: str,
 ) -> None:
     """Test a binary sensor that is always on or off."""
+    dt_now_real, dt_now_mock = dt_now
+
     config = NY_CONFIG | {
         "binary_sensors": [
             {
@@ -120,15 +131,15 @@ async def test_always_on_or_off(
     }
 
     tz = dt_util.get_time_zone(NY_CONFIG["time_zone"])
-    base_time = dt_util.now(tz)
+    base_time = dt_now_real(tz)
 
     # Set time to 00:00:00 tommorow.
     now = datetime.combine((base_time + timedelta(1)).date(), time()).replace(tzinfo=tz)
 
-    with patch("homeassistant.util.dt.now", return_value=now):
-        with assert_setup_component(1, DOMAIN):
-            await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
-        await hass.async_block_till_done()
+    dt_now_mock.return_value = now
+    with assert_setup_component(1, DOMAIN):
+        await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
+    await hass.async_block_till_done()
 
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
     entity_id = entity_registry.async_get_entity_id(
@@ -150,9 +161,9 @@ async def test_always_on_or_off(
 
     # Move time to noon.
     noon = now.replace(hour=12)
-    with patch("homeassistant.util.dt.now", return_value=noon):
-        async_fire_time_changed(hass, noon)
-        await hass.async_block_till_done()
+    dt_now_mock.return_value = noon
+    async_fire_time_changed(hass, noon)
+    await hass.async_block_till_done()
 
     # Check that state is still the same.
     state = hass.states.get(entity_id)
@@ -167,12 +178,15 @@ async def test_always_on_or_off(
 async def test_next_change_greater_than_one_day(
     hass: HomeAssistant,
     entity_registry: EntityRegistry,
+    dt_now: DtNowMock,
     caplog: LogCaptureFixture,
     func: str,
     offset: int,
     expected_state: str,
 ) -> None:
     """Test when binary sensor won't change for more than one day."""
+    dt_now_real, dt_now_mock = dt_now
+
     config = NY_CONFIG | {
         "binary_sensors": [
             {
@@ -190,7 +204,7 @@ async def test_next_change_greater_than_one_day(
 
     # Get next year's September 20, since on this date neither the min nor max elevation
     # is near their extremes in New York, NY. Then get the min or max sun elevations.
-    now_date = date(dt_util.now().year + 1, 9, 20)
+    now_date = date(dt_now_real(tz).year + 1, 9, 20)
     elv = loc.solar_elevation(getattr(loc, func)(now_date), obs_elv)
 
     # Configure sensor with an elevation threshold just below or above.
@@ -199,10 +213,10 @@ async def test_next_change_greater_than_one_day(
     # Set time to midnight on that date.
     now = datetime.combine(now_date, time()).replace(tzinfo=tz)
 
-    with patch("homeassistant.util.dt.now", return_value=now):
-        with assert_setup_component(1, DOMAIN):
-            await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
-        await hass.async_block_till_done()
+    dt_now_mock.return_value = now
+    with assert_setup_component(1, DOMAIN):
+        await async_setup_component(hass, DOMAIN, {DOMAIN: [config]})
+    await hass.async_block_till_done()
 
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
     entity_id = entity_registry.async_get_entity_id(

@@ -1,8 +1,9 @@
 """Sun2 test configuration."""
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 import logging
+from unittest.mock import patch
 
 from custom_components.sun2.const import DOMAIN
 import pytest
@@ -10,6 +11,8 @@ from pytest import FixtureRequest, LogCaptureFixture
 
 from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
+from tests.common import DtNowMock
 
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
@@ -69,6 +72,14 @@ async def cleanup(
     # lingering timers.
     for entry in hass.config_entries.async_entries(DOMAIN):
         await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.fixture
+def dt_now() -> Generator[DtNowMock, None, None]:
+    """Mock util.dt.now."""
+    real = dt_util.now
+    with patch("homeassistant.util.dt.now") as mock:
+        yield real, mock
 
 
 # @pytest.fixture
