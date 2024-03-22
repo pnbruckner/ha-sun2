@@ -476,8 +476,24 @@
                     "yesterday": {"name": "Yesterday"}
                 }
             },
+            "sunrise_azimuth": {
+                "name": "Rising azimuth",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
             "sunset": {
                 "name": "Setting",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "sunset_azimuth": {
+                "name": "Setting azimuth",
                 "state_attributes": {
                     "today": {"name": "Today"},
                     "tomorrow": {"name": "Tomorrow"},

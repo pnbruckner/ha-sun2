@@ -522,6 +522,50 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
         )
 
 
+class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
+    """Sun2 Azimuth at Sunrise or Sunset Sensor."""
+
+    def __init__(
+        self,
+        loc_params: LocParams | None,
+        sun2_entity_params: Sun2EntityParams,
+        sensor_type: str,
+        icon: str | None,
+    ) -> None:
+        """Initialize sensor."""
+        entity_description = SensorEntityDescription(
+            key=sensor_type,
+            icon=icon,
+            native_unit_of_measurement=DEGREE,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=2,
+        )
+        super().__init__(loc_params, sun2_entity_params, entity_description)
+        self._event = "solar_azimuth"
+        self._method = sensor_type.split("_")[0]
+
+    def _astral_event(
+        self,
+        date_or_dttm: date | datetime,
+        event: str | None = None,
+        /,
+        **kwargs: Any,
+    ) -> float | None:
+        """Return astral event result."""
+        # Get sunrise or sunset time.
+        # Don't use parent method because observer elevation should not be used
+        # because there is no way to know if currently configured observer elevation
+        # was valid yesterday or will be valid tomorrow since it is very possible the
+        # state of this sensor will be used to automatically change the observer
+        # configuration throughout the year. This also avoids a potentially infinite
+        # feedback loop.
+        try:
+            dttm = getattr(self._loc_data.loc, self._method)(date_or_dttm)
+        except (TypeError, ValueError):
+            return None
+        return cast(Optional[float], super()._astral_event(dttm))
+
+
 @dataclass
 class CurveParameters:
     """Parameters that describe current portion of elevation curve.
@@ -1159,6 +1203,8 @@ _SENSOR_TYPES = {
     "max_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-sunny"),
     # Azimuth & Elevation
     "azimuth": SensorParams(Sun2AzimuthSensor, "mdi:sun-angle"),
+    "sunrise_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
+    "sunset_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
     "elevation": SensorParams(Sun2ElevationSensor, None),
     # Phase
     "sun_phase": SensorParams(Sun2PhaseSensor, None),
