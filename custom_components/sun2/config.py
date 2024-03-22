@@ -36,9 +36,10 @@ from .const import (
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
 )
-from .helpers import init_translations
+from .helpers import Num, init_translations
 
 _LOGGER = logging.getLogger(__name__)
+_COERCE_NUM = vol.Any(vol.Coerce(int), vol.Coerce(float))
 
 PACKAGE_MERGE_HINT = "list"
 SUN_DIRECTIONS = [dir.lower() for dir in SunDirection.__members__]
@@ -48,7 +49,7 @@ SUN2_LOCATION_BASE_SCHEMA = vol.Schema(
         vol.Inclusive(CONF_LONGITUDE, "location"): cv.longitude,
         vol.Inclusive(CONF_TIME_ZONE, "location"): cv.time_zone,
         vol.Optional(CONF_OBS_ELV): vol.Any(
-            vol.Coerce(float), dict, msg="expected a float or a dictionary"
+            _COERCE_NUM, dict, msg="expected a number or a dictionary"
         ),
     }
 )
@@ -59,7 +60,7 @@ _SUN2_BINARY_SENSOR_SCHEMA = vol.Schema(
         vol.Required(CONF_ELEVATION): vol.Any(
             vol.All(vol.Lower, "horizon"),
             vol.Coerce(float),
-            msg="must be a float or the word horizon",
+            msg="must be a number or the word horizon",
         ),
         vol.Optional(CONF_NAME): cv.string,
     }
@@ -103,7 +104,7 @@ _SUN2_LOCATION_SCHEMA = SUN2_LOCATION_BASE_SCHEMA.extend(
     {
         vol.Required(CONF_UNIQUE_ID): cv.string,
         vol.Inclusive(CONF_LOCATION, "location"): cv.string,
-        vol.Optional(CONF_ELEVATION): vol.Coerce(float),
+        vol.Optional(CONF_ELEVATION): _COERCE_NUM,
         vol.Optional(CONF_BINARY_SENSORS): vol.All(
             cv.ensure_list, [_SUN2_BINARY_SENSOR_SCHEMA]
         ),
@@ -134,11 +135,11 @@ _SUN2_CONFIG_SCHEMA = vol.Schema(
 
 
 _OBSTRUCTION_CONFIG = {
-    vol.Required(CONF_DISTANCE): vol.Coerce(float),
-    vol.Required(CONF_RELATIVE_HEIGHT): vol.Coerce(float),
+    vol.Required(CONF_DISTANCE): _COERCE_NUM,
+    vol.Required(CONF_RELATIVE_HEIGHT): _COERCE_NUM,
 }
 _OBS_ELV_DICT = {
-    vol.Optional(CONF_ABOVE_GROUND): vol.Coerce(float),
+    vol.Optional(CONF_ABOVE_GROUND): _COERCE_NUM,
     vol.Optional(CONF_SUNRISE_OBSTRUCTION): _OBSTRUCTION_CONFIG,
     vol.Optional(CONF_SUNSET_OBSTRUCTION): _OBSTRUCTION_CONFIG,
 }
@@ -151,38 +152,38 @@ _OBS_ELV_DICT_SCHEMA = vol.All(
 
 def obs_elv_from_options(
     hass: HomeAssistant, options: Mapping[str, Any]
-) -> ConfigType | float:
+) -> ConfigType | Num:
     """Return observer_elevation config from options."""
     if obs_elv_option := options.get(CONF_OBS_ELV):
         east_obs_elv, west_obs_elv = obs_elv_option
 
-        if isinstance(east_obs_elv, float) and isinstance(west_obs_elv, float):
+        if isinstance(east_obs_elv, Num) and isinstance(west_obs_elv, Num):  # type: ignore[misc, arg-type]
             assert east_obs_elv == west_obs_elv
-            return east_obs_elv
+            return cast(Num, east_obs_elv)
 
-        obs_elv = {}
-        if isinstance(east_obs_elv, list):
+        obs_elv: ConfigType = {}
+        if isinstance(east_obs_elv, Num):  # type: ignore[misc, arg-type]
+            obs_elv[CONF_ABOVE_GROUND] = east_obs_elv
+        else:
             obs_elv[CONF_SUNRISE_OBSTRUCTION] = {
                 CONF_DISTANCE: east_obs_elv[1],
                 CONF_RELATIVE_HEIGHT: east_obs_elv[0],
             }
+        if isinstance(west_obs_elv, Num):  # type: ignore[misc, arg-type]
+            obs_elv[CONF_ABOVE_GROUND] = west_obs_elv
         else:
-            obs_elv[CONF_ABOVE_GROUND] = east_obs_elv
-        if isinstance(west_obs_elv, list):
-            obs_elv[CONF_SUNRISE_OBSTRUCTION] = {
+            obs_elv[CONF_SUNSET_OBSTRUCTION] = {
                 CONF_DISTANCE: west_obs_elv[1],
                 CONF_RELATIVE_HEIGHT: west_obs_elv[0],
             }
-        else:
-            obs_elv[CONF_ABOVE_GROUND] = west_obs_elv
         return obs_elv
 
     return options.get(CONF_ELEVATION, hass.config.elevation)
 
 
 def _obs_elv(
-    obstruction: Mapping[str, float] | None, above_ground: float | None
-) -> float | list[float]:
+    obstruction: Mapping[str, Num] | None, above_ground: Num | None
+) -> Num | list[Num]:
     """Determine observer elevation from obstruction or elevation above ground level."""
     if obstruction:
         return [obstruction[CONF_RELATIVE_HEIGHT], obstruction[CONF_DISTANCE]]
@@ -200,16 +201,16 @@ def options_from_obs_elv(
     Just continue to use elevation option until user replaces deprecated
     option with new option.
 
-    Otherwise, convert to list[float | list[float]] where
+    Otherwise, convert to list[Num | list[Num]] where
     list[0] is east (sunrise) observer_elevation,
     list[1] is west (sunset) observer_elevation,
-    observer_elevation is float or list[float] where
-    float is elevation above ground level or
+    observer_elevation is Num or list[Num] where
+    Num is elevation above ground level or
     list[0] is height of obstruction relative to observer
     list[1] is distance to obstruction from observer
     """
-    east_obs_elv: float | list[float]
-    west_obs_elv: float | list[float]
+    east_obs_elv: Num | list[Num]
+    west_obs_elv: Num | list[Num]
 
     try:
         if CONF_ELEVATION in loc_config:
@@ -227,9 +228,9 @@ def options_from_obs_elv(
                 DOMAIN,
                 idx,
             )
-            east_obs_elv = west_obs_elv = float(hass.config.elevation)
+            east_obs_elv = west_obs_elv = hass.config.elevation
 
-        elif isinstance(obs := loc_config[CONF_OBS_ELV], float):
+        elif isinstance(obs := loc_config[CONF_OBS_ELV], Num):  # type: ignore[misc, arg-type]
             east_obs_elv = west_obs_elv = obs
 
         else:

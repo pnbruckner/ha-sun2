@@ -61,9 +61,9 @@ from .const import (
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
 )
-from .helpers import init_translations
+from .helpers import Num, init_translations
 
-_LOCATION_OPTIONS = [CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
+_LOCATION_OPTIONS = [CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
 
 _DEGREES_SELECTOR = NumberSelector(
     NumberSelectorConfig(
@@ -255,8 +255,8 @@ class Sun2Flow(FlowHandler):
 
         if obs_elv := self.options.get(CONF_OBS_ELV):
             suggested_values = {
-                CONF_SUNRISE_OBSTRUCTION: isinstance(obs_elv[0], list),
-                CONF_SUNSET_OBSTRUCTION: isinstance(obs_elv[1], list),
+                CONF_SUNRISE_OBSTRUCTION: not isinstance(obs_elv[0], Num),  # type: ignore[misc, arg-type]
+                CONF_SUNSET_OBSTRUCTION: not isinstance(obs_elv[1], Num),  # type: ignore[misc, arg-type]
             }
         else:
             suggested_values = {
@@ -308,17 +308,15 @@ class Sun2Flow(FlowHandler):
             schema[vol.Required("sunset_relative_height")] = _METERS_SELECTOR
         data_schema = vol.Schema(schema)
 
-        above_ground = 0.0
-        sunrise_distance = 1000.0
-        sunrise_relative_height = 1000.0
-        sunset_distance = 1000.0
-        sunset_relative_height = 1000.0
+        above_ground = 0
+        sunrise_distance = sunset_distance = 1000
+        sunrise_relative_height = sunset_relative_height = 1000
         if obs_elv := self.options.get(CONF_OBS_ELV):
-            if isinstance(obs_elv[0], float):
+            if isinstance(obs_elv[0], Num):  # type: ignore[misc, arg-type]
                 above_ground = obs_elv[0]
             else:
                 sunrise_relative_height, sunrise_distance = obs_elv[0]
-            if isinstance(obs_elv[1], float):
+            if isinstance(obs_elv[1], Num):  # type: ignore[misc, arg-type]
                 # If both directions use above_ground, they should be the same.
                 # Assume this is true and don't bother checking here.
                 above_ground = obs_elv[1]
