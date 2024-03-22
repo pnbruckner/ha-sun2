@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Mapping
 from contextlib import suppress
 from typing import Any, cast
 
@@ -29,7 +30,7 @@ from homeassistant.const import (
     DEGREE,
     UnitOfLength,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
@@ -92,6 +93,15 @@ _POSITIVE_METERS_SELECTOR = NumberSelector(
 _SUN_DIRECTION_SELECTOR = SelectSelector(
     SelectSelectorConfig(options=SUN_DIRECTIONS, translation_key="direction")
 )
+
+
+def loc_from_options(
+    hass: HomeAssistant, options: Mapping[str, Any]
+) -> tuple[float, float, str]:
+    """Return latitude, longitude & time_zone from options."""
+    if CONF_LATITUDE in options:
+        return options[CONF_LATITUDE], options[CONF_LONGITUDE], options[CONF_TIME_ZONE]
+    return hass.config.latitude, hass.config.longitude, hass.config.time_zone
 
 
 class Sun2Flow(FlowHandler):
@@ -212,15 +222,8 @@ class Sun2Flow(FlowHandler):
             }
         )
 
-        if CONF_LATITUDE in self.options:
-            time_zone = self.options[CONF_TIME_ZONE]
-            latitude = self.options[CONF_LATITUDE]
-            longitude = self.options[CONF_LONGITUDE]
-        else:
-            time_zone = self.hass.config.time_zone
-            latitude = self.hass.config.latitude
-            longitude = self.hass.config.longitude
-        suggested_values = {CONF_TIME_ZONE: time_zone}
+        latitude, longitude, time_zone = loc_from_options(self.hass, self.options)
+        suggested_values: dict[str, Any] = {CONF_TIME_ZONE: time_zone}
         if self._use_map:
             suggested_values[CONF_LOCATION] = {
                 CONF_LATITUDE: latitude,
@@ -502,7 +505,7 @@ class Sun2Flow(FlowHandler):
                         if not self.options[sensor_type]:
                             del self.options[sensor_type]
                         return
-            assert False
+            raise RuntimeError(f"Unexpected unique ID ({unique_id}) to remove")
 
         if user_input is not None:
             for entity_id in user_input["choices"]:
