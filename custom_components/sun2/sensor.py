@@ -71,7 +71,6 @@ from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
-    get_loc_params,
     hours_to_hms,
     nearest_second,
     next_midnight,
@@ -396,10 +395,10 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         date_or_dttm: date | datetime,
         event: str | None = None,
         /,
-        **kwargs: Mapping[str, Any],
+        **kwargs: Any,
     ) -> Any:
         return super()._astral_event(
-            date_or_dttm, direction=self._direction, elevation=self._elevation  # type: ignore[arg-type]
+            date_or_dttm, direction=self._direction, elevation=self._elevation
         )
 
 
@@ -467,7 +466,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         date_or_dttm: date | datetime,
         event: str | None = None,
         /,
-        **kwargs: Mapping[str, Any],
+        **kwargs: Any,
     ) -> float | None:
         """Return astral event result."""
         start: datetime | None
@@ -512,7 +511,7 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
         date_or_dttm: date | datetime,
         event: str | None = None,
         /,
-        **kwargs: Mapping[str, Any],
+        **kwargs: Any,
     ) -> float | None:
         """Return astral event result."""
         return cast(
@@ -521,6 +520,50 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
                 cast(datetime, super()._astral_event(date_or_dttm)), "solar_elevation"
             ),
         )
+
+
+class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
+    """Sun2 Azimuth at Sunrise or Sunset Sensor."""
+
+    def __init__(
+        self,
+        loc_params: LocParams | None,
+        sun2_entity_params: Sun2EntityParams,
+        sensor_type: str,
+        icon: str | None,
+    ) -> None:
+        """Initialize sensor."""
+        entity_description = SensorEntityDescription(
+            key=sensor_type,
+            icon=icon,
+            native_unit_of_measurement=DEGREE,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=2,
+        )
+        super().__init__(loc_params, sun2_entity_params, entity_description)
+        self._event = "solar_azimuth"
+        self._method = sensor_type.split("_")[0]
+
+    def _astral_event(
+        self,
+        date_or_dttm: date | datetime,
+        event: str | None = None,
+        /,
+        **kwargs: Any,
+    ) -> float | None:
+        """Return astral event result."""
+        # Get sunrise or sunset time.
+        # Don't use parent method because observer elevation should not be used
+        # because there is no way to know if currently configured observer elevation
+        # was valid yesterday or will be valid tomorrow since it is very possible the
+        # state of this sensor will be used to automatically change the observer
+        # configuration throughout the year. This also avoids a potentially infinite
+        # feedback loop.
+        try:
+            dttm = getattr(self._loc_data.loc, self._method)(date_or_dttm)
+        except (TypeError, ValueError):
+            return None
+        return cast(Optional[float], super()._astral_event(dttm))
 
 
 @dataclass
@@ -893,7 +936,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                         self._astral_event(
                             self._cp.mid_date + offset if offset else self._cp.mid_date,
                             "time_at_elevation",
-                            elevation=elev,  # type: ignore[arg-type]
+                            elevation=elev,
                             direction=SunDirection.RISING
                             if self._cp.rising
                             else SunDirection.SETTING,
@@ -1160,6 +1203,8 @@ _SENSOR_TYPES = {
     "max_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-sunny"),
     # Azimuth & Elevation
     "azimuth": SensorParams(Sun2AzimuthSensor, "mdi:sun-angle"),
+    "sunrise_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
+    "sunset_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
     "elevation": SensorParams(Sun2ElevationSensor, None),
     # Phase
     "sun_phase": SensorParams(Sun2PhaseSensor, None),
@@ -1259,12 +1304,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    config = entry.options
+    options = entry.options
 
-    loc_params = get_loc_params(config)
+    loc_params = LocParams.from_entry_options(options)
     sun2_entity_params = Sun2EntityParams(entry, sun2_dev_info(hass, entry))
     async_add_entities(
-        _sensors(loc_params, sun2_entity_params, config.get(CONF_SENSORS, []), hass)
+        _sensors(loc_params, sun2_entity_params, options.get(CONF_SENSORS, []), hass)
         + _sensors(loc_params, sun2_entity_params, _SENSOR_TYPES.keys(), hass),
         True,
     )
