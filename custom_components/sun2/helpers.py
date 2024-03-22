@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from math import copysign, fabs
-from typing import Any, Self, Union, cast
+from typing import Any, Self, cast
 
 from astral import LocationInfo
 from astral.location import Location
@@ -45,7 +45,7 @@ from .const import (
     SIG_HA_LOC_UPDATED,
 )
 
-Num = Union[float, int]
+Num = float | int
 
 
 @dataclass(frozen=True)
@@ -205,12 +205,14 @@ class Sun2Entity(Entity):
             self._east_obs_elv = self._obs_elv_cfg_2_astral(east_obs_elv)
             self._west_obs_elv = self._obs_elv_cfg_2_astral(west_obs_elv)
         else:
-            self._east_obs_elv = self._west_obs_elv = options.get(CONF_ELEVATION, 0)
+            self._east_obs_elv = self._west_obs_elv = float(
+                options.get(CONF_ELEVATION, 0)
+            )
         self.async_on_remove(self._cancel_update)
 
     @staticmethod
     def _obs_elv_cfg_2_astral(
-        obs_elv: float | list[float],
+        obs_elv: Num | list[Num],
     ) -> float | tuple[float, float]:
         """Convert value stored in config entry to astral observer_elevation param.
 
@@ -225,10 +227,10 @@ class Sun2Entity(Entity):
         Also, astral only accepts a tuple, not a list, which is what stored in the
         config entry (since it's from a JSON file), so convert to a tuple.
         """
-        if isinstance(obs_elv, list):
-            height, distance = obs_elv
-            return -copysign(1, height) * distance, fabs(height)
-        return obs_elv
+        if isinstance(obs_elv, Num):  # type: ignore[misc, arg-type]
+            return float(cast(Num, obs_elv))
+        height, distance = cast(list[Num], obs_elv)
+        return -copysign(1, float(height)) * float(distance), fabs(float(height))
 
     @property
     def _sun2_data(self) -> Sun2Data:
