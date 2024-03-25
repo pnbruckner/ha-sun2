@@ -39,4 +39,4 @@ ATTR_TOMORROW_HMS = "tomorrow_hms"
 ATTR_YESTERDAY = "yesterday"
 ATTR_YESTERDAY_HMS = "yesterday_hms"
 
-SIG_HA_LOC_UPDATED = f"{DOMAIN}_ha_loc_updated"
+SIG_ASTRAL_DATA_UPDATED = f"{DOMAIN}_astral_data_updated"
