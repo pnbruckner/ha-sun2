@@ -19,7 +19,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ICON,
     CONF_ICON,
@@ -33,7 +33,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import CALLBACK_TYPE, CoreState, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_point_in_utc_time,
@@ -71,10 +70,9 @@ from .helpers import (
     Sun2Entity,
     Sun2EntityParams,
     hours_to_hms,
+    make_async_setup_entry,
     nearest_second,
     next_midnight,
-    sun2_data,
-    sun2_dev_info,
     translate,
 )
 
@@ -1197,9 +1195,9 @@ def _sensors(
     imported: bool,
     uid_prefix: str,
     sun2_entity_params: Sun2EntityParams,
-    sensors_config: Iterable[str | ConfigType],
+    sensors_config: Iterable[ConfigType | str],
 ) -> list[Sun2Entity]:
-    """Create list of entities to add."""
+    """Return list of entities to add."""
     sensors: list[Sun2Entity] = []
     for config in sensors_config:
         if isinstance(config, str):
@@ -1250,35 +1248,11 @@ def _sensors(
     return sensors
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the sensor platform."""
-    s2data = sun2_data(hass)
-    imported = entry.source == SOURCE_IMPORT
-    uid_prefix = f"{entry.entry_id}-"
-    device_info = sun2_dev_info(hass, entry)
-    config_data = s2data.config_data[entry.entry_id]
-    if (loc_data := config_data.loc_data) is None:
-        loc_data = s2data.ha_loc_data
-    astral_data = AstralData(loc_data, config_data.obs_elvs)
-    sun2_entity_params = Sun2EntityParams(device_info, astral_data)
+def _sensor_configs(entry: ConfigEntry) -> list[ConfigType | str]:
+    """Return list of sensor configs."""
+    return cast(list[ConfigType], entry.options.get(CONF_SENSORS, [])) + list(
+        _SENSOR_TYPES.keys()
+    )
 
-    def sensors() -> list[Sun2Entity]:
-        """Get sensor entities."""
-        sensors_: list[Sun2Entity] = []
-        for sensors_config in (
-            entry.options.get(CONF_SENSORS, []),
-            _SENSOR_TYPES.keys(),
-        ):
-            sensors_.extend(
-                _sensors(hass, imported, uid_prefix, sun2_entity_params, sensors_config)
-            )
-        return sensors_
 
-    entities = sensors()
-    async_add_entities(entities, True)
-
-    # TODO: Monitor SIG_ASTRAL_DATA_UPDATED
+async_setup_entry = make_async_setup_entry(_sensors, _sensor_configs)

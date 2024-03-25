@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Coroutine, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from functools import lru_cache
@@ -13,14 +13,14 @@ from typing import Any, Self, cast, overload
 from astral import LocationInfo
 from astral.location import Location
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     CONF_ELEVATION,
     CONF_LATITUDE,
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType
 
 # Device Info moved to device_registry in 2023.9
@@ -29,8 +29,11 @@ try:
 except ImportError:
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -43,6 +46,8 @@ from .const import (
     CONF_OBS_ELV,
     DOMAIN,
     ONE_DAY,
+    SIG_ASTRAL_DATA_UPDATED,
+    SIG_HA_LOC_UPDATED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -387,3 +392,97 @@ class Sun2Entity(Entity):
 
         except (TypeError, ValueError):
             return None
+
+
+def make_async_setup_entry(
+    sensors: Callable[
+        [HomeAssistant, bool, str, Sun2EntityParams, Iterable[ConfigType | str]],
+        list[Sun2Entity],
+    ],
+    sensor_configs: Callable[[ConfigEntry], Iterable[ConfigType | str]],
+) -> Callable[
+    [HomeAssistant, ConfigEntry, AddEntitiesCallback], Coroutine[Any, Any, None]
+]:
+    """Make async_setup_entry function."""
+
+    async def async_setup_entry(
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+    ) -> None:
+        """Set up the sensor platform."""
+        s2data = sun2_data(hass)
+        imported = entry.source == SOURCE_IMPORT
+        uid_prefix = f"{entry.entry_id}-"
+        device_info = sun2_dev_info(hass, entry)
+        config_data = s2data.config_data[entry.entry_id]
+        if (loc_data := config_data.loc_data) is None:
+            loc_data = s2data.ha_loc_data
+        obs_elvs = config_data.obs_elvs
+        sun2_entity_params = Sun2EntityParams(
+            device_info, AstralData(loc_data, obs_elvs)
+        )
+
+        entities = sensors(
+            hass, imported, uid_prefix, sun2_entity_params, sensor_configs(entry)
+        )
+        async_add_entities(entities, True)
+
+        def update_entities(
+            loc_data_: LocData, obs_elvs_: ObsElvs | None = None
+        ) -> None:
+            """Update entities with new astral data."""
+            nonlocal obs_elvs
+
+            if obs_elvs_ is None:
+                obs_elvs_ = obs_elvs
+            else:
+                obs_elvs = obs_elvs_
+            astral_data = AstralData(loc_data_, obs_elvs_)
+            for entity in entities:
+                entity.request_astral_data_update(astral_data)
+
+        @callback
+        def ha_loc_updated() -> None:
+            """Handle new HA location configuration."""
+            update_entities(s2data.ha_loc_data)
+
+        remove_ha_loc_listener: Callable[[], None] | None = None
+
+        def sub_ha_loc_updated() -> None:
+            """Subscribe to HA location updated signal."""
+            nonlocal remove_ha_loc_listener
+
+            if not remove_ha_loc_listener:
+                remove_ha_loc_listener = async_dispatcher_connect(
+                    hass, SIG_HA_LOC_UPDATED, ha_loc_updated
+                )
+
+        def unsub_ha_loc_updated() -> None:
+            """Unsubscribe to HA location updated signal."""
+            nonlocal remove_ha_loc_listener
+
+            if remove_ha_loc_listener:
+                remove_ha_loc_listener()
+                remove_ha_loc_listener = None
+
+        @callback
+        def astral_data_updated(loc_data: LocData | None, obs_elvs: ObsElvs) -> None:
+            """Handle new astral data."""
+            if loc_data is None:
+                sub_ha_loc_updated()
+                loc_data = s2data.ha_loc_data
+            else:
+                unsub_ha_loc_updated()
+            update_entities(loc_data, obs_elvs)
+
+        entry.async_on_unload(unsub_ha_loc_updated)
+        entry.async_on_unload(
+            async_dispatcher_connect(
+                hass,
+                SIG_ASTRAL_DATA_UPDATED.format(entry.entry_id),
+                astral_data_updated,
+            )
+        )
+
+    return async_setup_entry

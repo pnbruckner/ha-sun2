@@ -30,7 +30,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers import config_validation as cv, entity_registry as er
-from homeassistant.helpers.dispatcher import dispatcher_send
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
@@ -41,7 +41,7 @@ from .config import (
     options_from_obs_elv,
 )
 from .config_flow import loc_from_options
-from .const import CONF_OBS_ELV, DOMAIN, SIG_ASTRAL_DATA_UPDATED
+from .const import CONF_OBS_ELV, DOMAIN, SIG_ASTRAL_DATA_UPDATED, SIG_HA_LOC_UPDATED
 from .helpers import ConfigData, ObsElvs, get_loc_data, sun2_data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
@@ -147,7 +147,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         if not any(key in event.data for key in ("location_name", "language")):
             if ha_loc_data_changed:
-                dispatcher_send(hass, SIG_ASTRAL_DATA_UPDATED)
+                async_dispatcher_send(hass, SIG_HA_LOC_UPDATED)
             return
 
         await reload_config()
@@ -200,7 +200,8 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if _UUID_UNIQUE_ID.fullmatch(unique_id) and unique_id not in unqiue_ids:
             ent_reg.async_remove(entity.entity_id)
 
-    config_data = sun2_data(hass).config_data[entry.entry_id]
+    s2data = sun2_data(hass)
+    config_data = s2data.config_data[entry.entry_id]
     if (
         entry.title != config_data.title
         or entry.options.get(CONF_BINARY_SENSORS, []) != config_data.binary_sensors
@@ -213,7 +214,11 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     loc_data = get_loc_data(entry.options)
     obs_elvs = ObsElvs.from_entry_options(entry.options)
     if loc_data != config_data.loc_data or obs_elvs != config_data.obs_elvs:
-        dispatcher_send(hass, SIG_ASTRAL_DATA_UPDATED, entry, loc_data, obs_elvs)
+        config_data.loc_data = loc_data
+        config_data.obs_elvs = obs_elvs
+        async_dispatcher_send(
+            hass, SIG_ASTRAL_DATA_UPDATED.format(entry.entry_id), loc_data, obs_elvs
+        )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -225,8 +230,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         get_loc_data(entry.options),
         ObsElvs.from_entry_options(entry.options),
     )
-    entry.async_on_unload(entry.add_update_listener(entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(entry_updated))
     return True
 
 
