@@ -9,7 +9,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_BINARY_SENSORS,
     CONF_ELEVATION,
@@ -17,20 +17,17 @@ from homeassistant.const import (
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
-    AstralData,
     Num,
     Sun2Entity,
     Sun2EntityParams,
+    make_async_setup_entry,
     nearest_second,
-    sun2_data,
-    sun2_dev_info,
     translate,
 )
 
@@ -247,11 +244,12 @@ def _sensors(
     imported: bool,
     uid_prefix: str,
     sun2_entity_params: Sun2EntityParams,
-    sensors_config: Iterable[ConfigType],
+    sensor_configs: Iterable[ConfigType | str],
 ) -> list[Sun2Entity]:
-    """Create list of entities to add."""
+    """Return list of entities to add."""
     sensors: list[Sun2Entity] = []
-    for config in sensors_config:
+    for config in sensor_configs:
+        assert not isinstance(config, str)
         unique_id = config[CONF_UNIQUE_ID]
         if imported:
             unique_id = uid_prefix + unique_id
@@ -263,24 +261,9 @@ def _sensors(
     return sensors
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the sensor platform."""
-    s2data = sun2_data(hass)
-    imported = entry.source == SOURCE_IMPORT
-    uid_prefix = f"{entry.entry_id}-"
-    device_info = sun2_dev_info(hass, entry)
-    config_data = s2data.config_data[entry.entry_id]
-    if (loc_data := config_data.loc_data) is None:
-        loc_data = s2data.ha_loc_data
-    astral_data = AstralData(loc_data, config_data.obs_elvs)
-    sun2_entity_params = Sun2EntityParams(device_info, astral_data)
+def _sensor_configs(entry: ConfigEntry) -> list[ConfigType]:
+    """Return list of sensor configs."""
+    return entry.options.get(CONF_BINARY_SENSORS, [])
 
-    sensors_config = entry.options.get(CONF_BINARY_SENSORS, [])
-    entities = _sensors(hass, imported, uid_prefix, sun2_entity_params, sensors_config)
-    async_add_entities(entities, True)
 
-    # TODO: Monitor SIG_ASTRAL_DATA_UPDATED
+async_setup_entry = make_async_setup_entry(_sensors, _sensor_configs)
