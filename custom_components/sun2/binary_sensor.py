@@ -17,7 +17,6 @@ from homeassistant.const import (
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType
@@ -25,11 +24,12 @@ from homeassistant.util import dt as dt_util
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
-    LocParams,
+    AstralData,
     Num,
     Sun2Entity,
     Sun2EntityParams,
     nearest_second,
+    sun2_data,
     sun2_dev_info,
     translate,
 )
@@ -42,17 +42,13 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(
-        self,
-        loc_params: LocParams | None,
-        sun2_entity_params: Sun2EntityParams,
-        name: str,
-        threshold: float | str,
+        self, sun2_entity_params: Sun2EntityParams, name: str, threshold: float | str
     ) -> None:
         """Initialize sensor."""
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, sun2_entity_params)
+        super().__init__(sun2_entity_params)
         self._event = "solar_elevation"
 
         if isinstance(threshold, str):
@@ -63,7 +59,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     def _find_nxt_dttm(
         self, t0_dttm: datetime, t0_elev: Num, t1_dttm: datetime, t1_elev: Num
     ) -> datetime:
-        """Find time elevation crosses threshold between two points on elevation curve."""
+        """Find time elevation crosses threshold between 2 points on elevation curve."""
         # Do a binary search for time between t0 & t1 where elevation is
         # nearest threshold, but also above (or equal to) it if current
         # elevation is below it (i.e., current state is False), or below it if
@@ -247,24 +243,23 @@ def _elevation_name(
 
 
 def _sensors(
-    loc_params: LocParams | None,
+    hass: HomeAssistant,
+    imported: bool,
+    uid_prefix: str,
     sun2_entity_params: Sun2EntityParams,
     sensors_config: Iterable[ConfigType],
-    hass: HomeAssistant,
-) -> list[Entity]:
+) -> list[Sun2Entity]:
     """Create list of entities to add."""
-    sensors: list[Entity] = []
+    sensors: list[Sun2Entity] = []
     for config in sensors_config:
         unique_id = config[CONF_UNIQUE_ID]
-        if sun2_entity_params.entry.source == SOURCE_IMPORT:
-            unique_id = f"{sun2_entity_params.entry.entry_id}-{unique_id}"
+        if imported:
+            unique_id = uid_prefix + unique_id
         sun2_entity_params.unique_id = unique_id
         threshold = config[CONF_ELEVATION]
         name = config.get(CONF_NAME)
         name = _elevation_name(hass, name, threshold)
-        sensors.append(
-            Sun2ElevationSensor(loc_params, sun2_entity_params, name, threshold)
-        )
+        sensors.append(Sun2ElevationSensor(sun2_entity_params, name, threshold))
     return sensors
 
 
@@ -274,13 +269,18 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    options = entry.options
-    async_add_entities(
-        _sensors(
-            LocParams.from_entry_options(options),
-            Sun2EntityParams(entry, sun2_dev_info(hass, entry)),
-            options.get(CONF_BINARY_SENSORS, []),
-            hass,
-        ),
-        True,
-    )
+    s2data = sun2_data(hass)
+    imported = entry.source == SOURCE_IMPORT
+    uid_prefix = f"{entry.entry_id}-"
+    device_info = sun2_dev_info(hass, entry)
+    config_data = s2data.config_data[entry.entry_id]
+    if (loc_data := config_data.loc_data) is None:
+        loc_data = s2data.ha_loc_data
+    astral_data = AstralData(loc_data, config_data.obs_elvs)
+    sun2_entity_params = Sun2EntityParams(device_info, astral_data)
+
+    sensors_config = entry.options.get(CONF_BINARY_SENSORS, [])
+    entities = _sensors(hass, imported, uid_prefix, sun2_entity_params, sensors_config)
+    async_add_entities(entities, True)
+
+    # TODO: Monitor SIG_ASTRAL_DATA_UPDATED

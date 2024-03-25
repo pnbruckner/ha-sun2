@@ -5,8 +5,10 @@ from abc import abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
+from functools import lru_cache
+import logging
 from math import copysign, fabs
-from typing import Any, Self, cast
+from typing import Any, Self, cast, overload
 
 from astral import LocationInfo
 from astral.location import Location
@@ -18,7 +20,7 @@ from homeassistant.const import (
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType
 
 # Device Info moved to device_registry in 2023.9
@@ -27,7 +29,6 @@ try:
 except ImportError:
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
@@ -42,8 +43,9 @@ from .const import (
     CONF_OBS_ELV,
     DOMAIN,
     ONE_DAY,
-    SIG_HA_LOC_UPDATED,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 Num = float | int
 
@@ -57,8 +59,20 @@ class LocParams:
     time_zone: str
 
     @classmethod
+    def from_hass_config(cls, config: Config) -> Self:
+        """Initialize from HA configuration."""
+        return cls(
+            config.latitude,
+            config.longitude,
+            config.time_zone,
+        )
+
+    @classmethod
     def from_entry_options(cls, options: Mapping[str, Any]) -> Self | None:
-        """Initialize from configuration entry options."""
+        """Initialize from configuration entry options.
+
+        Retrun None if no location options, meaning use HA's configured location.
+        """
         try:
             return cls(
                 options[CONF_LATITUDE],
@@ -74,31 +88,122 @@ class LocData:
     """Location data."""
 
     loc: Location
-    tzi: tzinfo
+    tzi: tzinfo | None
 
     @classmethod
     def from_loc_params(cls, lp: LocParams) -> Self:
         """Initialize from LocParams."""
         tzi = dt_util.get_time_zone(tz := lp.time_zone)
-        assert tzi
+        if not tzi:
+            _LOGGER.warning("Did not find time zone: %s", lp.time_zone)
         return cls(Location(LocationInfo("", "", tz, lp.latitude, lp.longitude)), tzi)
 
+
+@lru_cache
+def _get_loc_data(lp: LocParams | None) -> LocData | None:
+    """Get LocData from LocParams & cache results.
+
+    lp = None -> using HA's location configuration; return None
+    """
+    if lp is None:
+        return None
+    return LocData.from_loc_params(lp)
+
+
+@overload
+def get_loc_data(arg: Config) -> LocData:
+    ...
+
+
+@overload
+def get_loc_data(arg: Mapping[str, Any]) -> LocData | None:
+    ...
+
+
+def get_loc_data(arg: Config | Mapping[str, Any]) -> LocData | None:
+    """Get LocData from HA config or config entry options.
+
+    If config entry provided, and it does not contain location options,
+    then return None, meaning HA's location configuration should be used.
+    """
+    if isinstance(arg, Config):
+        return _get_loc_data(LocParams.from_hass_config(arg))
+    return _get_loc_data(LocParams.from_entry_options(arg))
+
+
+ObsElv = float | tuple[float, float]
+
+
+@dataclass
+class ObsElvs:
+    """Oberserver elevations."""
+
+    east: ObsElv
+    west: ObsElv
+
+    @staticmethod
+    def _obs_elv_2_astral(
+        obs_elv: Num | list[Num],
+    ) -> float | tuple[float, float]:
+        """Convert value stored in config entry to astral observer_elevation param.
+
+        When sun event is affected by an obstruction, the astral package says to pass
+        a tuple of floats in the observer_elevaton parameter, where the first element is
+        the relative height from the observer to the obstruction (which may be negative)
+        and the second element is the horizontal distance to the obstruction.
+
+        However, due to a bug (see issue 89), it reverses the values and results in a
+        sign error. The code below works around that bug.
+
+        Also, astral only accepts a tuple, not a list, which is what stored in the
+        config entry (since it's from a JSON file), so convert to a tuple.
+        """
+        if isinstance(obs_elv, Num):  # type: ignore[misc, arg-type]
+            return float(cast(Num, obs_elv))
+        height, distance = cast(list[Num], obs_elv)
+        return -copysign(1, float(height)) * float(distance), fabs(float(height))
+
     @classmethod
-    def from_hass_config(cls, hass: HomeAssistant) -> Self:
-        """Initialize from HA configuration."""
-        hc = hass.config
-        tzi = dt_util.get_time_zone(tz := hc.time_zone)
-        assert tzi
-        return cls(Location(LocationInfo("", "", tz, hc.latitude, hc.longitude)), tzi)
+    def from_entry_options(cls, options: Mapping[str, Any]) -> Self:
+        """Initialize from configuration entry options."""
+        if obs_elv := options.get(CONF_OBS_ELV):
+            east_obs_elv, west_obs_elv = obs_elv
+            return cls(
+                cls._obs_elv_2_astral(east_obs_elv),
+                cls._obs_elv_2_astral(west_obs_elv),
+            )
+        above_ground = float(options.get(CONF_ELEVATION, 0))
+        return cls(above_ground, above_ground)
+
+
+@dataclass
+class ConfigData:
+    """Sun2 config entry data."""
+
+    title: str
+    binary_sensors: list[dict[str, Any]]
+    sensors: list[dict[str, Any]]
+    loc_data: LocData | None
+    obs_elvs: ObsElvs
 
 
 @dataclass
 class Sun2Data:
     """Sun2 shared data."""
 
-    locations: dict[LocParams | None, LocData] = field(default_factory=dict)
+    ha_loc_data: LocData
     translations: dict[str, str] = field(default_factory=dict)
     language: str | None = None
+    config_data: dict[str, ConfigData] = field(default_factory=dict)
+
+
+def sun2_data(hass: HomeAssistant) -> Sun2Data:
+    """Return Sun2 integration data."""
+    try:
+        return cast(Sun2Data, hass.data[DOMAIN])
+    except KeyError:
+        hass.data[DOMAIN] = s2data = Sun2Data(get_loc_data(hass.config))
+        return s2data
 
 
 def hours_to_hms(hours: Num | None) -> str | None:
@@ -114,23 +219,23 @@ _TRANS_PREFIX = f"component.{DOMAIN}.selector.misc.options"
 
 async def init_translations(hass: HomeAssistant) -> None:
     """Initialize translations."""
-    data = cast(Sun2Data, hass.data.setdefault(DOMAIN, Sun2Data()))
-    if data.language != hass.config.language:
+    s2data = sun2_data(hass)
+    if s2data.language != hass.config.language:
         sel_trans = await async_get_translations(
             hass, hass.config.language, "selector", [DOMAIN], False
         )
-        data.translations = {}
+        s2data.translations = {}
         for sel_key, val in sel_trans.items():
             prefix, key = sel_key.rsplit(".", 1)
             if prefix == _TRANS_PREFIX:
-                data.translations[key] = val
+                s2data.translations[key] = val
 
 
 def translate(
     hass: HomeAssistant, key: str, placeholders: dict[str, Any] | None = None
 ) -> str:
     """Sun2 translations."""
-    trans = cast(Sun2Data, hass.data[DOMAIN]).translations[key]
+    trans = sun2_data(hass).translations[key]
     if not placeholders:
         return trans
     for ph_key, val in placeholders.items():
@@ -160,11 +265,19 @@ def next_midnight(dttm: datetime) -> datetime:
 
 
 @dataclass
+class AstralData:
+    """astral data."""
+
+    loc_data: LocData
+    obs_elvs: ObsElvs
+
+
+@dataclass
 class Sun2EntityParams:
     """Sun2Entity parameters."""
 
-    entry: ConfigEntry
     device_info: DeviceInfo
+    astral_data: AstralData
     unique_id: str = ""
 
 
@@ -182,69 +295,35 @@ class Sun2Entity(Entity):
         }
     )
     _attr_should_poll = False
-    _loc_data: LocData = None  # type: ignore[assignment]
     _unsub_update: CALLBACK_TYPE | None = None
     _event: str
     _solar_depression: Num | str
 
     @abstractmethod
-    def __init__(
-        self,
-        loc_params: LocParams | None,
-        sun2_entity_params: Sun2EntityParams,
-    ) -> None:
+    def __init__(self, sun2_entity_params: Sun2EntityParams) -> None:
         """Initialize base class."""
         self._attr_has_entity_name = True
         self._attr_translation_key = self.entity_description.key
         self._attr_unique_id = sun2_entity_params.unique_id
         self._attr_device_info = sun2_entity_params.device_info
-        self._loc_params = loc_params
-        options = sun2_entity_params.entry.options
-        if obs_elv := options.get(CONF_OBS_ELV):
-            east_obs_elv, west_obs_elv = obs_elv
-            self._east_obs_elv = self._obs_elv_cfg_2_astral(east_obs_elv)
-            self._west_obs_elv = self._obs_elv_cfg_2_astral(west_obs_elv)
-        else:
-            self._east_obs_elv = self._west_obs_elv = float(
-                options.get(CONF_ELEVATION, 0)
-            )
+        self._astral_data = sun2_entity_params.astral_data
         self.async_on_remove(self._cancel_update)
-
-    @staticmethod
-    def _obs_elv_cfg_2_astral(
-        obs_elv: Num | list[Num],
-    ) -> float | tuple[float, float]:
-        """Convert value stored in config entry to astral observer_elevation param.
-
-        When sun event is affected by an obstruction, the astral package says to pass
-        a tuple of floats in the observer_elevaton parameter, where the first element is
-        the relative height from the observer to the obstruction (which may be negative)
-        and the second element is the horizontal distance to the obstruction.
-
-        However, due to a bug (see issue 89), it reverses the values and results in a
-        sign error. The code below works around that bug.
-
-        Also, astral only accepts a tuple, not a list, which is what stored in the
-        config entry (since it's from a JSON file), so convert to a tuple.
-        """
-        if isinstance(obs_elv, Num):  # type: ignore[misc, arg-type]
-            return float(cast(Num, obs_elv))
-        height, distance = cast(list[Num], obs_elv)
-        return -copysign(1, float(height)) * float(distance), fabs(float(height))
-
-    @property
-    def _sun2_data(self) -> Sun2Data:
-        return cast(Sun2Data, self.hass.data[DOMAIN])
 
     async def async_update(self) -> None:
         """Update state."""
-        if not self._loc_data:
-            self._loc_data = self._get_loc_data()
-        self._update(dt_util.now(self._loc_data.tzi))
+        self._update(dt_util.now(self._astral_data.loc_data.tzi))
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         self._setup_fixed_updating()
+
+    def request_astral_data_update(self, astral_data: AstralData) -> None:
+        """Request update of astral data."""
+        cast(ConfigEntry, self.platform.config_entry).async_create_task(
+            self.hass,
+            self._update_astral_data_atomic(astral_data),
+            f"{self.name}: update astral data",
+        )
 
     def _cancel_update(self) -> None:
         """Cancel update."""
@@ -252,46 +331,28 @@ class Sun2Entity(Entity):
             self._unsub_update()
             self._unsub_update = None
 
-    def _get_loc_data(self) -> LocData:
-        """Get location data from location parameters.
-
-        loc_params = None -> Use location parameters from HA's config.
-        """
-        try:
-            loc_data = self._sun2_data.locations[self._loc_params]
-        except KeyError:
-            # LocData from HA's config will always be in cache, so will not get here if
-            # self._loc_params is None.
-            assert self._loc_params
-            loc_data = self._sun2_data.locations[
-                self._loc_params
-            ] = LocData.from_loc_params(self._loc_params)
-
-        if not self._loc_params:
-
-            async def loc_updated(loc_data: LocData) -> None:
-                """Location updated."""
-                await self.async_request_call(self._async_loc_updated(loc_data))
-
-            self.async_on_remove(
-                async_dispatcher_connect(self.hass, SIG_HA_LOC_UPDATED, loc_updated)
-            )
-
-        return loc_data
-
-    async def _async_loc_updated(self, loc_data: LocData) -> None:
-        """Location updated."""
-        self._cancel_update()
-        self._loc_data = loc_data
-        self._setup_fixed_updating()
-        self.async_schedule_update_ha_state(True)
-
     @abstractmethod
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
 
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
+
+    async def _update_astral_data_atomic(self, astral_data: AstralData) -> None:
+        """Update astral data atomically."""
+
+        async def do_update_astral_data() -> None:
+            """Update astral data."""
+            self._update_astral_data(astral_data)
+
+        await self.async_request_call(do_update_astral_data())
+        self.async_schedule_update_ha_state(True)
+
+    def _update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data."""
+        self._cancel_update()
+        self._astral_data = astral_data
+        self._setup_fixed_updating()
 
     def _astral_event(
         self,
@@ -303,7 +364,7 @@ class Sun2Entity(Entity):
         """Return astral event result."""
         if not event:
             event = self._event
-        loc = self._loc_data.loc
+        loc = self._astral_data.loc_data.loc
         if hasattr(self, "_solar_depression"):
             loc.solar_depression = self._solar_depression
 
@@ -317,9 +378,9 @@ class Sun2Entity(Entity):
                 )
 
             if event in ("sunrise", "dawn"):
-                kwargs = {"observer_elevation": self._east_obs_elv}
+                kwargs = {"observer_elevation": self._astral_data.obs_elvs.east}
             elif event in ("sunset", "dusk"):
-                kwargs = {"observer_elevation": self._west_obs_elv}
+                kwargs = {"observer_elevation": self._astral_data.obs_elvs.west}
             else:
                 kwargs = {}
             return getattr(loc, event)(date_or_dttm, **kwargs)

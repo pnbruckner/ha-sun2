@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine
 import re
-from typing import Any, cast
+from typing import Any
 
 import voluptuous as vol
 
@@ -41,25 +41,15 @@ from .config import (
     options_from_obs_elv,
 )
 from .config_flow import loc_from_options
-from .const import CONF_OBS_ELV, DOMAIN, SIG_HA_LOC_UPDATED
-from .helpers import LocData, Sun2Data
+from .const import CONF_OBS_ELV, DOMAIN, SIG_ASTRAL_DATA_UPDATED
+from .helpers import ConfigData, ObsElvs, get_loc_data, sun2_data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 _UUID_UNIQUE_ID = re.compile(r"[0-9a-f]{32}")
-_GET_LOCATION_SERVICE_SCHEMA = vol.Schema({vol.Required(CONF_LOCATION): cv.string})
-_UPDATE_LOCATION_SERVICE_SCHEMA = SUN2_LOCATION_BASE_SCHEMA.extend(
-    {
-        vol.Required(CONF_LOCATION): cv.string,
-    }
-)
-
-
-def _update_local_loc_data(hass: HomeAssistant) -> LocData:
-    """Update local location data from HA's config."""
-    loc_data = LocData.from_hass_config(hass)
-    cast(Sun2Data, hass.data[DOMAIN]).locations[None] = loc_data
-    return loc_data
+_LOCATION = {vol.Required(CONF_LOCATION): cv.string}
+_GET_LOCATION_SERVICE_SCHEMA = vol.Schema(_LOCATION)
+_UPDATE_LOCATION_SERVICE_SCHEMA = SUN2_LOCATION_BASE_SCHEMA.extend(_LOCATION)
 
 
 async def _process_config(
@@ -80,7 +70,7 @@ async def _process_config(
     for conf in configs:
         tasks.append(  # noqa: PERF401
             hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": SOURCE_IMPORT}, data=conf.copy()
+                DOMAIN, context={"source": SOURCE_IMPORT}, data=dict(conf)
             )
         )
 
@@ -137,23 +127,27 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         entry, options = _entry_by_title(hass, location)
         if entry.source != SOURCE_USER:
             raise ValueError(f"Imported integration entries not supported: {location}")
-        if CONF_LATITUDE not in options:
-            raise ValueError(f"Home integration entry not supported: {location}")
+        if CONF_LATITUDE in loc_config and CONF_LATITUDE not in options:
+            raise ValueError("Changing location of Home configuration not supported")
         if CONF_OBS_ELV in loc_config:
             options_from_obs_elv(hass, loc_config)
         options.update(loc_config)
         hass.config_entries.async_update_entry(entry, options=options)
+
+    s2data = sun2_data(hass)
 
     async def handle_core_config_update(event: Event) -> None:
         """Handle core config update."""
         if not event.data:
             return
 
-        loc_data = _update_local_loc_data(hass)
+        new_ha_loc_data = get_loc_data(hass.config)
+        if ha_loc_data_changed := new_ha_loc_data != s2data.ha_loc_data:
+            s2data.ha_loc_data = new_ha_loc_data
 
         if not any(key in event.data for key in ("location_name", "language")):
-            # Signal all instances that location data has changed.
-            dispatcher_send(hass, SIG_HA_LOC_UPDATED, loc_data)
+            if ha_loc_data_changed:
+                dispatcher_send(hass, SIG_ASTRAL_DATA_UPDATED)
             return
 
         await reload_config()
@@ -166,10 +160,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
             else:
                 reload = True
-            if reload:
+            if reload and entry.state.recoverable:
                 await hass.config_entries.async_reload(entry.entry_id)
 
-    _update_local_loc_data(hass)
     await _process_config(hass, config, run_immediately=False)
 
     async_register_admin_service(hass, DOMAIN, SERVICE_RELOAD, reload_config)
@@ -206,11 +199,32 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # Only sensors that were added via the UI have UUID type unique IDs.
         if _UUID_UNIQUE_ID.fullmatch(unique_id) and unique_id not in unqiue_ids:
             ent_reg.async_remove(entity.entity_id)
-    await hass.config_entries.async_reload(entry.entry_id)
+
+    config_data = sun2_data(hass).config_data[entry.entry_id]
+    if (
+        entry.title != config_data.title
+        or entry.options.get(CONF_BINARY_SENSORS, []) != config_data.binary_sensors
+        or entry.options.get(CONF_SENSORS, []) != config_data.sensors
+    ):
+        if entry.state.recoverable:
+            await hass.config_entries.async_reload(entry.entry_id)
+        return
+
+    loc_data = get_loc_data(entry.options)
+    obs_elvs = ObsElvs.from_entry_options(entry.options)
+    if loc_data != config_data.loc_data or obs_elvs != config_data.obs_elvs:
+        dispatcher_send(hass, SIG_ASTRAL_DATA_UPDATED, entry, loc_data, obs_elvs)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up config entry."""
+    sun2_data(hass).config_data[entry.entry_id] = ConfigData(
+        entry.title,
+        entry.options.get(CONF_BINARY_SENSORS, [])[:],
+        entry.options.get(CONF_SENSORS, [])[:],
+        get_loc_data(entry.options),
+        ObsElvs.from_entry_options(entry.options),
+    )
     entry.async_on_unload(entry.add_update_listener(entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -218,4 +232,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    del sun2_data(hass).config_data[entry.entry_id]
+    return result
