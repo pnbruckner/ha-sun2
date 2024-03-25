@@ -384,14 +384,19 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     async def async_step_import(self, data: dict[str, Any]) -> FlowResult:
         """Import config entry from configuration."""
+
+        async def reload(entry: ConfigEntry) -> None:
+            """Reload config entry."""
+            if not entry.state.recoverable:
+                return
+            await self.hass.config_entries.async_reload(entry.entry_id)
+
         title = cast(str, data.pop(CONF_LOCATION, self.hass.config.location_name))
         if existing_entry := await self.async_set_unique_id(data.pop(CONF_UNIQUE_ID)):
             if not self.hass.config_entries.async_update_entry(
                 existing_entry, title=title, options=data
             ):
-                self.hass.async_create_task(
-                    self.hass.config_entries.async_reload(existing_entry.entry_id)
-                )
+                self.hass.async_create_task(reload(existing_entry))
             return self.async_abort(reason="already_configured")
 
         return self.async_create_entry(title=title, data={}, options=data)
