@@ -200,25 +200,24 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if _UUID_UNIQUE_ID.fullmatch(unique_id) and unique_id not in unqiue_ids:
             ent_reg.async_remove(entity.entity_id)
 
-    s2data = sun2_data(hass)
-    config_data = s2data.config_data[entry.entry_id]
+    config_data = sun2_data(hass).config_data[entry.entry_id]
     if (
-        entry.title != config_data.title
-        or entry.options.get(CONF_BINARY_SENSORS, []) != config_data.binary_sensors
-        or entry.options.get(CONF_SENSORS, []) != config_data.sensors
+        entry.title == config_data.title
+        and entry.options.get(CONF_BINARY_SENSORS, []) != config_data.binary_sensors
+        and entry.options.get(CONF_SENSORS, []) == config_data.sensors
     ):
-        if entry.state.recoverable:
-            await hass.config_entries.async_reload(entry.entry_id)
+        loc_data = get_loc_data(entry.options)
+        obs_elvs = ObsElvs.from_entry_options(entry.options)
+        if loc_data != config_data.loc_data or obs_elvs != config_data.obs_elvs:
+            config_data.loc_data = loc_data
+            config_data.obs_elvs = obs_elvs
+            async_dispatcher_send(
+                hass, SIG_ASTRAL_DATA_UPDATED.format(entry.entry_id), loc_data, obs_elvs
+            )
         return
 
-    loc_data = get_loc_data(entry.options)
-    obs_elvs = ObsElvs.from_entry_options(entry.options)
-    if loc_data != config_data.loc_data or obs_elvs != config_data.obs_elvs:
-        config_data.loc_data = loc_data
-        config_data.obs_elvs = obs_elvs
-        async_dispatcher_send(
-            hass, SIG_ASTRAL_DATA_UPDATED.format(entry.entry_id), loc_data, obs_elvs
-        )
+    if entry.state.recoverable:
+        await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
