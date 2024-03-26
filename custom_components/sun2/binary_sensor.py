@@ -1,7 +1,6 @@
 """Sun2 Binary Sensor."""
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from typing import cast
 
@@ -17,8 +16,8 @@ from homeassistant.const import (
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState, HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
@@ -26,7 +25,7 @@ from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
-    make_async_setup_entry,
+    Sun2EntrySetup,
     nearest_second,
     translate,
 )
@@ -226,44 +225,44 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
-def _elevation_name(
-    hass: HomeAssistant, name: str | None, threshold: float | str
-) -> str:
-    """Return elevation sensor name."""
-    if name:
-        return name
-    if isinstance(threshold, str):
-        return translate(hass, "above_horizon")
-    if threshold < 0:
-        return translate(hass, "above_neg_elev", {"elevation": str(-threshold)})
-    return translate(hass, "above_pos_elev", {"elevation": str(threshold)})
+class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
+    """Binary sensor config entry setup."""
+
+    def _elevation_name(self, name: str | None, threshold: float | str) -> str:
+        """Return elevation sensor name."""
+        if name:
+            return name
+        if isinstance(threshold, str):
+            return translate(self._hass, "above_horizon")
+        if threshold < 0:
+            return translate(
+                self._hass, "above_neg_elev", {"elevation": str(-threshold)}
+            )
+        return translate(self._hass, "above_pos_elev", {"elevation": str(threshold)})
+
+    def _sensors(self) -> list[Sun2Entity]:
+        """Return list of entities to add."""
+        sensors: list[Sun2Entity] = []
+        for config in self._entry.options.get(CONF_BINARY_SENSORS, []):
+            unique_id = config[CONF_UNIQUE_ID]
+            if self._imported:
+                unique_id = self._uid_prefix + unique_id
+            self._sun2_entity_params.unique_id = unique_id
+            threshold = config[CONF_ELEVATION]
+            sensors.append(
+                Sun2ElevationSensor(
+                    self._sun2_entity_params,
+                    self._elevation_name(config.get(CONF_NAME), threshold),
+                    threshold,
+                )
+            )
+        return sensors
 
 
-def _sensors(
+async def async_setup_entry(
     hass: HomeAssistant,
-    imported: bool,
-    uid_prefix: str,
-    sun2_entity_params: Sun2EntityParams,
-    sensor_configs: Iterable[ConfigType | str],
-) -> list[Sun2Entity]:
-    """Return list of entities to add."""
-    sensors: list[Sun2Entity] = []
-    for config in sensor_configs:
-        assert not isinstance(config, str)
-        unique_id = config[CONF_UNIQUE_ID]
-        if imported:
-            unique_id = uid_prefix + unique_id
-        sun2_entity_params.unique_id = unique_id
-        threshold = config[CONF_ELEVATION]
-        name = config.get(CONF_NAME)
-        name = _elevation_name(hass, name, threshold)
-        sensors.append(Sun2ElevationSensor(sun2_entity_params, name, threshold))
-    return sensors
-
-
-def _sensor_configs(entry: ConfigEntry) -> list[ConfigType]:
-    """Return list of sensor configs."""
-    return entry.options.get(CONF_BINARY_SENSORS, [])
-
-
-async_setup_entry = make_async_setup_entry(_sensors, _sensor_configs)
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up config entry."""
+    await Sun2BinarySensorEntrySetup(hass, entry, async_add_entities)()

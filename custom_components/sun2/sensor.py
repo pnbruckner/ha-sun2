@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Generator, Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
@@ -33,12 +33,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import CALLBACK_TYPE, CoreState, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_point_in_utc_time,
     async_track_state_change_event,
 )
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -69,8 +69,8 @@ from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
+    Sun2EntrySetup,
     hours_to_hms,
-    make_async_setup_entry,
     nearest_second,
     next_midnight,
     translate,
@@ -1165,94 +1165,81 @@ _SENSOR_TYPES = {
 }
 
 
-def _elevation_at_time_name(
-    hass: HomeAssistant, name: str | None, at_time: str | time
-) -> str:
-    """Return elevation_at_time sensor name."""
-    if name:
-        return name
-    return translate(hass, "elevation_at", {"elev_time": str(at_time)})
+class Sun2SensorEntrySetup(Sun2EntrySetup):
+    """Binary sensor config entry setup."""
 
+    def _sensors(self) -> list[Sun2Entity]:
+        """Return list of entities to add."""
+        return list(self._basic_sensors()) + list(self._config_sensors())
 
-def _time_at_elevation_name(
-    hass: HomeAssistant,
-    name: str | None,
-    direction: SunDirection,
-    elevation: float,
-) -> str:
-    """Return time_at_elevation sensor name."""
-    if name:
-        return name
-    return translate(
-        hass,
-        f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev",
-        {"elevation": str(abs(elevation))},
-    )
-
-
-def _sensors(
-    hass: HomeAssistant,
-    imported: bool,
-    uid_prefix: str,
-    sun2_entity_params: Sun2EntityParams,
-    sensors_config: Iterable[ConfigType | str],
-) -> list[Sun2Entity]:
-    """Return list of entities to add."""
-    sensors: list[Sun2Entity] = []
-    for config in sensors_config:
-        if isinstance(config, str):
-            sun2_entity_params.unique_id = uid_prefix + config
-            sensors.append(
-                _SENSOR_TYPES[config].cls(
-                    sun2_entity_params, config, _SENSOR_TYPES[config].icon
-                )
+    def _basic_sensors(self) -> Generator[Sun2Entity, None, None]:
+        """Return list of basic entities to add."""
+        for sensor_type, sensor_params in _SENSOR_TYPES.items():
+            self._sun2_entity_params.unique_id = self._uid_prefix + sensor_type
+            yield sensor_params.cls(
+                self._sun2_entity_params, sensor_type, sensor_params.icon
             )
-        else:
+
+    def _config_sensors(self) -> Generator[Sun2Entity, None, None]:
+        """Return list of configured entities to add."""
+        for config in self._entry.options.get(CONF_SENSORS, []):
             unique_id = config[CONF_UNIQUE_ID]
-            if imported:
-                unique_id = uid_prefix + unique_id
-            sun2_entity_params.unique_id = unique_id
-            if CONF_ELEVATION_AT_TIME in config:
+            if self._imported:
+                unique_id = self._uid_prefix + unique_id
+            self._sun2_entity_params.unique_id = unique_id
+            name = config.get(CONF_NAME)
+
+            if at_time := config.get(CONF_ELEVATION_AT_TIME):
                 # For config entries, JSON serialization turns a time into a string.
                 # Convert back to time in that case.
-                at_time = config[CONF_ELEVATION_AT_TIME]
                 if isinstance(at_time, str):
                     with suppress(ValueError):
                         at_time = time.fromisoformat(at_time)
-                sensors.append(
-                    Sun2ElevationAtTimeSensor(
-                        sun2_entity_params,
-                        _elevation_at_time_name(hass, config.get(CONF_NAME), at_time),
-                        at_time,
-                    )
+                yield Sun2ElevationAtTimeSensor(
+                    self._sun2_entity_params,
+                    self._elevation_at_time_name(name, at_time),
+                    at_time,
                 )
-            else:
+                continue
+
+            if elevation := config.get(CONF_TIME_AT_ELEVATION):
                 direction = SunDirection.__getitem__(
                     cast(str, config[CONF_DIRECTION]).upper()
                 )
-                elevation = config[CONF_TIME_AT_ELEVATION]
-                sensors.append(
-                    Sun2TimeAtElevationSensor(
-                        sun2_entity_params,
-                        _time_at_elevation_name(
-                            hass,
-                            config.get(CONF_NAME),
-                            direction,
-                            elevation,
-                        ),
-                        config.get(CONF_ICON),
-                        direction,
-                        elevation,
-                    )
+                yield Sun2TimeAtElevationSensor(
+                    self._sun2_entity_params,
+                    self._time_at_elevation_name(name, direction, elevation),
+                    config.get(CONF_ICON),
+                    direction,
+                    elevation,
                 )
-    return sensors
+                continue
+
+            raise ValueError(f"Unexpected sensor config: {config}")
+
+    def _elevation_at_time_name(self, name: str | None, at_time: str | time) -> str:
+        """Return elevation_at_time sensor name."""
+        if name:
+            return name
+        return translate(self._hass, "elevation_at", {"elev_time": str(at_time)})
+
+    def _time_at_elevation_name(
+        self, name: str | None, direction: SunDirection, elevation: float
+    ) -> str:
+        """Return time_at_elevation sensor name."""
+        if name:
+            return name
+        return translate(
+            self._hass,
+            f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev",
+            {"elevation": str(abs(elevation))},
+        )
 
 
-def _sensor_configs(entry: ConfigEntry) -> list[ConfigType | str]:
-    """Return list of sensor configs."""
-    return cast(list[ConfigType], entry.options.get(CONF_SENSORS, [])) + list(
-        _SENSOR_TYPES.keys()
-    )
-
-
-async_setup_entry = make_async_setup_entry(_sensors, _sensor_configs)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up config entry."""
+    await Sun2SensorEntrySetup(hass, entry, async_add_entities)()
