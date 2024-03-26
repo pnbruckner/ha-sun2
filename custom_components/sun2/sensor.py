@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Generator, Mapping, MutableMapping, Sequence
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from itertools import chain
 from math import ceil, floor
 from typing import Any, Generic, Optional, TypeVar, Union, cast
 
@@ -19,7 +20,6 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ICON,
     CONF_ICON,
@@ -31,9 +31,8 @@ from homeassistant.const import (
     EVENT_STATE_CHANGED,
     UnitOfTime,
 )
-from homeassistant.core import CALLBACK_TYPE, CoreState, Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, CoreState, Event, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_point_in_utc_time,
@@ -1168,20 +1167,20 @@ _SENSOR_TYPES = {
 class Sun2SensorEntrySetup(Sun2EntrySetup):
     """Binary sensor config entry setup."""
 
-    def _sensors(self) -> list[Sun2Entity]:
-        """Return list of entities to add."""
-        return list(self._basic_sensors()) + list(self._config_sensors())
+    def _get_entities(self) -> Iterable[Sun2Entity]:
+        """Return entities to add."""
+        return chain(self._basic_sensors(), self._config_sensors())
 
-    def _basic_sensors(self) -> Generator[Sun2Entity, None, None]:
-        """Return list of basic entities to add."""
+    def _basic_sensors(self) -> Iterable[Sun2Entity]:
+        """Return basic entities to add."""
         for sensor_type, sensor_params in _SENSOR_TYPES.items():
             self._sun2_entity_params.unique_id = self._uid_prefix + sensor_type
             yield sensor_params.cls(
                 self._sun2_entity_params, sensor_type, sensor_params.icon
             )
 
-    def _config_sensors(self) -> Generator[Sun2Entity, None, None]:
-        """Return list of configured entities to add."""
+    def _config_sensors(self) -> Iterable[Sun2Entity]:
+        """Return configured entities to add."""
         for config in self._entry.options.get(CONF_SENSORS, []):
             unique_id = config[CONF_UNIQUE_ID]
             if self._imported:
@@ -1236,10 +1235,4 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
         )
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up config entry."""
-    await Sun2SensorEntrySetup(hass, entry, async_add_entities)()
+async_setup_entry = Sun2SensorEntrySetup.async_setup_entry

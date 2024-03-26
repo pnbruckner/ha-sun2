@@ -1,8 +1,8 @@
 """Sun2 Helpers."""
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Callable, Coroutine, Iterable, Mapping
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from functools import cached_property, lru_cache
@@ -33,7 +33,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.translation import async_get_translations
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -322,14 +321,6 @@ class Sun2Entity(Entity):
         """Run when entity about to be added to hass."""
         self._setup_fixed_updating()
 
-    def request_astral_data_update(self, astral_data: AstralData) -> None:
-        """Request update of astral data."""
-        cast(ConfigEntry, self.platform.config_entry).async_create_task(
-            self.hass,
-            self._update_astral_data_atomic(astral_data),
-            f"{self.name}: update astral data",
-        )
-
     def _cancel_update(self) -> None:
         """Cancel update."""
         if self._unsub_update:
@@ -341,17 +332,17 @@ class Sun2Entity(Entity):
         """Update state."""
 
     def _setup_fixed_updating(self) -> None:
-        """Set up fixed updating."""
+        """Set up fixed updating.
 
-    async def _update_astral_data_atomic(self, astral_data: AstralData) -> None:
-        """Update astral data atomically."""
+        None by default. Override in subclass if needed.
+        """
 
-        async def do_update_astral_data() -> None:
-            """Update astral data."""
-            self._update_astral_data(astral_data)
+    async def update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data.
 
-        await self.async_request_call(do_update_astral_data())
-        self.async_schedule_update_ha_state(True)
+        Should be called via Entity.async_request_call.
+        """
+        self._update_astral_data(astral_data)
 
     def _update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data."""
@@ -394,105 +385,10 @@ class Sun2Entity(Entity):
             return None
 
 
-def make_async_setup_entry(
-    sensors: Callable[
-        [HomeAssistant, bool, str, Sun2EntityParams, Iterable[ConfigType | str]],
-        list[Sun2Entity],
-    ],
-    sensor_configs: Callable[[ConfigEntry], Iterable[ConfigType | str]],
-) -> Callable[
-    [HomeAssistant, ConfigEntry, AddEntitiesCallback], Coroutine[Any, Any, None]
-]:
-    """Make async_setup_entry function."""
-
-    async def async_setup_entry(
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
-    ) -> None:
-        """Set up the sensor platform."""
-        s2data = sun2_data(hass)
-        imported = entry.source == SOURCE_IMPORT
-        uid_prefix = f"{entry.entry_id}-"
-        device_info = sun2_dev_info(hass, entry)
-        config_data = s2data.config_data[entry.entry_id]
-        if (loc_data := config_data.loc_data) is None:
-            loc_data = s2data.ha_loc_data
-        obs_elvs = config_data.obs_elvs
-        sun2_entity_params = Sun2EntityParams(
-            device_info, AstralData(loc_data, obs_elvs)
-        )
-
-        entities = sensors(
-            hass, imported, uid_prefix, sun2_entity_params, sensor_configs(entry)
-        )
-        async_add_entities(entities, True)
-
-        def update_entities(
-            loc_data_: LocData, obs_elvs_: ObsElvs | None = None
-        ) -> None:
-            """Update entities with new astral data."""
-            nonlocal obs_elvs
-
-            if obs_elvs_ is None:
-                obs_elvs_ = obs_elvs
-            else:
-                obs_elvs = obs_elvs_
-            astral_data = AstralData(loc_data_, obs_elvs_)
-            for entity in entities:
-                entity.request_astral_data_update(astral_data)
-
-        @callback
-        def ha_loc_updated() -> None:
-            """Handle new HA location configuration."""
-            update_entities(s2data.ha_loc_data)
-
-        remove_ha_loc_listener: Callable[[], None] | None = None
-
-        def sub_ha_loc_updated() -> None:
-            """Subscribe to HA location updated signal."""
-            nonlocal remove_ha_loc_listener
-
-            if not remove_ha_loc_listener:
-                remove_ha_loc_listener = async_dispatcher_connect(
-                    hass, SIG_HA_LOC_UPDATED, ha_loc_updated
-                )
-
-        def unsub_ha_loc_updated() -> None:
-            """Unsubscribe to HA location updated signal."""
-            nonlocal remove_ha_loc_listener
-
-            if remove_ha_loc_listener:
-                remove_ha_loc_listener()
-                remove_ha_loc_listener = None
-
-        @callback
-        def astral_data_updated(loc_data: LocData | None, obs_elvs: ObsElvs) -> None:
-            """Handle new astral data."""
-            if loc_data is None:
-                sub_ha_loc_updated()
-                loc_data = s2data.ha_loc_data
-            else:
-                unsub_ha_loc_updated()
-            update_entities(loc_data, obs_elvs)
-
-        entry.async_on_unload(unsub_ha_loc_updated)
-        entry.async_on_unload(
-            async_dispatcher_connect(
-                hass,
-                SIG_ASTRAL_DATA_UPDATED.format(entry.entry_id),
-                astral_data_updated,
-            )
-        )
-
-    return async_setup_entry
-
-
-class Sun2EntrySetup:
-    """Config entry setup."""
+class Sun2EntrySetup(ABC):
+    """Platform config entry setup."""
 
     _remove_ha_loc_listener: Callable[[], None] | None = None
-    _entities: list[Sun2Entity]
 
     def __init__(
         self,
@@ -503,33 +399,25 @@ class Sun2EntrySetup:
         """Initialize."""
         self._hass = hass
         self._entry = entry
-        self._async_add_entities = async_add_entities
 
         entry.async_on_unload(self._unsub_ha_loc_updated)
 
         config_data = self._s2data.config_data[entry.entry_id]
-        if (loc_data := config_data.loc_data) is None:
-            loc_data = self._s2data.ha_loc_data
+        loc_data = config_data.loc_data
+        obs_elvs = config_data.obs_elvs
 
+        # These are available to _get_entities method defined in subclass.
         self._imported = entry.source == SOURCE_IMPORT
         self._uid_prefix = f"{entry.entry_id}-"
-        obs_elvs = config_data.obs_elvs
         self._sun2_entity_params = Sun2EntityParams(
             sun2_dev_info(hass, entry),
-            AstralData(loc_data, obs_elvs),
+            AstralData(self._new_loc_data(loc_data), obs_elvs),
         )
 
+        self._entities = list(self._get_entities())
+        async_add_entities(self._entities, True)
         self._obs_elvs = obs_elvs
 
-    @cached_property
-    def _s2data(self) -> Sun2Data:
-        """Return Sun2Data."""
-        return sun2_data(self._hass)
-
-    async def __call__(self) -> None:
-        """Set up config entry."""
-        self._entities = self._sensors()
-        self._async_add_entities(self._entities, True)
         self._entry.async_on_unload(
             async_dispatcher_connect(
                 self._hass,
@@ -538,19 +426,10 @@ class Sun2EntrySetup:
             )
         )
 
-    @abstractmethod
-    def _sensors(self) -> list[Sun2Entity]:
-        """Return list of entities to add."""
-
-    @callback
-    def _astral_data_updated(self, loc_data: LocData | None, obs_elvs: ObsElvs) -> None:
-        """Handle new astral data."""
-        if loc_data:
-            self._unsub_ha_loc_updated()
-        else:
-            self._sub_ha_loc_updated()
-            loc_data = self._s2data.ha_loc_data
-        self._update_entities(loc_data, obs_elvs)
+    @cached_property
+    def _s2data(self) -> Sun2Data:
+        """Return Sun2Data."""
+        return sun2_data(self._hass)
 
     def _unsub_ha_loc_updated(self) -> None:
         """Unsubscribe to HA location updated signal."""
@@ -565,6 +444,31 @@ class Sun2EntrySetup:
                 self._hass, SIG_HA_LOC_UPDATED, self._ha_loc_updated
             )
 
+    def _new_loc_data(self, loc_data: LocData | None) -> LocData:
+        """Check new location data.
+
+        None -> use HA's configured location.
+        """
+        if loc_data:
+            self._unsub_ha_loc_updated()
+            return loc_data
+        self._sub_ha_loc_updated()
+        return self._s2data.ha_loc_data
+
+    @abstractmethod
+    def _get_entities(self) -> Iterable[Sun2Entity]:
+        """Return entities to add."""
+
+    @callback
+    def _astral_data_updated(self, loc_data: LocData | None, obs_elvs: ObsElvs) -> None:
+        """Handle new astral data."""
+        self._update_entities(self._new_loc_data(loc_data), obs_elvs)
+
+    @callback
+    def _ha_loc_updated(self) -> None:
+        """Handle new HA location configuration."""
+        self._update_entities(self._s2data.ha_loc_data)
+
     def _update_entities(
         self, loc_data: LocData, obs_elvs: ObsElvs | None = None
     ) -> None:
@@ -575,9 +479,33 @@ class Sun2EntrySetup:
             self._obs_elvs = obs_elvs
         astral_data = AstralData(loc_data, obs_elvs)
         for entity in self._entities:
-            entity.request_astral_data_update(astral_data)
+            self._update_entity(entity, astral_data)
 
-    @callback
-    def _ha_loc_updated(self) -> None:
-        """Handle new HA location configuration."""
-        self._update_entities(self._s2data.ha_loc_data)
+    def _update_entity(self, entity: Sun2Entity, astral_data: AstralData) -> None:
+        """Update entity with new astral data."""
+
+        async def update_entity() -> None:
+            """Update entity."""
+            await entity.async_request_call(entity.update_astral_data(astral_data))
+            await entity.async_update_ha_state(True)
+
+        self._entry.async_create_task(
+            self._hass, update_entity(), f"Update astral data: {entity.name}"
+        )
+
+    @classmethod
+    async def async_setup_entry(
+        cls,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+    ) -> None:
+        """Platform async_setup_entry function.
+
+        class Sun2PlatformEntrySetup(Sun2EntrySetup):
+            def _get_entities(self) -> list[Sun2Entity]:
+            ...
+
+        async_setup_entry = Sun2PlatformEntrySetup.async_setup_entry
+        """
+        cls(hass, entry, async_add_entities)
