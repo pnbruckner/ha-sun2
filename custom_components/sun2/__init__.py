@@ -103,7 +103,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
             else:
                 reload = True
-            if reload:
+            if reload and entry.state.recoverable:
                 await hass.config_entries.async_reload(entry.entry_id)
 
     update_local_loc_data()
@@ -128,7 +128,8 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # Only sensors that were added via the UI have UUID type unique IDs.
         if _UUID_UNIQUE_ID.fullmatch(unique_id) and unique_id not in unqiue_ids:
             ent_reg.async_remove(entity.entity_id)
-    await hass.config_entries.async_reload(entry.entry_id)
+    if entry.state.recoverable:
+        await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
