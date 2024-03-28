@@ -1,0 +1,657 @@
+{
+  "title": "Sun2",
+  "config": {
+    "step": {
+      "add_entities_menu": {
+        "title": "Добавить сущности",
+        "description": "Выберите тип добавляемой сущности",
+        "menu_options": {
+          "done": "Готово",
+          "elevation_at_time_sensor_menu": "Датчик высоты в определенное время",
+          "elevation_binary_sensor": "Бинарный датчик высоты",
+          "time_at_elevation_sensor": "Датчик времени на высоте"
+        }
+      },
+      "elevation_at_time_sensor_menu": {
+        "title": "Тип - Высота в Определенное Время",
+        "menu_options": {
+          "elevation_at_time_sensor_entity": "сущность input_datetime",
+          "elevation_at_time_sensor_time": "Время"
+        }
+      },
+      "elevation_at_time_sensor_entity": {
+        "title": "Настройки Датчика Высоты в Определенное Время",
+        "data": {
+          "elevation_at_time": "ID сущности input_datetime",
+          "name": "Имя"
+        }
+      },
+      "elevation_at_time_sensor_time": {
+        "title": "Настройки Датчика Высоты в Определенное Время",
+        "data": {
+          "elevation_at_time": "Время",
+          "name": "Имя"
+        }
+      },
+      "elevation_binary_sensor": {
+        "title": "Настройки Бинарного Датчика Высоты",
+        "data": {
+          "use_horizon": "Использовать горизонт как высоту"
+        }
+      },
+      "elevation_binary_sensor_2": {
+        "title": "Настройки Бинарного Датчика Высоты",
+        "data": {
+          "elevation": "Высота",
+          "name": "Имя"
+        }
+      },
+      "entities_menu": {
+        "title": "Дополнительные Сущности",
+        "menu_options": {
+          "add_entities_menu": "Добавить сущности",
+          "done": "Готово"
+        }
+      },
+      "location": {
+        "title": "Настройки Местоположения",
+        "data": {
+          "elevation": "Высота над уровнем земли",
+          "location": "Местоположение",
+          "time_zone": "Часовой пояс"
+        },
+        "data_description": {
+          "time_zone": "См. столбец \"Идентификатор TZ\" на https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+        }
+      },
+      "location_name": {
+        "title": "Название Местоположения",
+        "data": {
+          "name": "Имя"
+        }
+      },
+      "time_at_elevation_sensor": {
+        "title": "Настройки Датчика Времени на Высоте",
+        "data": {
+          "time_at_elevation": "Высота",
+          "direction": "Направление солнца",
+          "icon": "Иконка",
+          "name": "Имя"
+        }
+      },
+      "use_home": {
+        "data": {
+          "use_home": "Использовать имя и местоположение Home Assistant"
+        }
+      }
+    },
+    "error": {
+      "name_used": "Название местоположения уже использовано."
+    }
+  },
+  "options": {
+    "step": {
+      "add_entities_menu": {
+        "title": "Добавить сущности",
+        "description": "Выберите тип добавляемой сущности",
+        "menu_options": {
+          "done": "Готово",
+          "elevation_at_time_sensor_menu": "Датчик высоты в определенное время",
+          "elevation_binary_sensor": "Бинарный датчик высоты",
+          "time_at_elevation_sensor": "Датчик времени на высоте"
+        }
+      },
+      "elevation_at_time_sensor_menu": {
+        "title": "Тип - Высота в Определенное Время",
+        "menu_options": {
+          "elevation_at_time_sensor_entity": "сущность input_datetime",
+          "elevation_at_time_sensor_time": "Время"
+        }
+      },
+      "elevation_at_time_sensor_entity": {
+        "title": "Настройки Датчика Высоты в Определенное Время",
+        "data": {
+          "elevation_at_time": "ID сущности input_datetime",
+          "name": "Имя"
+        }
+      },
+      "elevation_at_time_sensor_time": {
+        "title": "Настройки Датчика Высоты в Определенное Время",
+        "data": {
+          "elevation_at_time": "Время",
+          "name": "Имя"
+        }
+      },
+      "elevation_binary_sensor": {
+        "title": "Настройки Бинарного Датчика Высоты",
+        "data": {
+          "use_horizon": "Использовать горизонт как высоту"
+        }
+      },
+      "elevation_binary_sensor_2": {
+        "title": "Настройки Бинарного Датчика Высоты",
+        "data": {
+          "elevation": "Высота",
+          "name": "Имя"
+        }
+      },
+      "entities_menu": {
+        "title": "Дополнительные Сущности",
+        "menu_options": {
+          "add_entities_menu": "Добавить сущности",
+          "done": "Готово",
+          "remove_entities": "Удалить сущности"
+        }
+      },
+      "location": {
+        "title": "Настройки Местоположения",
+        "data": {
+          "elevation": "Высота над уровнем земли",
+          "location": "Местоположение",
+          "time_zone": "Часовой пояс"
+        },
+        "data_description": {
+          "time_zone": "См. столбец \"Идентификатор TZ\" на https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+        }
+      },
+      "remove_entities": {
+        "title": "Удалить Сущности",
+        "data": {
+          "choices": "Выберите сущности для удаления"
+        }
+      },
+      "time_at_elevation_sensor": {
+        "title": "Настройки Датчика Времени на Высоте",
+        "data": {
+          "time_at_elevation": "Высота",
+          "direction": "Направление солнца",
+          "icon": "Иконка",
+          "name": "Имя"
+        }
+      },
+      "use_home": {
+        "data": {
+          "use_home": "Использовать имя и местоположение Home Assistant"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "elevation": {
+        "state_attributes": {
+          "next_change": {
+            "name": "Следующее изменение"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "astronomical_daylight": {
+        "name": "Астрономический свет дня",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "astronomical_dawn": {
+        "name": "Астрономическая заря",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "astronomical_dusk": {
+        "name": "Астрономические сумерки",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "astronomical_night": {
+        "name": "Астрономическая ночь",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "azimuth": {
+        "name": "Азимут"
+      },
+      "civil_daylight": {
+        "name": "Гражданский свет дня",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "civil_night": {
+        "name": "Гражданская ночь",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "daylight": {
+        "name": "День",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "dawn": {
+        "name": "Рассвет",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "deconz_daylight": {
+        "name": "deCONZ дневной свет",
+        "state": {
+          "dawn": "Рассвет",
+          "dusk": "Сумерки",
+          "golden_hour_1": "Золотой час 1",
+          "golden_hour_2": "Золотой час 2",
+          "nadir": "Надир",
+          "nautical_dawn": "Навигационный рассвет",
+          "nautical_dusk": "Навигационные сумерки",
+          "night_end": "Конец ночи",
+          "night_start": "Начало ночи",
+          "solar_noon": "Полдень",
+          "sunrise_end": "Конец восхода",
+          "sunrise_start": "Начало восхода"
+        },
+        "state_attributes": {
+          "daylight": {
+            "name": "Дневной свет"
+          },
+          "next_change": {
+            "name": "Следующее изменение"
+          }
+        }
+      },
+      "dusk": {
+        "name": "Сумерки",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "elevation": {
+        "name": "Высота",
+        "state_attributes": {
+          "next_change": {
+            "name": "Следующее изменение"
+          }
+        }
+      },
+      "elevation_at_time": {
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "max_elevation": {
+        "name": "Максимальная высота",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "min_elevation": {
+        "name": "Минимальная высота",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "nautical_daylight": {
+        "name": "Навигационный день",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "nautical_dawn": {
+        "name": "Навигационный рассвет",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "nautical_dusk": {
+        "name": "Навигационные сумерки",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "nautical_night": {
+        "name": "Навигационная ночь",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "night": {
+        "name": "Ночь",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "today_hms": {
+            "name": "Сегодня ЧЧ:ММ:СС"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "tomorrow_hms": {
+            "name": "Завтра ЧЧ:ММ:СС"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          },
+          "yesterday_hms": {
+            "name": "Вчера ЧЧ:ММ:СС"
+          }
+        }
+      },
+      "solar_midnight": {
+        "name": "Солнечная полночь",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "solar_noon": {
+        "name": "Солнечный полдень",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "sun_phase": {
+        "name": "Фаза",
+        "state": {
+          "astronomical_twilight": "Астрономические сумерки",
+          "civil_twilight": "Гражданские сумерки",
+          "day": "День",
+          "nautical_twilight": "Навигационные сумерки",
+          "night": "Ночь"
+        },
+        "state_attributes": {
+          "blue_hour": {
+            "name": "Синий час"
+          },
+          "golden_hour": {
+            "name": "Золотой час"
+          },
+          "next_change": {
+            "name": "Следующее изменение"
+          },
+          "rising": {
+            "name": "Восход"
+          }
+        }
+      },
+      "sunrise": {
+        "name": "Восход",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "sunset": {
+        "name": "Закат",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "time_at_elevation": {
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "direction": {
+      "options": {
+        "rising": "Восход",
+        "setting": "Закат"
+      }
+    },
+    "misc": {
+      "options": {
+        "above_horizon": "Выше горизонта",
+        "above_neg_elev": "Выше минус {elevation} °",
+        "above_pos_elev": "Выше {elevation} °",
+        "elevation_at": "Высота в {elev_time}",
+        "rising_neg_elev": "Восход на высоте минус {elevation} °",
+        "rising_pos_elev": "Восход на высоте {elevation} °",
+        "service_name": "{location} Солнце",
+        "setting_neg_elev": "Закат на высоте минус {elevation} °",
+        "setting_pos_elev": "Закат на высоте {elevation} °"
+      }
+    }
+  },
+  "services": {
+    "reload": {
+      "name": "Перезагрузка",
+      "description": "Перезагружает Sun2 из YAML-конфигурации."
+    }
+  }
+}
