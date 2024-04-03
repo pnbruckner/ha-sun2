@@ -203,7 +203,7 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     config_data = sun2_data(hass).config_data[entry.entry_id]
     if (
         entry.title == config_data.title
-        and entry.options.get(CONF_BINARY_SENSORS, []) != config_data.binary_sensors
+        and entry.options.get(CONF_BINARY_SENSORS, []) == config_data.binary_sensors
         and entry.options.get(CONF_SENSORS, []) == config_data.sensors
     ):
         loc_data = get_loc_data(entry.options)
