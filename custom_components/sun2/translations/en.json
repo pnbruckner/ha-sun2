@@ -531,9 +531,45 @@
         }
     },
     "services": {
+        "get_location": {
+            "name": "Get location",
+            "description": "Get location options.",
+            "fields": {
+                "location": {
+                    "name": "Location",
+                    "description": "Name of integration entry."
+                }
+            }
+        },
         "reload": {
             "name": "Reload",
             "description": "Reloads Sun2 from the YAML-configuration."
+        },
+        "update_location": {
+            "name": "Update location",
+            "description": "Update location options. NOTE: If any of Latitude, Longitude & Time zone are specified, they must all be specified.",
+            "fields": {
+                "location": {
+                    "name": "Location",
+                    "description": "Name of Sun2 integration entry. YAML-based entries are not supported."
+                },
+                "latitude": {
+                    "name": "Latitude",
+                    "description": "Latitude"
+                },
+                "longitude": {
+                    "name": "Longitude",
+                    "description": "Longitude"
+                },
+                "time_zone": {
+                    "name": "Time zone",
+                    "description": "Time zone"
+                },
+                "observer_elevation": {
+                    "name": "Observer elevation",
+                    "description": "Elevation above ground level, or any two of above_ground, sunrise_obstruction & sunset_obstruction."
+                }
+            }
         }
     }
 }
