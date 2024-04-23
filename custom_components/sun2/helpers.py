@@ -484,13 +484,15 @@ class Sun2EntrySetup(ABC):
     def _update_entity(self, entity: Sun2Entity, astral_data: AstralData) -> None:
         """Update entity with new astral data."""
 
-        async def update_entity() -> None:
+        async def update_entity(entity: Sun2Entity, astral_data: AstralData) -> None:
             """Update entity."""
             await entity.async_request_call(entity.update_astral_data(astral_data))
             await entity.async_update_ha_state(True)
 
         self._entry.async_create_task(
-            self._hass, update_entity(), f"Update astral data: {entity.name}"
+            self._hass,
+            update_entity(entity, astral_data),
+            f"Update astral data: {entity.name}",
         )
 
     @classmethod
