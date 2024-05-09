@@ -9,29 +9,23 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     CONF_BINARY_SENSORS,
     CONF_ELEVATION,
     CONF_NAME,
     CONF_UNIQUE_ID,
 )
-from homeassistant.core import CoreState, HomeAssistant, callback
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import CoreState, callback
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
-    LocParams,
     Num,
     Sun2Entity,
     Sun2EntityParams,
-    get_loc_params,
+    Sun2EntrySetup,
     nearest_second,
-    sun2_dev_info,
     translate,
 )
 
@@ -43,17 +37,13 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(
-        self,
-        loc_params: LocParams | None,
-        sun2_entity_params: Sun2EntityParams,
-        name: str,
-        threshold: float | str,
+        self, sun2_entity_params: Sun2EntityParams, name: str, threshold: float | str
     ) -> None:
         """Initialize sensor."""
         self.entity_description = BinarySensorEntityDescription(
             key=CONF_ELEVATION, name=name
         )
-        super().__init__(loc_params, sun2_entity_params)
+        super().__init__(sun2_entity_params)
         self._event = "solar_elevation"
 
         if isinstance(threshold, str):
@@ -64,7 +54,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
     def _find_nxt_dttm(
         self, t0_dttm: datetime, t0_elev: Num, t1_dttm: datetime, t1_elev: Num
     ) -> datetime:
-        """Find time elevation crosses threshold between two points on elevation curve."""
+        """Find time elevation crosses threshold between 2 points on elevation curve."""
         # Do a binary search for time between t0 & t1 where elevation is
         # nearest threshold, but also above (or equal to) it if current
         # elevation is below it (i.e., current state is False), or below it if
@@ -234,54 +224,34 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
 
 
-def _elevation_name(
-    hass: HomeAssistant, name: str | None, threshold: float | str
-) -> str:
-    """Return elevation sensor name."""
-    if name:
-        return name
-    if isinstance(threshold, str):
-        return translate(hass, "above_horizon")
-    if threshold < 0:
-        return translate(hass, "above_neg_elev", {"elevation": str(-threshold)})
-    return translate(hass, "above_pos_elev", {"elevation": str(threshold)})
+class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
+    """Binary sensor config entry setup."""
+
+    def _get_entities(self) -> Iterable[Sun2Entity]:
+        """Return entities to add."""
+        for config in self._entry.options.get(CONF_BINARY_SENSORS, []):
+            unique_id = config[CONF_UNIQUE_ID]
+            if self._imported:
+                unique_id = self._uid_prefix + unique_id
+            self._sun2_entity_params.unique_id = unique_id
+            threshold = config[CONF_ELEVATION]
+            yield Sun2ElevationSensor(
+                self._sun2_entity_params,
+                self._elevation_name(config.get(CONF_NAME), threshold),
+                threshold,
+            )
+
+    def _elevation_name(self, name: str | None, threshold: float | str) -> str:
+        """Return elevation sensor name."""
+        if name:
+            return name
+        if isinstance(threshold, str):
+            return translate(self._hass, "above_horizon")
+        if threshold < 0:
+            return translate(
+                self._hass, "above_neg_elev", {"elevation": str(-threshold)}
+            )
+        return translate(self._hass, "above_pos_elev", {"elevation": str(threshold)})
 
 
-def _sensors(
-    loc_params: LocParams | None,
-    sun2_entity_params: Sun2EntityParams,
-    sensors_config: Iterable[ConfigType],
-    hass: HomeAssistant,
-) -> list[Entity]:
-    """Create list of entities to add."""
-    sensors: list[Entity] = []
-    for config in sensors_config:
-        unique_id = config[CONF_UNIQUE_ID]
-        if sun2_entity_params.entry.source == SOURCE_IMPORT:
-            unique_id = f"{sun2_entity_params.entry.entry_id}-{unique_id}"
-        sun2_entity_params.unique_id = unique_id
-        threshold = config[CONF_ELEVATION]
-        name = config.get(CONF_NAME)
-        name = _elevation_name(hass, name, threshold)
-        sensors.append(
-            Sun2ElevationSensor(loc_params, sun2_entity_params, name, threshold)
-        )
-    return sensors
-
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the sensor platform."""
-    config = entry.options
-    async_add_entities(
-        _sensors(
-            get_loc_params(config),
-            Sun2EntityParams(entry, sun2_dev_info(hass, entry)),
-            config.get(CONF_BINARY_SENSORS, []),
-            hass,
-        ),
-        True,
-    )
+async_setup_entry = Sun2BinarySensorEntrySetup.async_setup_entry

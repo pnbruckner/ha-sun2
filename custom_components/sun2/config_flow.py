@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Mapping
 from contextlib import suppress
 from typing import Any, cast
 
@@ -26,8 +27,10 @@ from homeassistant.const import (
     CONF_SENSORS,
     CONF_TIME_ZONE,
     CONF_UNIQUE_ID,
+    DEGREE,
+    UnitOfLength,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
@@ -49,14 +52,56 @@ from homeassistant.util.uuid import random_uuid_hex
 
 from .config import SUN_DIRECTIONS
 from .const import (
+    CONF_ABOVE_GROUND,
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
+    CONF_OBS_ELV,
+    CONF_SUNRISE_OBSTRUCTION,
+    CONF_SUNSET_OBSTRUCTION,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
 )
-from .helpers import init_translations
+from .helpers import Num, init_translations
 
-_LOCATION_OPTIONS = [CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
+_LOCATION_OPTIONS = [CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
+
+_DEGREES_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=-90,
+        max=90,
+        step="any",
+        unit_of_measurement=DEGREE,
+        mode=NumberSelectorMode.BOX,
+    )
+)
+_INPUT_DATETIME_SELECTOR = EntitySelector(EntitySelectorConfig(domain="input_datetime"))
+_METERS_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        step="any",
+        unit_of_measurement=UnitOfLength.METERS,
+        mode=NumberSelectorMode.BOX,
+    )
+)
+_POSITIVE_METERS_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=0,
+        step="any",
+        unit_of_measurement=UnitOfLength.METERS,
+        mode=NumberSelectorMode.BOX,
+    )
+)
+_SUN_DIRECTION_SELECTOR = SelectSelector(
+    SelectSelectorConfig(options=SUN_DIRECTIONS, translation_key="direction")
+)
+
+
+def loc_from_options(
+    hass: HomeAssistant, options: Mapping[str, Any]
+) -> tuple[float, float, str]:
+    """Return latitude, longitude & time_zone from options."""
+    if CONF_LATITUDE in options:
+        return options[CONF_LATITUDE], options[CONF_LONGITUDE], options[CONF_TIME_ZONE]
+    return hass.config.latitude, hass.config.longitude, hass.config.time_zone
 
 
 class Sun2Flow(FlowHandler):
@@ -64,6 +109,11 @@ class Sun2Flow(FlowHandler):
 
     _existing_entries: list[ConfigEntry] | None = None
     _existing_entities: dict[str, str] | None = None
+
+    # Temporary variables between steps.
+    _use_map: bool
+    _sunrise_obstruction: bool
+    _sunset_obstruction: bool
 
     @property
     def _entries(self) -> list[ConfigEntry]:
@@ -102,48 +152,189 @@ class Sun2Flow(FlowHandler):
         """Determine if a config is using Home Assistant location."""
         return any(CONF_LATITUDE not in entry.options for entry in self._entries)
 
+    async def async_step_location_menu(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Provide options for how to enter location."""
+        menu_options = ["location_map", "location_manual"]
+        kwargs = {}
+        if CONF_LATITUDE in self.options:
+            menu_options.append("observer_elevation")
+            location = f"{self.options[CONF_LATITUDE]}, {self.options[CONF_LONGITUDE]}"
+            kwargs["description_placeholders"] = {
+                "location": location,
+                "time_zone": self.options[CONF_TIME_ZONE],
+            }
+        return self.async_show_menu(
+            step_id="location_menu", menu_options=menu_options, **kwargs
+        )
+
+    async def async_step_location_map(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Enter location via a map."""
+        self._use_map = True
+        return await self.async_step_location()
+
+    async def async_step_location_manual(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Enter location manually."""
+        self._use_map = False
+        return await self.async_step_location()
+
     async def async_step_location(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle location options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             user_input[CONF_TIME_ZONE] = cv.time_zone(user_input[CONF_TIME_ZONE])
-            location: dict[str, Any] = user_input.pop(CONF_LOCATION)
-            user_input[CONF_LATITUDE] = location[CONF_LATITUDE]
-            user_input[CONF_LONGITUDE] = location[CONF_LONGITUDE]
-            self.options.update(user_input)
-            return await self.async_step_entities_menu()
+            location: dict[str, Any] | str = user_input.pop(CONF_LOCATION)
+            if isinstance(location, dict):
+                user_input[CONF_LATITUDE] = location[CONF_LATITUDE]
+                user_input[CONF_LONGITUDE] = location[CONF_LONGITUDE]
+            else:
+                try:
+                    lat = lon = ""
+                    with suppress(ValueError):
+                        lat, lon = location.split(",")
+                        lat = lat.strip()
+                        lon = lon.strip()
+                    if not lat or not lon:
+                        lat, lon = location.split()
+                        lat = lat.strip()
+                        lon = lon.strip()
+                    user_input[CONF_LATITUDE] = float(lat)
+                    user_input[CONF_LONGITUDE] = float(lon)
+                except ValueError:
+                    errors[CONF_LOCATION] = "invalid_location"
+            if not errors:
+                self.options.update(user_input)
+                return await self.async_step_observer_elevation()
 
+        location_selector = LocationSelector if self._use_map else TextSelector
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_LOCATION): LocationSelector(),
-                vol.Required(CONF_ELEVATION): NumberSelector(
-                    NumberSelectorConfig(step="any", mode=NumberSelectorMode.BOX)
-                ),
+                vol.Required(CONF_LOCATION): location_selector(),
                 vol.Required(CONF_TIME_ZONE): TextSelector(),
             }
         )
-        if CONF_LATITUDE in self.options:
+
+        latitude, longitude, time_zone = loc_from_options(self.hass, self.options)
+        suggested_values: dict[str, Any] = {CONF_TIME_ZONE: time_zone}
+        if self._use_map:
+            suggested_values[CONF_LOCATION] = {
+                CONF_LATITUDE: latitude,
+                CONF_LONGITUDE: longitude,
+            }
+        else:
+            suggested_values[CONF_LOCATION] = f"{latitude}, {longitude}"
+        data_schema = self.add_suggested_values_to_schema(data_schema, suggested_values)
+
+        return self.async_show_form(
+            step_id="location", data_schema=data_schema, errors=errors, last_step=False
+        )
+
+    async def async_step_observer_elevation(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle observer elevation options."""
+        if user_input is not None:
+            self._sunrise_obstruction = user_input[CONF_SUNRISE_OBSTRUCTION]
+            self._sunset_obstruction = user_input[CONF_SUNSET_OBSTRUCTION]
+            return await self.async_step_obs_elv_values()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_SUNRISE_OBSTRUCTION): BooleanSelector(),
+                vol.Required(CONF_SUNSET_OBSTRUCTION): BooleanSelector(),
+            }
+        )
+
+        if obs_elv := self.options.get(CONF_OBS_ELV):
             suggested_values = {
-                CONF_LOCATION: {
-                    CONF_LATITUDE: self.options[CONF_LATITUDE],
-                    CONF_LONGITUDE: self.options[CONF_LONGITUDE],
-                },
-                CONF_ELEVATION: self.options[CONF_ELEVATION],
-                CONF_TIME_ZONE: self.options[CONF_TIME_ZONE],
+                CONF_SUNRISE_OBSTRUCTION: not isinstance(obs_elv[0], Num),  # type: ignore[misc, arg-type]
+                CONF_SUNSET_OBSTRUCTION: not isinstance(obs_elv[1], Num),  # type: ignore[misc, arg-type]
             }
         else:
             suggested_values = {
-                CONF_LOCATION: {
-                    CONF_LATITUDE: self.hass.config.latitude,
-                    CONF_LONGITUDE: self.hass.config.longitude,
-                },
-                CONF_ELEVATION: self.hass.config.elevation,
-                CONF_TIME_ZONE: self.hass.config.time_zone,
+                CONF_SUNRISE_OBSTRUCTION: False,
+                CONF_SUNSET_OBSTRUCTION: False,
             }
         data_schema = self.add_suggested_values_to_schema(data_schema, suggested_values)
+
         return self.async_show_form(
-            step_id="location", data_schema=data_schema, last_step=False
+            step_id="observer_elevation", data_schema=data_schema, last_step=False
+        )
+
+    async def async_step_obs_elv_values(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle observer elevation option values."""
+        get_above_ground = not self._sunrise_obstruction or not self._sunset_obstruction
+
+        if user_input is not None:
+            above_ground = user_input.get(CONF_ABOVE_GROUND, 0)
+            if self._sunrise_obstruction:
+                sunrise_obs_elv = [
+                    user_input["sunrise_relative_height"],
+                    user_input["sunrise_distance"],
+                ]
+            else:
+                sunrise_obs_elv = above_ground
+            if self._sunset_obstruction:
+                sunset_obs_elv = [
+                    user_input["sunset_relative_height"],
+                    user_input["sunset_distance"],
+                ]
+            else:
+                sunset_obs_elv = above_ground
+            self.options[CONF_OBS_ELV] = [sunrise_obs_elv, sunset_obs_elv]
+            # For backwards compatibility, add elevation to options if necessary.
+            if CONF_ELEVATION not in self.options:
+                self.options[CONF_ELEVATION] = above_ground
+            return await self.async_step_entities_menu()
+
+        schema: dict[str, Any] = {}
+        if get_above_ground:
+            schema[vol.Required(CONF_ABOVE_GROUND)] = _POSITIVE_METERS_SELECTOR
+        if self._sunrise_obstruction:
+            schema[vol.Required("sunrise_distance")] = _POSITIVE_METERS_SELECTOR
+            schema[vol.Required("sunrise_relative_height")] = _METERS_SELECTOR
+        if self._sunset_obstruction:
+            schema[vol.Required("sunset_distance")] = _POSITIVE_METERS_SELECTOR
+            schema[vol.Required("sunset_relative_height")] = _METERS_SELECTOR
+        data_schema = vol.Schema(schema)
+
+        above_ground = 0
+        sunrise_distance = sunset_distance = 1000
+        sunrise_relative_height = sunset_relative_height = 1000
+        if obs_elv := self.options.get(CONF_OBS_ELV):
+            if isinstance(obs_elv[0], Num):  # type: ignore[misc, arg-type]
+                above_ground = obs_elv[0]
+            else:
+                sunrise_relative_height, sunrise_distance = obs_elv[0]
+            if isinstance(obs_elv[1], Num):  # type: ignore[misc, arg-type]
+                # If both directions use above_ground, they should be the same.
+                # Assume this is true and don't bother checking here.
+                above_ground = obs_elv[1]
+            else:
+                sunset_relative_height, sunset_distance = obs_elv[1]
+        suggested_values: dict[str, Any] = {}
+        if get_above_ground:
+            suggested_values[CONF_ABOVE_GROUND] = above_ground
+        if self._sunrise_obstruction:
+            suggested_values["sunrise_distance"] = sunrise_distance
+            suggested_values["sunrise_relative_height"] = sunrise_relative_height
+        if self._sunset_obstruction:
+            suggested_values["sunset_distance"] = sunset_distance
+            suggested_values["sunset_relative_height"] = sunset_relative_height
+        data_schema = self.add_suggested_values_to_schema(data_schema, suggested_values)
+
+        return self.async_show_form(
+            step_id="obs_elv_values", data_schema=data_schema, last_step=False
         )
 
     async def async_step_entities_menu(
@@ -197,17 +388,15 @@ class Sun2Flow(FlowHandler):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_ELEVATION): NumberSelector(
-                    NumberSelectorConfig(
-                        min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
-                    )
-                ),
+                vol.Required(CONF_ELEVATION): _DEGREES_SELECTOR,
                 vol.Optional(CONF_NAME): TextSelector(),
             }
         )
+
         data_schema = self.add_suggested_values_to_schema(
             data_schema, {CONF_ELEVATION: 0.0}
         )
+
         return self.async_show_form(
             step_id="elevation_binary_sensor_2",
             data_schema=data_schema,
@@ -235,9 +424,7 @@ class Sun2Flow(FlowHandler):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_ELEVATION_AT_TIME): EntitySelector(
-                    EntitySelectorConfig(domain="input_datetime")
-                ),
+                vol.Required(CONF_ELEVATION_AT_TIME): _INPUT_DATETIME_SELECTOR,
                 vol.Optional(CONF_NAME): TextSelector(),
             }
         )
@@ -275,23 +462,17 @@ class Sun2Flow(FlowHandler):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_TIME_AT_ELEVATION): NumberSelector(
-                    NumberSelectorConfig(
-                        min=-90, max=90, step="any", mode=NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Required(CONF_DIRECTION): SelectSelector(
-                    SelectSelectorConfig(
-                        options=SUN_DIRECTIONS, translation_key="direction"
-                    )
-                ),
+                vol.Required(CONF_TIME_AT_ELEVATION): _DEGREES_SELECTOR,
+                vol.Required(CONF_DIRECTION): _SUN_DIRECTION_SELECTOR,
                 vol.Optional(CONF_ICON): IconSelector(),
                 vol.Optional(CONF_NAME): TextSelector(),
             }
         )
+
         data_schema = self.add_suggested_values_to_schema(
             data_schema, {CONF_TIME_AT_ELEVATION: 0.0}
         )
+
         return self.async_show_form(
             step_id="time_at_elevation_sensor",
             data_schema=data_schema,
@@ -322,7 +503,7 @@ class Sun2Flow(FlowHandler):
                         if not self.options[sensor_type]:
                             del self.options[sensor_type]
                         return
-            assert False
+            raise RuntimeError(f"Unexpected unique ID ({unique_id}) to remove")
 
         if user_input is not None:
             for entity_id in user_input["choices"]:
@@ -365,7 +546,9 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         """Get the options flow for this handler."""
         flow = Sun2OptionsFlow(config_entry)
         flow.init_step = (
-            "location" if CONF_LATITUDE in config_entry.options else "entities_menu"
+            "location_menu"
+            if CONF_LATITUDE in config_entry.options
+            else "entities_menu"
         )
         return flow
 
@@ -435,14 +618,16 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         if user_input is not None:
             self._location_name = cast(str, user_input[CONF_NAME])
             if not any(entry.title == self._location_name for entry in self._entries):
-                return await self.async_step_location()
+                return await self.async_step_location_menu()
             errors[CONF_NAME] = "name_used"
 
         data_schema = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
+
         if self._location_name is not None:
             data_schema = self.add_suggested_values_to_schema(
                 data_schema, {CONF_NAME: self._location_name}
             )
+
         return self.async_show_form(
             step_id="location_name",
             data_schema=data_schema,

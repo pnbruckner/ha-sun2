@@ -52,6 +52,19 @@ This custom integration supports HomeAssistant versions 2023.4.0 or newer.
 
 Reloads Sun2 from the YAML-configuration. Also adds `SUN2` to the Developers Tools -> YAML page.
 
+### `sun2.get_location`
+
+Responds with the current location configuration options (latitude, etc.) of the specified location.
+Takes just one parameter, `location`, which is the name of the location, and is also the name of the corresponding integration entry.
+
+### `sun2.update_location`
+
+Updates one or more parts of the location configuration options of the specified location.
+Takes one required parameter, `location`. (Same as `sun2.get_location` service.)
+Can also take location parameters (`latitude`, `longitude` & `time_zone`), which if any are specified, they must all be specified.
+Can also take observer elevation parameters (`obeserver_elevation`).
+These parameters are the same as specified below in the YAML configuration section.
+
 ## Configuration
 
 One or more "locations" can be added for this integration.
@@ -75,16 +88,44 @@ Key | Optional | Description
 `latitude` | yes* | The location's latitude (in degrees)
 `longitude` | yes* | The location's longitude (in degrees)
 `time_zone` | yes* | The location's time zone. (See the "TZ database name" column at http://en.wikipedia.org/wiki/List_of_tz_database_time_zones.)
-`elevation` | yes* | The observer's elevation above ground level at specified location (in meters)
+`observer_elevation` | yes | What affects sunrise & sunset as defined [here](#observer-elevation)
 `binary_sensors` | yes | Binary sensor configurations as defined [here](#binary-sensor-configurations)
 `sensors` | yes | Sensor configurations as defined [here](#sensor-configurations)
 
-\* These must all be used together. If not used, the default is Home Assistant's location, elevation & name configuration.
+\* These must all be used together. If not used, the default is Home Assistant's location, time zone & name configuration.
 
-> NOTE: Home Assistant describes the elevation setting as "above sea level."
-> For the purpose of determining sunrise, etc., that is incorrect.
-> It should be the observer's elevation above ground level at the specified location.
-> For more details, see [Effect of Elevation](https://sffjunkie.github.io/astral/#effect-of-elevation)
+### Observer Elevation
+
+The easterly sun events (sunrise, dawn, etc.) and westerly sun events (sunset, dusk, etc.)
+can be viewed at either the horizon, or at the top of some obstruction, such as a mountain.
+(For more details, see [Effect of Elevation](https://sffjunkie.github.io/astral/#effect-of-elevation).)
+This configuration option describes which apply at the specified location.
+
+There are two basic choices. The first is that the sun events are seen at the horizon in both directions.
+In this case, a simple number may be given which defines the observer's elevation above _ground_ level (not sea level) in meters.
+If this option is not specified, a default of zero is used.
+
+The second choice is specifying an obstruction in one or both directions (`sunrise_obstruction` and/or `sunset_obstruction`).
+For each used, the horizontal distance to the obstruction (`distance`),
+and the height of the top of the obstruction, relative to the observer (`relative_height`), must be specified.
+Note that the relative height can be negative (e.g., the observer is on an even taller mountain.)
+If only one is used, then the observer's elevation above ground level (`above_ground`) must also be specified (for the other direction.)
+
+Here are some examples:
+
+```yaml
+observer_elevation: 5
+
+observer_elevation:
+  sunrise_obstruction: {distance: 10000, relative_height: 2000}
+  sunset_obstruction: {distance: 5000, relative_height: -100}
+
+observer_elevation:
+  above_ground: 0
+  sunrise_obstruction: {distance: 10000, relative_height: 2000}
+```
+
+> Note that this replaces the `elevation` option used in previous versions.
 
 ### Binary Sensor Configurations
 
