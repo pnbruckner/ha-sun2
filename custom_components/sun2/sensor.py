@@ -1188,7 +1188,7 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
             self._sun2_entity_params.unique_id = unique_id
             name = config.get(CONF_NAME)
 
-            if at_time := config.get(CONF_ELEVATION_AT_TIME):
+            if (at_time := config.get(CONF_ELEVATION_AT_TIME)) is not None:
                 # For config entries, JSON serialization turns a time into a string.
                 # Convert back to time in that case.
                 if isinstance(at_time, str):
@@ -1201,7 +1201,7 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
                 )
                 continue
 
-            if elevation := config.get(CONF_TIME_AT_ELEVATION):
+            if (elevation := config.get(CONF_TIME_AT_ELEVATION)) is not None:
                 direction = SunDirection.__getitem__(
                     cast(str, config[CONF_DIRECTION]).upper()
                 )
