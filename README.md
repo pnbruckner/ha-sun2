@@ -243,6 +243,8 @@ These are also all disabled by default.
 Type | Description
 -|-
 Azimuth | The sun's azimuth (degrees)
+Rising Azimuth | The sun's azimuth at sunrise (degrees)
+Setting Azimuth | The sun's azimuth at sunset (degrees)
 Elevation | The sun's elevation (degrees)
 Minimum Elevation | The sun's elevation at solar midnight (degrees)
 maximum Elevation | The sun's elevation at solar noon (degrees)
