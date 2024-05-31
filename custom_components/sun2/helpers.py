@@ -134,25 +134,29 @@ async def async_get_loc_data(
     If config entry provided, and it does not contain location options,
     then return None, meaning HA's location configuration should be used.
     """
-    if isinstance(arg, Config):
-        loc_data = _get_loc_data(LocParams.from_hass_config(arg))
-    else:
-        loc_data = _get_loc_data(LocParams.from_entry_options(arg))
-    if loc_data is None:
-        return None
 
-    def init_loc(loc: Location) -> None:
-        """Initialize Location.
+    def get_loc_data() -> LocData | None:
+        """Get LocData.
 
-        astral's Location methods use pytz when local=True. pytz, when first called
-        with a given time zone, will do file I/O, so this needs to be done in an
-        executor. Once it has been done, it is cached. So, do that now so later calls
-        can be run in event loop.
+        Must be run in an executor because dt_util.get_time_zone can do file I/O.
+        Also, astral's Location methods use pytz when local=True and pytz, when first
+        called with a given time zone, will do file I/O. After that the data will be
+        cached and it won't do file I/O again for the same time zone.
         """
-        loc.tzinfo  # noqa: B018
+        if isinstance(arg, Config):
+            loc_data = _get_loc_data(LocParams.from_hass_config(arg))
+        else:
+            loc_data = _get_loc_data(LocParams.from_entry_options(arg))
+        if loc_data is None:
+            return None
 
-    await hass.async_add_executor_job(init_loc, loc_data.loc)
-    return loc_data
+        # Force pytz to do its file I/O now by using the Location object's tzinfo
+        # property.
+        loc_data.loc.tzinfo  # noqa: B018
+
+        return loc_data
+
+    return await hass.async_add_executor_job(get_loc_data)
 
 
 ObsElv = float | tuple[float, float]
