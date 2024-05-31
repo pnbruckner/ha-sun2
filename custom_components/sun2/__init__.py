@@ -42,7 +42,7 @@ from .config import (
 )
 from .config_flow import loc_from_options
 from .const import CONF_OBS_ELV, DOMAIN, SIG_ASTRAL_DATA_UPDATED, SIG_HA_LOC_UPDATED
-from .helpers import ConfigData, ObsElvs, get_loc_data, sun2_data
+from .helpers import ConfigData, ObsElvs, async_get_loc_data, init_sun2_data, sun2_data
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -134,14 +134,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         options.update(loc_config)
         hass.config_entries.async_update_entry(entry, options=options)
 
-    s2data = sun2_data(hass)
+    s2data = await init_sun2_data(hass)
 
     async def handle_core_config_update(event: Event) -> None:
         """Handle core config update."""
         if not event.data:
             return
 
-        new_ha_loc_data = get_loc_data(hass.config)
+        new_ha_loc_data = await async_get_loc_data(hass, hass.config)
         if ha_loc_data_changed := new_ha_loc_data != s2data.ha_loc_data:
             s2data.ha_loc_data = new_ha_loc_data
 
@@ -206,7 +206,7 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         and entry.options.get(CONF_BINARY_SENSORS, []) == config_data.binary_sensors
         and entry.options.get(CONF_SENSORS, []) == config_data.sensors
     ):
-        loc_data = get_loc_data(entry.options)
+        loc_data = await async_get_loc_data(hass, entry.options)
         obs_elvs = ObsElvs.from_entry_options(entry.options)
         if loc_data != config_data.loc_data or obs_elvs != config_data.obs_elvs:
             config_data.loc_data = loc_data
@@ -226,7 +226,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.title,
         entry.options.get(CONF_BINARY_SENSORS, [])[:],
         entry.options.get(CONF_SENSORS, [])[:],
-        get_loc_data(entry.options),
+        await async_get_loc_data(hass, entry.options),
         ObsElvs.from_entry_options(entry.options),
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
