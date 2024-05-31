@@ -115,24 +115,48 @@ def _get_loc_data(lp: LocParams | None) -> LocData | None:
 
 
 @overload
-def get_loc_data(arg: Config) -> LocData:
+async def async_get_loc_data(hass: HomeAssistant, arg: Config) -> LocData:
     ...
 
 
 @overload
-def get_loc_data(arg: Mapping[str, Any]) -> LocData | None:
+async def async_get_loc_data(
+    hass: HomeAssistant, arg: Mapping[str, Any]
+) -> LocData | None:
     ...
 
 
-def get_loc_data(arg: Config | Mapping[str, Any]) -> LocData | None:
+async def async_get_loc_data(
+    hass: HomeAssistant, arg: Config | Mapping[str, Any]
+) -> LocData | None:
     """Get LocData from HA config or config entry options.
 
     If config entry provided, and it does not contain location options,
     then return None, meaning HA's location configuration should be used.
     """
-    if isinstance(arg, Config):
-        return _get_loc_data(LocParams.from_hass_config(arg))
-    return _get_loc_data(LocParams.from_entry_options(arg))
+
+    def get_loc_data() -> LocData | None:
+        """Get LocData.
+
+        Must be run in an executor because dt_util.get_time_zone can do file I/O.
+        Also, astral's Location methods use pytz when local=True and pytz, when first
+        called with a given time zone, will do file I/O. After that the data will be
+        cached and it won't do file I/O again for the same time zone.
+        """
+        if isinstance(arg, Config):
+            loc_data = _get_loc_data(LocParams.from_hass_config(arg))
+        else:
+            loc_data = _get_loc_data(LocParams.from_entry_options(arg))
+        if loc_data is None:
+            return None
+
+        # Force pytz to do its file I/O now by using the Location object's tzinfo
+        # property.
+        loc_data.loc.tzinfo  # noqa: B018
+
+        return loc_data
+
+    return await hass.async_add_executor_job(get_loc_data)
 
 
 ObsElv = float | tuple[float, float]
@@ -201,13 +225,17 @@ class Sun2Data:
     config_data: dict[str, ConfigData] = field(default_factory=dict)
 
 
+async def init_sun2_data(hass: HomeAssistant) -> Sun2Data:
+    """Initialize Sun2 integration data."""
+    if DOMAIN not in hass.data:
+        loc_data = await async_get_loc_data(hass, hass.config)
+        hass.data[DOMAIN] = Sun2Data(loc_data)
+    return cast(Sun2Data, hass.data[DOMAIN])
+
+
 def sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Return Sun2 integration data."""
-    try:
-        return cast(Sun2Data, hass.data[DOMAIN])
-    except KeyError:
-        hass.data[DOMAIN] = s2data = Sun2Data(get_loc_data(hass.config))
-        return s2data
+    return cast(Sun2Data, hass.data[DOMAIN])
 
 
 def hours_to_hms(hours: Num | None) -> str | None:
@@ -223,7 +251,7 @@ _TRANS_PREFIX = f"component.{DOMAIN}.selector.misc.options"
 
 async def init_translations(hass: HomeAssistant) -> None:
     """Initialize translations."""
-    s2data = sun2_data(hass)
+    s2data = await init_sun2_data(hass)
     if s2data.language != hass.config.language:
         sel_trans = await async_get_translations(
             hass, hass.config.language, "selector", [DOMAIN], False
