@@ -103,7 +103,16 @@ This configuration option describes which apply at the specified location.
 
 There are two basic choices. The first is that the sun events are seen at the horizon in both directions.
 In this case, a simple number may be given which defines the observer's elevation above _ground_ level (not sea level) in meters.
-If this option is not specified, a default of zero is used.
+If this option is not specified, then the elevation from the system's general configuration will be used.
+
+> NOTE: [Settings -> System -> General -> Elevation](https://www.home-assistant.io/integrations/homeassistant/) is defined as "Altitude above **sea** level in meters. Impacts sunrise data."
+> 
+> This is, and always has been, defined incorrectly.
+> It should be defined as altitude above _ground_ level, not sea level.
+> Therefore, if the optional `observer_elevation` is not specified, and your system's general elevation contains your home's altitude above _sea_ level,
+> then this integration will get the _wrong_ elevation value, resulting in incorrect sensor values.
+> This situation should be avoided.
+> Therefore, if it occurs, a WARNING will be generated to bring it to your attention.
 
 The second choice is specifying an obstruction in one or both directions (`sunrise_obstruction` and/or `sunset_obstruction`).
 For each used, the horizontal distance to the obstruction (`distance`),
