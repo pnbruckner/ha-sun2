@@ -20,10 +20,18 @@ from homeassistant.const import (
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+
+# Config moved from core to core_config in 2024.11
+
+try:
+    from homeassistant.core_config import Config
+except ImportError:
+    from homeassistant.core import Config
+
 from homeassistant.helpers.device_registry import DeviceEntryType
 
-# Device Info moved to device_registry in 2023.9
+# DeviceInfo moved to device_registry in 2023.9
 try:
     from homeassistant.helpers.device_registry import DeviceInfo
 except ImportError:
