@@ -5,7 +5,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
-from functools import cached_property, lru_cache
+from functools import (  # pylint: disable=hass-deprecated-import
+    cached_property,
+    lru_cache,
+)
 import logging
 from math import copysign, fabs
 from typing import Any, Self, cast, overload
@@ -27,7 +30,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 try:
     from homeassistant.core_config import Config
 except ImportError:
-    from homeassistant.core import Config
+    from homeassistant.core import Config  # type: ignore[no-redef]
 
 from homeassistant.helpers.device_registry import DeviceEntryType
 
@@ -194,9 +197,9 @@ class ObsElvs:
         Also, astral only accepts a tuple, not a list, which is what stored in the
         config entry (since it's from a JSON file), so convert to a tuple.
         """
-        if isinstance(obs_elv, Num):  # type: ignore[misc, arg-type]
-            return float(cast(Num, obs_elv))
-        height, distance = cast(list[Num], obs_elv)
+        if isinstance(obs_elv, Num):
+            return float(obs_elv)
+        height, distance = obs_elv
         return -copysign(1, float(height)) * float(distance), fabs(float(height))
 
     @classmethod
@@ -349,9 +352,13 @@ class Sun2Entity(Entity):
         self._astral_data = sun2_entity_params.astral_data
         self.async_on_remove(self._cancel_update)
 
+    def _as_tz(self, dttm: datetime) -> datetime:
+        """Return datetime in location's time zone."""
+        return dttm.astimezone(self._astral_data.loc_data.tzi)
+
     async def async_update(self) -> None:
         """Update state."""
-        self._update(dt_util.now(self._astral_data.loc_data.tzi))
+        self._update(dt_util.utcnow())
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -390,6 +397,7 @@ class Sun2Entity(Entity):
         self,
         date_or_dttm: date | datetime,
         event: str | None = None,
+        local: bool = True,
         /,
         **kwargs: Any,
     ) -> Any:
@@ -402,11 +410,11 @@ class Sun2Entity(Entity):
 
         try:
             if event in ("solar_midnight", "solar_noon"):
-                return getattr(loc, event.split("_")[1])(date_or_dttm)
+                return getattr(loc, event.split("_")[1])(date_or_dttm, local)
 
             if event == "time_at_elevation":
                 return loc.time_at_elevation(
-                    kwargs["elevation"], date_or_dttm, kwargs["direction"]
+                    kwargs["elevation"], date_or_dttm, kwargs["direction"], local
                 )
 
             if event in ("sunrise", "dawn"):
@@ -415,6 +423,8 @@ class Sun2Entity(Entity):
                 kwargs = {"observer_elevation": self._astral_data.obs_elvs.west}
             else:
                 kwargs = {}
+            if event not in ("solar_azimuth", "solar_elevation"):
+                kwargs["local"] = local
             return getattr(loc, event)(date_or_dttm, **kwargs)
 
         except (TypeError, ValueError):

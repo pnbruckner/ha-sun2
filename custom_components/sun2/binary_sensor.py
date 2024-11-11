@@ -17,7 +17,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import CoreState, callback
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.util import dt as dt_util
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
@@ -112,13 +111,17 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         # since current time might be anywhere from before today's solar
         # midnight (if it is this morning) to after tomorrow's solar midnight
         # (if it is this evening.)
-        date = cur_dttm.date()
-        evt_dttm1 = cast(datetime, self._astral_event(date, "solar_midnight"))
-        evt_dttm2 = cast(datetime, self._astral_event(date, "solar_noon"))
-        evt_dttm3 = cast(datetime, self._astral_event(date + ONE_DAY, "solar_midnight"))
-        evt_dttm4 = cast(datetime, self._astral_event(date + ONE_DAY, "solar_noon"))
+        date = self._as_tz(cur_dttm).date()
+        evt_dttm1 = cast(datetime, self._astral_event(date, "solar_midnight", False))
+        evt_dttm2 = cast(datetime, self._astral_event(date, "solar_noon", False))
+        evt_dttm3 = cast(
+            datetime, self._astral_event(date + ONE_DAY, "solar_midnight", False)
+        )
+        evt_dttm4 = cast(
+            datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
+        )
         evt_dttm5 = cast(
-            datetime, self._astral_event(date + 2 * ONE_DAY, "solar_midnight")
+            datetime, self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False)
         )
 
         # See if segment we're looking for falls between any of these events.
@@ -176,7 +179,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
                             "%s: Sun elevation will not reach %f again until %s",
                             self.name,
                             self._threshold,
-                            nxt_dttm.date(),
+                            self._as_tz(nxt_dttm).date(),
                         )
                 return nxt_dttm
 
@@ -185,9 +188,12 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
             evt_dttm1 = evt_dttm3
             evt_dttm2 = evt_dttm4
             evt_dttm3 = evt_dttm5
-            evt_dttm4 = cast(datetime, self._astral_event(date + ONE_DAY, "solar_noon"))
+            evt_dttm4 = cast(
+                datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
+            )
             evt_dttm5 = cast(
-                datetime, self._astral_event(date + 2 * ONE_DAY, "solar_midnight")
+                datetime,
+                self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False),
             )
 
         # Didn't find one.
@@ -205,7 +211,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
 
         @callback
-        def schedule_update(now: datetime) -> None:
+        def schedule_update(_now: datetime) -> None:
             """Schedule state update."""
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
@@ -214,7 +220,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
             self._unsub_update = async_track_point_in_utc_time(
                 self.hass, schedule_update, nxt_dttm
             )
-            nxt_dttm = dt_util.as_local(nxt_dttm)
+            nxt_dttm = self._as_tz(nxt_dttm)
         elif self.hass.state == CoreState.running:
             LOGGER.error(
                 "%s: Sun elevation never reaches %f at this location",
