@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from itertools import chain
 from math import ceil, floor
-from typing import Any, Generic, Optional, TypeVar, Union, cast
+from typing import Any, Generic, TypeVar, cast
 
 from astral import SunDirection
 from astral.sun import SUN_APPARENT_RADIUS
@@ -194,25 +194,25 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
         @callback
         def async_schedule_update_at_midnight(now: datetime) -> None:
             """Schedule an update at midnight."""
-            next_midn = next_midnight(now.astimezone(self._astral_data.loc_data.tzi))
+            next_midn = next_midnight(self._as_tz(now))
             self._unsub_update = async_track_point_in_utc_time(
                 self.hass, async_schedule_update_at_midnight, next_midn
             )
             self.async_schedule_update_ha_state(True)
 
-        next_midn = next_midnight(dt_util.now(self._astral_data.loc_data.tzi))
+        next_midn = next_midnight(self._as_tz(dt_util.utcnow()))
         self._unsub_update = async_track_point_in_utc_time(
             self.hass, async_schedule_update_at_midnight, next_midn
         )
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        cur_date = cur_dttm.date()
-        self._yesterday = cast(Optional[_T], self._astral_event(cur_date - ONE_DAY))
+        cur_date = self._as_tz(cur_dttm).date()
+        self._yesterday = cast(_T | None, self._astral_event(cur_date - ONE_DAY))
         self._attr_native_value = self._today = cast(
-            Optional[_T], self._astral_event(cur_date)
+            _T | None, self._astral_event(cur_date)
         )
-        self._tomorrow = cast(Optional[_T], self._astral_event(cur_date + ONE_DAY))
+        self._tomorrow = cast(_T | None, self._astral_event(cur_date + ONE_DAY))
 
 
 class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
@@ -324,15 +324,15 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             dttm = self._at_time
         else:
             dttm = datetime.combine(cur_dttm.date(), self._at_time)
-        self._attr_native_value = cast(Optional[float], self._astral_event(dttm))
+        self._attr_native_value = cast(float | None, self._astral_event(dttm))
         if isinstance(self._at_time, datetime):
             return
-        self._yesterday = cast(Optional[float], self._astral_event(dttm - ONE_DAY))
+        self._yesterday = cast(float | None, self._astral_event(dttm - ONE_DAY))
         self._today = self._attr_native_value
-        self._tomorrow = cast(Optional[float], self._astral_event(dttm + ONE_DAY))
+        self._tomorrow = cast(float | None, self._astral_event(dttm + ONE_DAY))
 
 
-class Sun2PointInTimeSensor(Sun2SensorEntity[Union[datetime, str]]):
+class Sun2PointInTimeSensor(Sun2SensorEntity[datetime | str]):
     """Sun2 Point in Time Sensor."""
 
     def __init__(
@@ -376,6 +376,7 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         self,
         date_or_dttm: date | datetime,
         event: str | None = None,
+        local: bool = True,
         /,
         **kwargs: Any,
     ) -> Any:
@@ -441,6 +442,7 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         self,
         date_or_dttm: date | datetime,
         event: str | None = None,
+        local: bool = True,
         /,
         **kwargs: Any,
     ) -> float | None:
@@ -448,11 +450,11 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
         start: datetime | None
         end: datetime | None
         if self._event == "daylight":
-            start = super()._astral_event(date_or_dttm, "dawn")
-            end = super()._astral_event(date_or_dttm, "dusk")
+            start = super()._astral_event(date_or_dttm, "dawn", False)
+            end = super()._astral_event(date_or_dttm, "dusk", False)
         else:
-            start = super()._astral_event(date_or_dttm, "dusk")
-            end = super()._astral_event(date_or_dttm + ONE_DAY, "dawn")
+            start = super()._astral_event(date_or_dttm, "dusk", False)
+            end = super()._astral_event(date_or_dttm + ONE_DAY, "dawn", False)
         if not start or not end:
             return None
         return (end - start).total_seconds() / 3600
@@ -482,12 +484,13 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
         self,
         date_or_dttm: date | datetime,
         event: str | None = None,
+        local: bool = True,
         /,
         **kwargs: Any,
     ) -> float | None:
         """Return astral event result."""
         return cast(
-            Optional[float],
+            float | None,
             super()._astral_event(
                 cast(datetime, super()._astral_event(date_or_dttm)), "solar_elevation"
             ),
@@ -516,6 +519,7 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
         self,
         date_or_dttm: date | datetime,
         event: str | None = None,
+        local: bool = True,
         /,
         **kwargs: Any,
     ) -> float | None:
@@ -531,7 +535,7 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
             dttm = getattr(self._astral_data.loc_data.loc, self._method)(date_or_dttm)
         except (TypeError, ValueError):
             return None
-        return cast(Optional[float], super()._astral_event(dttm))
+        return cast(float | None, super()._astral_event(dttm))
 
 
 @dataclass
@@ -587,7 +591,7 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
     def _setup_fixed_updating(self) -> None:
         """Set up fixed updating."""
 
-    def _attrs_at_elev(self, elev: Num) -> MutableMapping[str, Any]:
+    def _attrs_at_elev(self, elev: Num) -> dict[str, Any]:
         """Return attributes at elevation."""
         assert self._cp
 
@@ -607,15 +611,15 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
                 icon = "mdi:weather-night"
         return {ATTR_ICON: icon}
 
-    def _set_attrs(self, attrs: MutableMapping[str, Any], nxt_chg: datetime) -> None:
+    def _set_attrs(self, attrs: dict[str, Any], nxt_chg: datetime) -> None:
         """Set attributes."""
-        self._attr_icon = cast(Optional[str], attrs.pop(ATTR_ICON, "mdi:weather-sunny"))
-        attrs[ATTR_NEXT_CHANGE] = dt_util.as_local(nxt_chg)
+        self._attr_icon = cast(str | None, attrs.pop(ATTR_ICON, "mdi:weather-sunny"))
+        attrs[ATTR_NEXT_CHANGE] = self._as_tz(nxt_chg)
         self._attr_extra_state_attributes = attrs
 
     def _get_curve_params(self, cur_dttm: datetime, cur_elev: Num) -> CurveParameters:
         """Calculate elevation curve parameters."""
-        cur_date = cur_dttm.date()
+        cur_date = self._as_tz(cur_dttm).date()
 
         # Find the highest and lowest points on the elevation curve that encompass
         # current time, where it is ok for the current time to be the same as the
@@ -623,12 +627,14 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
         # Note that the astral solar_midnight event will always come before the astral
         # solar_noon event for any given date, even if it actually falls on the previous
         # day.
-        hi_dttm = cast(datetime, self._astral_event(cur_date, "solar_noon"))
-        lo_dttm = cast(datetime, self._astral_event(cur_date, "solar_midnight"))
-        nxt_noon = cast(datetime, self._astral_event(cur_date + ONE_DAY, "solar_noon"))
+        hi_dttm = cast(datetime, self._astral_event(cur_date, "solar_noon", False))
+        lo_dttm = cast(datetime, self._astral_event(cur_date, "solar_midnight", False))
+        nxt_noon = cast(
+            datetime, self._astral_event(cur_date + ONE_DAY, "solar_noon", False)
+        )
         if cur_dttm < lo_dttm:
             tl_dttm = cast(
-                datetime, self._astral_event(cur_date - ONE_DAY, "solar_noon")
+                datetime, self._astral_event(cur_date - ONE_DAY, "solar_noon", False)
             )
             tr_dttm = lo_dttm
         elif cur_dttm < hi_dttm:
@@ -636,7 +642,8 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
             tr_dttm = hi_dttm
         else:
             lo_dttm = cast(
-                datetime, self._astral_event(cur_date + ONE_DAY, "solar_midnight")
+                datetime,
+                self._astral_event(cur_date + ONE_DAY, "solar_midnight", False),
             )
             if cur_dttm < lo_dttm:
                 tl_dttm = hi_dttm
@@ -651,16 +658,16 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
         LOGGER.debug(
             "%s: tL = %s/%0.3f, cur = %s/%0.3f, tR = %s/%0.3f, rising = %s",
             self.name,
-            tl_dttm,
+            self._as_tz(tl_dttm),
             tl_elev,
-            cur_dttm,
+            self._as_tz(cur_dttm),
             cur_elev,
-            tr_dttm,
+            self._as_tz(tr_dttm),
             tr_elev,
             rising,
         )
 
-        mid_date = (tl_dttm + (tr_dttm - tl_dttm) / 2).date()
+        mid_date = self._as_tz(tl_dttm + (tr_dttm - tl_dttm) / 2).date()
         return CurveParameters(
             tl_dttm, tl_elev, tr_dttm, tr_elev, mid_date, nxt_noon, rising
         )
@@ -680,7 +687,7 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
             est += 1
             msg = (
                 msg_base
-                + f"t0 = {t0_dttm}/{t0_elev:+7.3f}, t1 = {t1_dttm}/{t1_elev:+7.3f} ->"
+                + f"t0 = {self._as_tz(t0_dttm)}/{t0_elev:+7.3f}, t1 = {self._as_tz(t1_dttm)}/{t1_elev:+7.3f} ->"
             )
             try:
                 est_dttm = nearest_second(
@@ -697,7 +704,7 @@ class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
             LOGGER.debug(
                 "%s est = %s/%+7.3f[%+7.3f/%2i]",
                 msg,
-                est_dttm,
+                self._as_tz(est_dttm),
                 est_elev,
                 est_elev - elev,
                 est,
@@ -805,7 +812,7 @@ class Update:
     remove: CALLBACK_TYPE
     when: datetime
     state: str | None
-    attrs: MutableMapping[str, Any] | None
+    attrs: dict[str, Any] | None
 
 
 class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
@@ -848,9 +855,8 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         update = self._updates.pop(0)
         if self._updates:
             self._attr_native_value = update.state
-            self._set_attrs(
-                cast(MutableMapping[str, Any], update.attrs), self._updates[0].when
-            )
+            assert update.attrs is not None
+            self._set_attrs(update.attrs, self._updates[0].when)
             self.async_write_ha_state()
         else:
             # The last one means it's time to determine the next set of scheduled
@@ -861,7 +867,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         self,
         update_dttm: datetime,
         state: str | None = None,
-        attrs: MutableMapping[str, Any] | None = None,
+        attrs: dict[str, Any] | None = None,
     ) -> None:
         """Setu up update at given time."""
         self._updates.append(
@@ -898,6 +904,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                         self._astral_event(
                             self._cp.mid_date + offset if offset else self._cp.mid_date,
                             "time_at_elevation",
+                            False,
                             elevation=elev,
                             direction=SunDirection.RISING
                             if self._cp.rising
@@ -912,7 +919,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                     ONE_DAY if est_dttm < self._cp.tl_dttm else -ONE_DAY
                 )
                 if not self._cp.tl_dttm <= est_dttm < self._cp.tr_dttm:
-                    raise ValueError
+                    raise ValueError  # noqa: TRY301
         except (AttributeError, TypeError, ValueError) as exc:
             if not isinstance(exc, ValueError):
                 # time_at_elevation doesn't always work around solar midnight & solar
@@ -925,7 +932,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
                     "%s: time_at_elevation(%0.3f) outside [tL, tR): %s",
                     self.name,
                     elev,
-                    est_dttm,
+                    self._as_tz(est_dttm),
                 )
             t0_dttm = self._cp.tl_dttm
             t1_dttm = self._cp.tr_dttm
@@ -969,7 +976,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         if self._updates:
             return
 
-        start_update = dt_util.now()
+        start_update = dt_util.utcnow()
 
         # Astral package ignores microseconds, so round to nearest second
         # before continuing.
@@ -991,7 +998,7 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
             self._attr_native_value = self._state_at_elev(cur_elev)
         self._set_attrs(self._attrs_at_elev(cur_elev), self._updates[0].when)
 
-        LOGGER.debug("%s: _update time: %s", self.name, dt_util.now() - start_update)
+        LOGGER.debug("%s: _update time: %s", self.name, dt_util.utcnow() - start_update)
 
 
 class Sun2PhaseSensor(Sun2PhaseSensorBase):
@@ -1010,8 +1017,8 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
             (90, None),
         )
         elevs, states = cast(
-            tuple[tuple[Num], tuple[Optional[str]]],
-            zip(*phases),
+            tuple[tuple[Num], tuple[str | None]],
+            zip(*phases, strict=True),
         )
         rising_elevs = sorted([*elevs[1:-1], -4, 6])
         rising_states = phases[:-1]
@@ -1019,7 +1026,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
         falling_states = tuple(
             cast(
                 tuple[tuple[Num, str]],
-                zip(elevs[1:], states[:-1]),
+                zip(elevs[1:], states[:-1], strict=True),
             )
         )[::-1]
         super().__init__(
@@ -1029,7 +1036,7 @@ class Sun2PhaseSensor(Sun2PhaseSensorBase):
             PhaseData(rising_elevs, rising_states, falling_elevs, falling_states),
         )
 
-    def _attrs_at_elev(self, elev: Num) -> MutableMapping[str, Any]:
+    def _attrs_at_elev(self, elev: Num) -> dict[str, Any]:
         """Return attributes at elevation."""
         assert self._cp
 
@@ -1064,21 +1071,21 @@ class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
             (90, None, "solar_noon"),
         )
         elevs, r_states, f_states = cast(
-            tuple[tuple[Num], tuple[Optional[str]], tuple[Optional[str]]],
-            zip(*phases),
+            tuple[tuple[Num], tuple[str | None], tuple[str | None]],
+            zip(*phases, strict=True),
         )
         rising_elevs = elevs[1:-1]
         rising_states = tuple(
             cast(
                 tuple[tuple[Num, str]],
-                zip(elevs[:-1], r_states[:-1]),
+                zip(elevs[:-1], r_states[:-1], strict=True),
             )
         )
         falling_elevs = rising_elevs[::-1]
         falling_states = tuple(
             cast(
                 tuple[tuple[Num, str]],
-                zip(elevs[1:], f_states[1:]),
+                zip(elevs[1:], f_states[1:], strict=True),
             )
         )[::-1]
         super().__init__(
@@ -1088,7 +1095,7 @@ class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
             PhaseData(rising_elevs, rising_states, falling_elevs, falling_states),
         )
 
-    def _attrs_at_elev(self, elev: Num) -> MutableMapping[str, Any]:
+    def _attrs_at_elev(self, elev: Num) -> dict[str, Any]:
         """Return attributes at elevation."""
         assert self._cp
 

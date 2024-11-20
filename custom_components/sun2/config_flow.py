@@ -255,8 +255,8 @@ class Sun2Flow(FlowHandler):
 
         if obs_elv := self.options.get(CONF_OBS_ELV):
             suggested_values = {
-                CONF_SUNRISE_OBSTRUCTION: not isinstance(obs_elv[0], Num),  # type: ignore[misc, arg-type]
-                CONF_SUNSET_OBSTRUCTION: not isinstance(obs_elv[1], Num),  # type: ignore[misc, arg-type]
+                CONF_SUNRISE_OBSTRUCTION: not isinstance(obs_elv[0], Num),
+                CONF_SUNSET_OBSTRUCTION: not isinstance(obs_elv[1], Num),
             }
         else:
             suggested_values = {
@@ -297,7 +297,7 @@ class Sun2Flow(FlowHandler):
                 self.options[CONF_ELEVATION] = above_ground
             return await self.async_step_entities_menu()
 
-        schema: dict[str, Any] = {}
+        schema: dict[vol.Schemable, Any] = {}
         if get_above_ground:
             schema[vol.Required(CONF_ABOVE_GROUND)] = _POSITIVE_METERS_SELECTOR
         if self._sunrise_obstruction:
@@ -312,11 +312,11 @@ class Sun2Flow(FlowHandler):
         sunrise_distance = sunset_distance = 1000
         sunrise_relative_height = sunset_relative_height = 1000
         if obs_elv := self.options.get(CONF_OBS_ELV):
-            if isinstance(obs_elv[0], Num):  # type: ignore[misc, arg-type]
+            if isinstance(obs_elv[0], Num):
                 above_ground = obs_elv[0]
             else:
                 sunrise_relative_height, sunrise_distance = obs_elv[0]
-            if isinstance(obs_elv[1], Num):  # type: ignore[misc, arg-type]
+            if isinstance(obs_elv[1], Num):
                 # If both directions use above_ground, they should be the same.
                 # Assume this is true and don't bother checking here.
                 above_ground = obs_elv[1]

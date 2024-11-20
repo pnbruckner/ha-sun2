@@ -42,7 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 _COERCE_NUM = vol.Any(vol.Coerce(int), vol.Coerce(float))
 
 PACKAGE_MERGE_HINT = "list"
-SUN_DIRECTIONS = [dir.lower() for dir in SunDirection.__members__]
+SUN_DIRECTIONS = [sd.lower() for sd in SunDirection.__members__]
 SUN2_LOCATION_BASE_SCHEMA = vol.Schema(
     {
         vol.Inclusive(CONF_LATITUDE, "location"): cv.latitude,
@@ -157,19 +157,19 @@ def obs_elv_from_options(
     if obs_elv_option := options.get(CONF_OBS_ELV):
         east_obs_elv, west_obs_elv = obs_elv_option
 
-        if isinstance(east_obs_elv, Num) and isinstance(west_obs_elv, Num):  # type: ignore[misc, arg-type]
+        if isinstance(east_obs_elv, Num) and isinstance(west_obs_elv, Num):
             assert east_obs_elv == west_obs_elv
             return cast(Num, east_obs_elv)
 
         obs_elv: ConfigType = {}
-        if isinstance(east_obs_elv, Num):  # type: ignore[misc, arg-type]
+        if isinstance(east_obs_elv, Num):
             obs_elv[CONF_ABOVE_GROUND] = east_obs_elv
         else:
             obs_elv[CONF_SUNRISE_OBSTRUCTION] = {
                 CONF_DISTANCE: east_obs_elv[1],
                 CONF_RELATIVE_HEIGHT: east_obs_elv[0],
             }
-        if isinstance(west_obs_elv, Num):  # type: ignore[misc, arg-type]
+        if isinstance(west_obs_elv, Num):
             obs_elv[CONF_ABOVE_GROUND] = west_obs_elv
         else:
             obs_elv[CONF_SUNSET_OBSTRUCTION] = {
@@ -230,7 +230,7 @@ def options_from_obs_elv(
             )
             east_obs_elv = west_obs_elv = hass.config.elevation
 
-        elif isinstance(obs := loc_config[CONF_OBS_ELV], Num):  # type: ignore[misc, arg-type]
+        elif isinstance(obs := loc_config[CONF_OBS_ELV], Num):
             east_obs_elv = west_obs_elv = obs
 
         else:
