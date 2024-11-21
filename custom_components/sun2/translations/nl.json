@@ -176,6 +176,11 @@
             }
         }
     },
+    "device": {
+        "service": {
+            "name": "Zon van {location}"
+        }
+    },
     "entity": {
         "binary_sensor": {
             "elevation": {
@@ -444,7 +449,6 @@
                 "elevation_at": "Hoogtehoek op {elev_time}",
                 "rising_neg_elev": "Opkomst bij min {elevation} °",
                 "rising_pos_elev": "Opkomst bij {elevation} °",
-                "service_name": "Zon van {location}",
                 "setting_neg_elev": "Ondergang bij min {elevation} °",
                 "setting_pos_elev": "Ondergang bij {elevation} °"
             }

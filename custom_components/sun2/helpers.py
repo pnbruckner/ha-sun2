@@ -32,14 +32,7 @@ try:
 except ImportError:
     from homeassistant.core import Config  # type: ignore[no-redef]
 
-from homeassistant.helpers.device_registry import DeviceEntryType
-
-# DeviceInfo moved to device_registry in 2023.9
-try:
-    from homeassistant.helpers.device_registry import DeviceInfo
-except ImportError:
-    from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
-
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -291,7 +284,8 @@ def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         entry_type=DeviceEntryType.SERVICE,
         identifiers={(DOMAIN, entry.entry_id)},
-        name=translate(hass, "service_name", {"location": entry.title}),
+        translation_key="service",
+        translation_placeholders={"location": entry.title},
     )
 
 
