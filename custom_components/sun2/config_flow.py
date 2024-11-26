@@ -13,7 +13,9 @@ from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import (
     SOURCE_IMPORT,
     ConfigEntry,
+    ConfigEntryBaseFlow,
     ConfigFlow,
+    ConfigFlowResult,
     OptionsFlowWithConfigEntry,
 )
 from homeassistant.const import (
@@ -31,7 +33,6 @@ from homeassistant.const import (
     UnitOfLength,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowHandler, FlowResult
 from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
@@ -104,7 +105,7 @@ def loc_from_options(
     return hass.config.latitude, hass.config.longitude, hass.config.time_zone
 
 
-class Sun2Flow(FlowHandler):
+class Sun2Flow(ConfigEntryBaseFlow):
     """Sun2 flow mixin."""
 
     _existing_entries: list[ConfigEntry] | None = None
@@ -154,7 +155,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_location_menu(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Provide options for how to enter location."""
         menu_options = ["location_map", "location_manual"]
         kwargs = {}
@@ -171,21 +172,21 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_location_map(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Enter location via a map."""
         self._use_map = True
         return await self.async_step_location()
 
     async def async_step_location_manual(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Enter location manually."""
         self._use_map = False
         return await self.async_step_location()
 
     async def async_step_location(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle location options."""
         errors: dict[str, str] = {}
 
@@ -239,7 +240,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_observer_elevation(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle observer elevation options."""
         if user_input is not None:
             self._sunrise_obstruction = user_input[CONF_SUNRISE_OBSTRUCTION]
@@ -271,7 +272,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_obs_elv_values(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle observer elevation option values."""
         get_above_ground = not self._sunrise_obstruction or not self._sunset_obstruction
 
@@ -339,7 +340,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_entities_menu(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle entity options."""
         await init_translations(self.hass)
         menu_options = ["add_entities_menu"]
@@ -350,7 +351,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_add_entities_menu(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Add entities."""
         menu_options = [
             "elevation_binary_sensor",
@@ -364,7 +365,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_elevation_binary_sensor(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle elevation binary sensor options."""
         if user_input is not None:
             if user_input["use_horizon"]:
@@ -381,7 +382,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_elevation_binary_sensor_2(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle additional elevation binary sensor options."""
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_BINARY_SENSORS)
@@ -405,7 +406,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_elevation_at_time_sensor_menu(
         self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Ask elevation_at_time type."""
         menu_options = [
             "elevation_at_time_sensor_entity",
@@ -417,7 +418,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_elevation_at_time_sensor_entity(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle elevation_at_time sensor options w/ input_datetime entity."""
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
@@ -436,7 +437,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_elevation_at_time_sensor_time(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle elevation_at_time sensor options w/ time string."""
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
@@ -455,7 +456,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_time_at_elevation_sensor(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle time_at_elevation sensor options."""
         if user_input is not None:
             return await self.async_finish_sensor(user_input, CONF_SENSORS)
@@ -483,7 +484,7 @@ class Sun2Flow(FlowHandler):
         self,
         config: dict[str, Any],
         sensor_type: str,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Finish elevation binary sensor."""
         config[CONF_UNIQUE_ID] = random_uuid_hex()
         self.options.setdefault(sensor_type, []).append(config)
@@ -491,7 +492,7 @@ class Sun2Flow(FlowHandler):
 
     async def async_step_remove_entities(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Remove entities added previously."""
 
         def delete_entity(unique_id: str) -> None:
@@ -525,7 +526,9 @@ class Sun2Flow(FlowHandler):
         )
 
     @abstractmethod
-    async def async_step_done(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_done(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Finish the flow."""
 
 
@@ -565,7 +568,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         """Return mutable copy of options."""
         return self._options
 
-    async def async_step_import(self, data: dict[str, Any]) -> FlowResult:
+    async def async_step_import(self, data: dict[str, Any]) -> ConfigFlowResult:
         """Import config entry from configuration."""
 
         async def reload(entry: ConfigEntry) -> None:
@@ -584,7 +587,9 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
         return self.async_create_entry(title=title, data={}, options=data)
 
-    async def async_step_user(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Start user config flow."""
         if not self._any_using_ha_loc():
             return await self.async_step_use_home()
@@ -592,7 +597,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     async def async_step_use_home(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Ask user if entry should use Home Assistant's name & location."""
         if user_input is not None:
             if user_input["use_home"]:
@@ -611,7 +616,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     async def async_step_location_name(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Get location name."""
         errors = {}
 
@@ -635,7 +640,9 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
             last_step=False,
         )
 
-    async def async_step_done(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_done(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Finish the flow."""
         return self.async_create_entry(
             title=cast(str, self._location_name), data={}, options=self.options
@@ -645,6 +652,8 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 class Sun2OptionsFlow(OptionsFlowWithConfigEntry, Sun2Flow):
     """Sun2 integration options flow."""
 
-    async def async_step_done(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_done(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Finish the flow."""
         return self.async_create_entry(title="", data=self.options or {})
