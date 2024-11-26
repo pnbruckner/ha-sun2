@@ -38,6 +38,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
+from homeassistant.util.hass_dict import HassKey
 
 from .const import (
     ATTR_NEXT_CHANGE,
@@ -56,6 +57,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 Num = float | int
+SUN2_DATA: HassKey[Sun2Data] = HassKey(DOMAIN)
 
 
 @dataclass(frozen=True)
@@ -231,15 +233,15 @@ class Sun2Data:
 
 async def init_sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Initialize Sun2 integration data."""
-    if DOMAIN not in hass.data:
+    if SUN2_DATA not in hass.data:
         loc_data = await async_get_loc_data(hass, hass.config)
-        hass.data[DOMAIN] = Sun2Data(loc_data)
-    return cast(Sun2Data, hass.data[DOMAIN])
+        hass.data[SUN2_DATA] = Sun2Data(loc_data)
+    return hass.data[SUN2_DATA]
 
 
 def sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Return Sun2 integration data."""
-    return cast(Sun2Data, hass.data[DOMAIN])
+    return hass.data[SUN2_DATA]
 
 
 def hours_to_hms(hours: Num | None) -> str | None:
