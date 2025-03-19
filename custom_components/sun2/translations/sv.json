@@ -455,10 +455,10 @@
             "sun_phase": {
                 "name": "Fas",
                 "state": {
-                    "astronomical_twilight": "Astronomisk skymning",
-                    "civil_twilight": "Borgerlig skymning",
+                    "astronomical_twilight": "Astronomiskt halvmörker",
+                    "civil_twilight": "Borgerligt halvmörker",
                     "day": "Dag",
-                    "nautical_twilight": "Nautisk skymning",
+                    "nautical_twilight": "Nautiskt halvmörker",
                     "night": "Natt"
                 },
                 "state_attributes": {
