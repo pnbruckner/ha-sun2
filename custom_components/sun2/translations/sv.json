@@ -543,7 +543,7 @@
         },
         "reload": {
             "name": "Ladda om",
-            "description": "Laddar om Sun2 från YAML-konfigurationen."
+            "description": "Laddar om Sol2 från YAML-konfigurationen."
         },
         "update_location": {
             "name": "Uppdatera plats",
@@ -551,7 +551,7 @@
             "fields": {
                 "location": {
                     "name": "Plats",
-                    "description": "Namn på Sun2-integrationspost. YAML-baserade poster stöds ej."
+                    "description": "Namn på Sol2-integrationspost. YAML-baserade poster stöds ej."
                 },
                 "latitude": {
                     "name": "Latitud",
