@@ -519,14 +519,14 @@
         "misc": {
             "options": {
                 "above_horizon": "Över horisonten",
-                "above_neg_elev": "Över minus {elevation} °",
-                "above_pos_elev": "Över {elevation} °",
+                "above_neg_elev": "Över minus {elevation}°",
+                "above_pos_elev": "Över {elevation}°",
                 "elevation_at": "Solhöjd vid {elev_time}",
-                "rising_neg_elev": "Stigande vid minus {elevation} °",
-                "rising_pos_elev": "Stigande vid {elevation} °",
+                "rising_neg_elev": "Stigande vid minus {elevation}°",
+                "rising_pos_elev": "Stigande vid {elevation}°",
                 "service_name": "{location} Sol",
-                "setting_neg_elev": "Sjunkande vid minus {elevation} °",
-                "setting_pos_elev": "Sjunkande vid {elevation} °"
+                "setting_neg_elev": "Sjunkande vid minus {elevation}°",
+                "setting_pos_elev": "Sjunkande vid {elevation}°"
             }
         }
     },
