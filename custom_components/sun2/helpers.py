@@ -11,7 +11,7 @@ from functools import (  # pylint: disable=hass-deprecated-import
 )
 import logging
 from math import copysign, fabs
-from typing import Any, Self, cast, overload
+from typing import Any, Self, cast
 
 from astral import LocationInfo
 from astral.location import Location
@@ -30,7 +30,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 try:
     from homeassistant.core_config import Config
 except ImportError:
-    from homeassistant.core import Config  # type: ignore[no-redef]
+    from homeassistant.core import Config
 
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -118,18 +118,6 @@ def _get_loc_data(lp: LocParams | None) -> LocData | None:
     if lp is None:
         return None
     return LocData.from_loc_params(lp)
-
-
-@overload
-async def async_get_loc_data(hass: HomeAssistant, arg: Config) -> LocData:
-    ...
-
-
-@overload
-async def async_get_loc_data(
-    hass: HomeAssistant, arg: Mapping[str, Any]
-) -> LocData | None:
-    ...
 
 
 async def async_get_loc_data(
@@ -234,7 +222,7 @@ class Sun2Data:
 async def init_sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Initialize Sun2 integration data."""
     if SUN2_DATA not in hass.data:
-        loc_data = await async_get_loc_data(hass, hass.config)
+        loc_data = cast(LocData, await async_get_loc_data(hass, hass.config))
         hass.data[SUN2_DATA] = Sun2Data(loc_data)
     return hass.data[SUN2_DATA]
 
