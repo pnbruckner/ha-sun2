@@ -465,7 +465,7 @@
                     "blue_hour": {"name": "Blå timmen"},
                     "golden_hour": {"name": "Gyllene timmen"},
                     "next_change": {"name": "Nästa ändring"},
-                    "rising": {"name": "Soluppgång"}
+                    "rising": {"name": "Stigande"}
                 }
             },
             "sunrise": {
