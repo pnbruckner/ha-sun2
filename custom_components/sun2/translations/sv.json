@@ -252,81 +252,81 @@
             "astronomical_daylight": {
                 "name": "Astronomiskt dagsljus",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "astronomical_dawn": {
                 "name": "Astronomisk gryning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "astronomical_dusk": {
                 "name": "Astronomisk skymning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "astronomical_night": {
                 "name": "Astronomisk natt",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "azimuth": {"name": "Azimut"},
             "civil_daylight": {
                 "name": "Borgerligt dagsljus",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "civil_night": {
                 "name": "Borgerlig natt",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "daylight": {
                 "name": "Dagsljus",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "dawn": {
                 "name": "Gryning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "deconz_daylight": {
@@ -353,9 +353,9 @@
             "dusk": {
                 "name": "Skymning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "elevation": {
@@ -366,90 +366,90 @@
             },
             "elevation_at_time": {
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "max_elevation": {
                 "name": "Högsta solhöjd",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "min_elevation": {
                 "name": "Lägsta solhöjd",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "nautical_daylight": {
                 "name": "Nautiskt dagsljus",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "nautical_dawn": {
                 "name": "Nautisk gryning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "nautical_dusk": {
                 "name": "Nautisk skymning",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "nautical_night": {
                 "name": "Nautisk natt",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "night": {
                 "name": "Natt",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "today_hms": {"name": "Idag hms"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "tomorrow_hms": {"name": "Imorgon hms"},
-                    "yesterday": {"name": "Igår"},
-                    "yesterday_hms": {"name": "Igår hms"}
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
                 }
             },
             "solar_midnight": {
                 "name": "Sann midnatt",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "solar_noon": {
                 "name": "Sann middag",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "sun_phase": {
@@ -471,40 +471,40 @@
             "sunrise": {
                 "name": "Soluppgång",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "sunrise_azimuth": {
                 "name": "Soluppgång azimut",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "sunset": {
                 "name": "Solnedgång",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "sunset_azimuth": {
                 "name": "Solnedgång azimut",
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             },
             "time_at_elevation": {
                 "state_attributes": {
-                    "today": {"name": "Idag"},
-                    "tomorrow": {"name": "Imorgon"},
-                    "yesterday": {"name": "Igår"}
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
                 }
             }
         }
