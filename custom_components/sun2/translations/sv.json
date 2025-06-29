@@ -7,15 +7,15 @@
                 "description": "Välj typ av entitet att lägga till",
                 "menu_options": {
                     "done": "Färdig",
-                    "elevation_at_time_sensor_menu": "Solhöjd-vid-tid-sensor",
-                    "elevation_binary_sensor": "Binär gränsvärdessensor för solhöjd",
-                    "time_at_elevation_sensor": "Tid-vid-solhöjd-sensor"
+                    "elevation_at_time_sensor_menu": "Sensor för solhöjd vid given tid",
+                    "elevation_binary_sensor": "Binär tröskelvärdessensor för solhöjd",
+                    "time_at_elevation_sensor": "Sensor för tid vid given solhöjd"
                 }
             },
             "elevation_at_time_sensor_menu": {
                 "title": "Tidskälla för solhöjd-vid-tid",
                 "menu_options": {
-                    "elevation_at_time_sensor_entity": "Tid från en input_datetime-entitet",
+                    "elevation_at_time_sensor_entity": "Tid från en entitet",
                     "elevation_at_time_sensor_time": "Välj en tid på dygnet"
                 }
             },
@@ -34,13 +34,13 @@
                 }
             },
             "elevation_binary_sensor": {
-                "title": "Alternativ för binär gränsvärdessensor",
+                "title": "Alternativ för binär tröskelvärdessensor",
                 "data": {
                     "use_horizon": "Använd horisonten som solhöjdsgräns"
                 }
             },
             "elevation_binary_sensor_2": {
-                "title": "Binär gränsvärdessensor för solhöjd",
+                "title": "Binär tröskelvärdessensor för solhöjd",
                 "data": {
                     "elevation": "Solhöjd",
                     "name": "Sensornamn"
@@ -80,8 +80,8 @@
                 "title": "Siktförhållanden",
                 "description": "För vardera riktning, välj om solens bana skyms av något hinder, t.ex. ett berg.",
                 "data": {
-                    "sunrise_obstruction": "Soluppgång & gryning påverkas av ett hinder",
-                    "sunset_obstruction": "Solnedgång & skymning påverkas av ett hinder"
+                    "sunrise_obstruction": "Soluppgång och gryning påverkas av ett hinder",
+                    "sunset_obstruction": "Solnedgång och skymning påverkas av ett hinder"
                 }
             },
             "obs_elv_values": {
@@ -126,15 +126,15 @@
                 "description": "Välj typ av entitet att lägga till",
                 "menu_options": {
                     "done": "Färdig",
-                    "elevation_at_time_sensor_menu": "Solhöjd-vid-tid-sensor",
-                    "elevation_binary_sensor": "Binär gränsvärdessensor för solhöjd",
-                    "time_at_elevation_sensor": "Tid-vid-solhöjd-sensor"
+                    "elevation_at_time_sensor_menu": "Sensor för solhöjd vid given tid",
+                    "elevation_binary_sensor": "Binär tröskelvärdessensor för solhöjd",
+                    "time_at_elevation_sensor": "Sensor för tid vid given solhöjd"
                 }
             },
             "elevation_at_time_sensor_menu": {
                 "title": "Tidskälla för solhöjd-vid-tid",
                 "menu_options": {
-                    "elevation_at_time_sensor_entity": "Tid från en input_datetime-entitet",
+                    "elevation_at_time_sensor_entity": "Tid från en entitet",
                     "elevation_at_time_sensor_time": "Välj en tid på dygnet"
                 }
             },
@@ -153,13 +153,13 @@
                 }
             },
             "elevation_binary_sensor": {
-                "title": "Alternativ för binär gränsvärdessensor",
+                "title": "Alternativ för binär tröskelvärdessensor",
                 "data": {
                     "use_horizon": "Använd horisonten som solhöjdsgräns"
                 }
             },
             "elevation_binary_sensor_2": {
-                "title": "Binär gränsvärdessensor för solhöjd",
+                "title": "Binär tröskelvärdessensor för solhöjd",
                 "data": {
                     "elevation": "Solhöjd",
                     "name": "Sensornamn"
@@ -196,8 +196,8 @@
                 "title": "Siktförhållanden",
                 "description": "För vardera riktning, välj om solens bana skyms av något hinder, t.ex. ett berg.",
                 "data": {
-                    "sunrise_obstruction": "Soluppgång & gryning påverkas av ett hinder",
-                    "sunset_obstruction": "Solnedgång & skymning påverkas av ett hinder"
+                    "sunrise_obstruction": "Soluppgång och gryning påverkas av ett hinder",
+                    "sunset_obstruction": "Solnedgång och skymning påverkas av ett hinder"
                 }
             },
             "obs_elv_values": {
@@ -250,7 +250,7 @@
         },
         "sensor": {
             "astronomical_daylight": {
-                "name": "Astronomiskt dagsljus",
+                "name": "Astronomisk dagslängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -277,7 +277,7 @@
                 }
             },
             "astronomical_night": {
-                "name": "Astronomisk natt",
+                "name": "Astronomisk nattlängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -289,7 +289,7 @@
             },
             "azimuth": {"name": "Azimut"},
             "civil_daylight": {
-                "name": "Borgerligt dagsljus",
+                "name": "Borgerlig dagslängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -300,7 +300,7 @@
                 }
             },
             "civil_night": {
-                "name": "Borgerlig natt",
+                "name": "Borgerlig nattlängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -311,7 +311,7 @@
                 }
             },
             "daylight": {
-                "name": "Dagsljus",
+                "name": "Dagslängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -330,7 +330,7 @@
                 }
             },
             "deconz_daylight": {
-                "name": "deCONZ dagsljus",
+                "name": "deCONZ fas",
                 "state": {
                     "dawn": "Gryning",
                     "dusk": "Skymning",
@@ -388,7 +388,7 @@
                 }
             },
             "nautical_daylight": {
-                "name": "Nautiskt dagsljus",
+                "name": "Nautisk dagslängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -415,7 +415,7 @@
                 }
             },
             "nautical_night": {
-                "name": "Nautisk natt",
+                "name": "Nautisk nattlängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -426,7 +426,7 @@
                 }
             },
             "night": {
-                "name": "Natt",
+                "name": "Nattlängd",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "today_hms": {"name": "I dag hms"},
@@ -567,7 +567,7 @@
                 },
                 "observer_elevation": {
                     "name": "Betraktarhöjd",
-                    "description": "Höjd över marknivå, eller minst två utav 'above_ground', 'sunrise_obstruction' eller 'sunset_obstruction'."
+                    "description": "Höjd över marknivå, eller två utav 'above_ground', 'sunrise_obstruction' och 'sunset_obstruction'."
                 }
             }
         }
