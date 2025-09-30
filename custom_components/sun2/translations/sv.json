@@ -1,0 +1,575 @@
+{
+    "title": "Sol2",
+    "config": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Lägg till entiteter",
+                "description": "Välj typ av entitet att lägga till",
+                "menu_options": {
+                    "done": "Färdig",
+                    "elevation_at_time_sensor_menu": "Sensor för solhöjd vid given tid",
+                    "elevation_binary_sensor": "Binär tröskelvärdessensor för solhöjd",
+                    "time_at_elevation_sensor": "Sensor för tid vid given solhöjd"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Tidskälla för solhöjd-vid-tid",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "Tid från en entitet",
+                    "elevation_at_time_sensor_time": "Välj en tid på dygnet"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Alternativ för solhöjd-vid-tid",
+                "data": {
+                    "elevation_at_time": "Entitets-ID för tidskälla",
+                    "name": "Sensornamn"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Alternativ för solhöjd-vid-tid",
+                "data": {
+                    "elevation_at_time": "Tid",
+                    "name": "Sensornamn"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Alternativ för binär tröskelvärdessensor",
+                "data": {
+                    "use_horizon": "Använd horisonten som solhöjdsgräns"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Binär tröskelvärdessensor för solhöjd",
+                "data": {
+                    "elevation": "Solhöjd",
+                    "name": "Sensornamn"
+                }
+            },
+            "entities_menu": {
+                "title": "Ytterligare entiteter",
+                "menu_options": {
+                    "add_entities_menu": "Lägg till entiteter",
+                    "done": "Färdig"
+                }
+            },
+            "location": {
+                "title": "Platsalternativ",
+                "data": {
+                    "location": "Plats",
+                    "time_zone": "Tidszon"
+                },
+                "data_description": {
+                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "location_menu": {
+                "title": "Metod för val av plats",
+                "menu_options": {
+                    "location_manual": "Ange latitud och longitud manuellt",
+                    "location_map": "Välj plats från en karta"
+                }
+            },
+            "location_name": {
+                "title": "Platsnamn",
+                "data": {
+                    "name": "Namn"
+                }
+            },
+            "observer_elevation": {
+                "title": "Siktförhållanden",
+                "description": "För vardera riktning, välj om solens bana skyms av något hinder, t.ex. ett berg.",
+                "data": {
+                    "sunrise_obstruction": "Soluppgång och gryning påverkas av ett hinder",
+                    "sunset_obstruction": "Solnedgång och skymning påverkas av ett hinder"
+                }
+            },
+            "obs_elv_values": {
+                "title": "Höjddata för betraktare",
+                "data": {
+                    "above_ground": "Betraktarhöjd",
+                    "sunrise_distance": "Avstånd till hinder för soluppgång",
+                    "sunrise_relative_height": "Relativ höjd till hinder för soluppgång",
+                    "sunset_distance": "Avstånd till hinder för solnedgång",
+                    "sunset_relative_height": "Relativ höjd till hinder för solnedgång"
+                },
+                "data_description": {
+                    "above_ground": "Din höjd över MARKNIVÅ (inte höjd över HAV).",
+                    "sunrise_relative_height": "Höjd relativt till dig själv, vilket kan vara negativt om hindret är nedanför dig.",
+                    "sunset_relative_height": "Höjd relativt till dig själv, vilket kan vara negativt om hindret är nedanför dig."
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Alternativ för tid-vid-solhöjd-sensor",
+                "data": {
+                    "time_at_elevation": "Solhöjd",
+                    "direction": "Sol påväg upp eller ned",
+                    "icon": "Ikon",
+                    "name": "Namn"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Använd namn och plats ifrån Home Assistant"
+                }
+            }
+        },
+        "error": {
+            "invalid_location": "Ogiltigt platsvärde. Ange som: latitud, longitud",
+            "name_used": "Platsnamnet används redan."
+        }
+    },
+    "options": {
+        "step": {
+            "add_entities_menu": {
+                "title": "Lägg till entiteter",
+                "description": "Välj typ av entitet att lägga till",
+                "menu_options": {
+                    "done": "Färdig",
+                    "elevation_at_time_sensor_menu": "Sensor för solhöjd vid given tid",
+                    "elevation_binary_sensor": "Binär tröskelvärdessensor för solhöjd",
+                    "time_at_elevation_sensor": "Sensor för tid vid given solhöjd"
+                }
+            },
+            "elevation_at_time_sensor_menu": {
+                "title": "Tidskälla för solhöjd-vid-tid",
+                "menu_options": {
+                    "elevation_at_time_sensor_entity": "Tid från en entitet",
+                    "elevation_at_time_sensor_time": "Välj en tid på dygnet"
+                }
+            },
+            "elevation_at_time_sensor_entity": {
+                "title": "Alternativ för solhöjd-vid-tid",
+                "data": {
+                    "elevation_at_time": "Entitets-ID för tidskälla",
+                    "name": "Sensornamn"
+                }
+            },
+            "elevation_at_time_sensor_time": {
+                "title": "Alternativ för solhöjd-vid-tid",
+                "data": {
+                    "elevation_at_time": "Tid",
+                    "name": "Sensornamn"
+                }
+            },
+            "elevation_binary_sensor": {
+                "title": "Alternativ för binär tröskelvärdessensor",
+                "data": {
+                    "use_horizon": "Använd horisonten som solhöjdsgräns"
+                }
+            },
+            "elevation_binary_sensor_2": {
+                "title": "Binär tröskelvärdessensor för solhöjd",
+                "data": {
+                    "elevation": "Solhöjd",
+                    "name": "Sensornamn"
+                }
+            },
+            "entities_menu": {
+                "title": "Ytterligare entiteter",
+                "menu_options": {
+                    "add_entities_menu": "Lägg till entiteter",
+                    "done": "Färdig",
+                    "remove_entities": "Ta bort entiteter"
+                }
+            },
+            "location": {
+                "title": "Platsalternativ",
+                "data": {
+                    "location": "Plats",
+                    "time_zone": "Tidszon"
+                },
+                "data_description": {
+                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                }
+            },
+            "location_menu": {
+                "title": "Metod för val av plats",
+                "description": "Nuvarande plats: {location}\nNuvarande Tidszon: {time_zone}",
+                "menu_options": {
+                    "observer_elevation": "Behåll nuvarande inställning",
+                    "location_manual": "Ange latitud och longitud manuellt",
+                    "location_map": "Välj plats från en karta"
+                }
+            },
+            "observer_elevation": {
+                "title": "Siktförhållanden",
+                "description": "För vardera riktning, välj om solens bana skyms av något hinder, t.ex. ett berg.",
+                "data": {
+                    "sunrise_obstruction": "Soluppgång och gryning påverkas av ett hinder",
+                    "sunset_obstruction": "Solnedgång och skymning påverkas av ett hinder"
+                }
+            },
+            "obs_elv_values": {
+                "title": "Höjddata för betraktare",
+                "data": {
+                    "above_ground": "Betraktarhöjd",
+                    "sunrise_distance": "Avstånd till hinder för soluppgång",
+                    "sunrise_relative_height": "Relativ höjd till hinder för soluppgång",
+                    "sunset_distance": "Avstånd till hinder för solnedgång",
+                    "sunset_relative_height": "Relativ höjd till hinder för solnedgång"
+                },
+                "data_description": {
+                    "above_ground": "Din höjd över MARKNIVÅ (inte höjd över HAV).",
+                    "sunrise_relative_height": "Höjd relativt till dig själv, vilken kan vara negativ om hindret är nedanför dig.",
+                    "sunset_relative_height": "Höjd relativt till dig själv, vilken kan vara negativ om hindret är nedanför dig."
+                }
+            },
+            "remove_entities": {
+                "title": "Ta bort entiteter",
+                "data": {
+                    "choices": "Välj entiteter att ta bort"
+                }
+            },
+            "time_at_elevation_sensor": {
+                "title": "Alternativ för tid-vid-solhöjd-sensor",
+                "data": {
+                    "time_at_elevation": "Solhöjd",
+                    "direction": "Sol påväg upp eller ned",
+                    "icon": "Ikon",
+                    "name": "Namn"
+                }
+            },
+            "use_home": {
+                "data": {
+                    "use_home": "Använd namn och plats ifrån Home Assistant"
+                }
+            }
+        },
+        "error": {
+            "invalid_location": "Ogiltigt platsvärde. Ange som: latitud, longitud"
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            }
+        },
+        "sensor": {
+            "astronomical_daylight": {
+                "name": "Astronomisk dagslängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "astronomical_dawn": {
+                "name": "Astronomisk gryning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "astronomical_dusk": {
+                "name": "Astronomisk skymning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "astronomical_night": {
+                "name": "Astronomisk nattlängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "azimuth": {"name": "Azimut"},
+            "civil_daylight": {
+                "name": "Borgerlig dagslängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "civil_night": {
+                "name": "Borgerlig nattlängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "daylight": {
+                "name": "Dagslängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "dawn": {
+                "name": "Gryning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "deconz_daylight": {
+                "name": "deCONZ fas",
+                "state": {
+                    "dawn": "Gryning",
+                    "dusk": "Skymning",
+                    "golden_hour_1": "Gyllene timmen 1",
+                    "golden_hour_2": "Gyllene timmen 2",
+                    "nadir": "Nadir",
+                    "nautical_dawn": "Nautisk gryning",
+                    "nautical_dusk": "Nautisk skymning",
+                    "night_end": "Natt slut",
+                    "night_start": "Natt början",
+                    "solar_noon": "Sann middag",
+                    "sunrise_end": "Soluppgång slut",
+                    "sunrise_start": "Soluppgång början"
+                },
+                "state_attributes": {
+                    "daylight": {"name": "Dagsljus"},
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            },
+            "dusk": {
+                "name": "Skymning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "elevation": {
+                "name": "Solhöjd",
+                "state_attributes": {
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            },
+            "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "max_elevation": {
+                "name": "Högsta solhöjd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "min_elevation": {
+                "name": "Lägsta solhöjd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "nautical_daylight": {
+                "name": "Nautisk dagslängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "nautical_dawn": {
+                "name": "Nautisk gryning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "nautical_dusk": {
+                "name": "Nautisk skymning",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "nautical_night": {
+                "name": "Nautisk nattlängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "night": {
+                "name": "Nattlängd",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "today_hms": {"name": "I dag hms"},
+                    "tomorrow": {"name": "I morgon"},
+                    "tomorrow_hms": {"name": "I morgon hms"},
+                    "yesterday": {"name": "I går"},
+                    "yesterday_hms": {"name": "I går hms"}
+                }
+            },
+            "solar_midnight": {
+                "name": "Sann midnatt",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "solar_noon": {
+                "name": "Sann middag",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "sun_phase": {
+                "name": "Fas",
+                "state": {
+                    "astronomical_twilight": "Astronomiskt halvmörker",
+                    "civil_twilight": "Borgerligt halvmörker",
+                    "day": "Dag",
+                    "nautical_twilight": "Nautiskt halvmörker",
+                    "night": "Natt"
+                },
+                "state_attributes": {
+                    "blue_hour": {"name": "Blå timmen"},
+                    "golden_hour": {"name": "Gyllene timmen"},
+                    "next_change": {"name": "Nästa ändring"},
+                    "rising": {"name": "Stigande"}
+                }
+            },
+            "sunrise": {
+                "name": "Soluppgång",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "sunrise_azimuth": {
+                "name": "Soluppgång azimut",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "sunset": {
+                "name": "Solnedgång",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "sunset_azimuth": {
+                "name": "Solnedgång azimut",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "time_at_elevation": {
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            }
+        }
+    },
+    "selector": {
+        "direction": {
+            "options": {
+                "rising": "Stigande",
+                "setting": "Sjunkande"
+            }
+        },
+        "misc": {
+            "options": {
+                "above_horizon": "Över horisonten",
+                "above_neg_elev": "Över minus {elevation}°",
+                "above_pos_elev": "Över {elevation}°",
+                "elevation_at": "Solhöjd vid {elev_time}",
+                "rising_neg_elev": "Stigande vid minus {elevation}°",
+                "rising_pos_elev": "Stigande vid {elevation}°",
+                "service_name": "{location} Sol",
+                "setting_neg_elev": "Sjunkande vid minus {elevation}°",
+                "setting_pos_elev": "Sjunkande vid {elevation}°"
+            }
+        }
+    },
+    "services": {
+        "get_location": {
+            "name": "Hämta plats",
+            "description": "Hämta alternativ för plats.",
+            "fields": {
+                "location": {
+                    "name": "Plats",
+                    "description": "Namn på integrationspost."
+                }
+            }
+        },
+        "reload": {
+            "name": "Ladda om",
+            "description": "Laddar om Sol2 från YAML-konfigurationen."
+        },
+        "update_location": {
+            "name": "Uppdatera plats",
+            "description": "Uppdatera platsalternativ. OBS: Om någon av latitud, longitud eller tidszon anges så måste alla tre anges.",
+            "fields": {
+                "location": {
+                    "name": "Plats",
+                    "description": "Namn på Sol2-integrationspost. YAML-baserade poster stöds ej."
+                },
+                "latitude": {
+                    "name": "Latitud",
+                    "description": "Latitud"
+                },
+                "longitude": {
+                    "name": "Longitud",
+                    "description": "Longitud"
+                },
+                "time_zone": {
+                    "name": "Tidszon",
+                    "description": "Tidszon"
+                },
+                "observer_elevation": {
+                    "name": "Betraktarhöjd",
+                    "description": "Höjd över marknivå, eller två utav 'above_ground', 'sunrise_obstruction' och 'sunset_obstruction'."
+                }
+            }
+        }
+    }
+}
