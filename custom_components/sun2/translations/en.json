@@ -240,6 +240,11 @@
             "invalid_location": "Invalid location value. Enter as: latitude, longitude"
         }
     },
+    "device": {
+        "service": {
+            "name": "{location} Sun"
+        }
+    },
     "entity": {
         "binary_sensor": {
             "elevation": {
@@ -524,7 +529,6 @@
                 "elevation_at": "Elevation at {elev_time}",
                 "rising_neg_elev": "Rising at minus {elevation} °",
                 "rising_pos_elev": "Rising at {elevation} °",
-                "service_name": "{location} Sun",
                 "setting_neg_elev": "Setting at minus {elevation} °",
                 "setting_pos_elev": "Setting at {elevation} °"
             }

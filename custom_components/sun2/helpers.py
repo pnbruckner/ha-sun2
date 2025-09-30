@@ -11,7 +11,7 @@ from functools import (  # pylint: disable=hass-deprecated-import
 )
 import logging
 from math import copysign, fabs
-from typing import Any, Self, cast, overload
+from typing import Any, Self, cast
 
 from astral import LocationInfo
 from astral.location import Location
@@ -30,21 +30,15 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 try:
     from homeassistant.core_config import Config
 except ImportError:
-    from homeassistant.core import Config  # type: ignore[no-redef]
+    from homeassistant.core import Config
 
-from homeassistant.helpers.device_registry import DeviceEntryType
-
-# DeviceInfo moved to device_registry in 2023.9
-try:
-    from homeassistant.helpers.device_registry import DeviceInfo
-except ImportError:
-    from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
-
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
+from homeassistant.util.hass_dict import HassKey
 
 from .const import (
     ATTR_NEXT_CHANGE,
@@ -63,6 +57,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 Num = float | int
+SUN2_DATA: HassKey[Sun2Data] = HassKey(DOMAIN)
 
 
 @dataclass(frozen=True)
@@ -123,18 +118,6 @@ def _get_loc_data(lp: LocParams | None) -> LocData | None:
     if lp is None:
         return None
     return LocData.from_loc_params(lp)
-
-
-@overload
-async def async_get_loc_data(hass: HomeAssistant, arg: Config) -> LocData:
-    ...
-
-
-@overload
-async def async_get_loc_data(
-    hass: HomeAssistant, arg: Mapping[str, Any]
-) -> LocData | None:
-    ...
 
 
 async def async_get_loc_data(
@@ -238,15 +221,15 @@ class Sun2Data:
 
 async def init_sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Initialize Sun2 integration data."""
-    if DOMAIN not in hass.data:
-        loc_data = await async_get_loc_data(hass, hass.config)
-        hass.data[DOMAIN] = Sun2Data(loc_data)
-    return cast(Sun2Data, hass.data[DOMAIN])
+    if SUN2_DATA not in hass.data:
+        loc_data = cast(LocData, await async_get_loc_data(hass, hass.config))
+        hass.data[SUN2_DATA] = Sun2Data(loc_data)
+    return hass.data[SUN2_DATA]
 
 
 def sun2_data(hass: HomeAssistant) -> Sun2Data:
     """Return Sun2 integration data."""
-    return cast(Sun2Data, hass.data[DOMAIN])
+    return hass.data[SUN2_DATA]
 
 
 def hours_to_hms(hours: Num | None) -> str | None:
@@ -291,7 +274,8 @@ def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         entry_type=DeviceEntryType.SERVICE,
         identifiers={(DOMAIN, entry.entry_id)},
-        name=translate(hass, "service_name", {"location": entry.title}),
+        translation_key="service",
+        translation_placeholders={"location": entry.title},
     )
 
 

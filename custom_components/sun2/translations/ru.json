@@ -176,6 +176,11 @@
       }
     }
   },
+  "device": {
+    "service": {
+        "name": "{location} Солнце"
+    }
+  },
   "entity": {
     "binary_sensor": {
       "elevation": {
@@ -642,7 +647,6 @@
         "elevation_at": "Высота в {elev_time}",
         "rising_neg_elev": "Восход на высоте минус {elevation} °",
         "rising_pos_elev": "Восход на высоте {elevation} °",
-        "service_name": "{location} Солнце",
         "setting_neg_elev": "Закат на высоте минус {elevation} °",
         "setting_pos_elev": "Закат на высоте {elevation} °"
       }

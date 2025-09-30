@@ -31,7 +31,13 @@ from homeassistant.const import (
     EVENT_STATE_CHANGED,
     UnitOfTime,
 )
-from homeassistant.core import CALLBACK_TYPE, CoreState, Event, callback
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    CoreState,
+    Event,
+    EventStateChangedData,
+    callback,
+)
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_call_later,
@@ -255,7 +261,9 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             return
 
         @callback
-        def update_at_time(event: Event | None = None) -> None:
+        def update_at_time(
+            event: Event | Event[EventStateChangedData] | None = None,
+        ) -> None:
             """Update time from input_datetime entity."""
             self._at_time = None
             if event and event.event_type == EVENT_STATE_CHANGED:
