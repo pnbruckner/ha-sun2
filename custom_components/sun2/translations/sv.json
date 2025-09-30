@@ -240,6 +240,11 @@
             "invalid_location": "Ogiltigt platsvärde. Ange som: latitud, longitud"
         }
     },
+    "device": {
+        "service": {
+            "name": "{location} Sol"
+        }
+    },
     "entity": {
         "binary_sensor": {
             "elevation": {
@@ -524,7 +529,6 @@
                 "elevation_at": "Solhöjd vid {elev_time}",
                 "rising_neg_elev": "Stigande vid minus {elevation}°",
                 "rising_pos_elev": "Stigande vid {elevation}°",
-                "service_name": "{location} Sol",
                 "setting_neg_elev": "Sjunkande vid minus {elevation}°",
                 "setting_pos_elev": "Sjunkande vid {elevation}°"
             }
