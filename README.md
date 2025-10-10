@@ -62,7 +62,7 @@ Takes just one parameter, `location`, which is the name of the location, and is 
 Updates one or more parts of the location configuration options of the specified location.
 Takes one required parameter, `location`. (Same as `sun2.get_location` service.)
 Can also take location parameters (`latitude`, `longitude` & `time_zone`), which if any are specified, they must all be specified.
-Can also take observer elevation parameters (`obeserver_elevation`).
+Can also take observer elevation parameters (`observer_elevation`).
 These parameters are the same as specified below in the YAML configuration section.
 
 ## Configuration
