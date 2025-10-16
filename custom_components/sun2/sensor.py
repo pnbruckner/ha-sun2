@@ -40,7 +40,6 @@ from homeassistant.core import (
 )
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
-    async_call_later,
     async_track_point_in_utc_time,
     async_track_state_change_event,
 )
@@ -130,12 +129,6 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
         cur_dttm = nearest_second(cur_dttm)
         self._attr_native_value = self._astral_event(cur_dttm)
 
-        @callback
-        def async_schedule_update(now: datetime) -> None:
-            """Schedule entity update."""
-            self._unsub_update = None
-            self.async_schedule_update_ha_state(True)
-
         elevation = self._astral_event(cur_dttm, "solar_elevation")
         if elevation >= 10:
             delta = 4 * 60
@@ -147,7 +140,126 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
             delta = 8 * 60
         else:
             delta = 20 * 60
-        self._unsub_update = async_call_later(self.hass, delta, async_schedule_update)
+        self._schedule_update(delta)
+
+
+@dataclass
+class PhaseParams:
+    """Phase parameters."""
+
+    event: str
+    solar_depression: int | None
+    phase: str
+    blue_hour: bool
+    golden_hour: bool
+    rising: bool
+
+
+class Sun2PhaseSensor(Sun2Entity, SensorEntity):
+    """Sun2 Phase Sensor."""
+
+    _attr_native_value: str
+    _phase_params = (
+        PhaseParams("solar_midnight", None, "night", False, False, True),
+        PhaseParams("dawn", 18, "astronomical_twilight", False, False, True),
+        PhaseParams("dawn", 12, "nautical_twilight", False, False, True),
+        PhaseParams("dawn", 6, "civil_twilight", True, False, True),
+        PhaseParams("dawn", 4, "civil_twilight", False, True, True),
+        PhaseParams("sunrise", None, "day", False, True, True),
+        PhaseParams("dawn", -6, "day", False, False, True),
+        PhaseParams("solar_noon", None, "day", False, False, False),
+        PhaseParams("dusk", -6, "day", False, True, False),
+        PhaseParams("sunset", None, "civil_twilight", False, True, False),
+        PhaseParams("dusk", 4, "civil_twilight", True, False, False),
+        PhaseParams("dusk", 6, "nautical_twilight", False, False, False),
+        PhaseParams("dusk", 12, "astronomical_twilight", False, False, False),
+        PhaseParams("dusk", 18, "night", False, False, False),
+    )
+    _phase_idx: int | None = None
+
+    def __init__(
+        self, sun2_entity_params: Sun2EntityParams, sensor_type: str, icon: str | None
+    ) -> None:
+        """Initialize sensor."""
+        self.entity_description = SensorEntityDescription(
+            key=sensor_type,
+            device_class=SensorDeviceClass.ENUM,
+            entity_registry_enabled_default=sensor_type in _ENABLED_SENSORS,
+            icon=icon,
+            options=[
+                "night",
+                "astronomical_twilight",
+                "nautical_twilight",
+                "civil_twilight",
+                "day",
+            ],
+        )
+        super().__init__(sun2_entity_params)
+
+    def _update(self, cur_dttm: datetime) -> None:
+        """Update state."""
+        cur_date = self._as_tz(cur_dttm).date()
+
+        if self._phase_idx is None:
+            # Find phase that started before current time.
+            for phase_idx, phase_params in enumerate(self._phase_params):
+                if (solar_depression := phase_params.solar_depression) is not None:
+                    self._solar_depression = solar_depression
+                nxt_chg = cast(
+                    datetime, self._astral_event(cur_date, phase_params.event, False)
+                )
+                if nxt_chg > cur_dttm:
+                    if phase_idx == 0:
+                        # None of the phases started before current time.
+                        # Phase is last one of previous day.
+                        self._phase_idx = len(self._phase_params) - 1
+                        cur_date -= ONE_DAY
+                    else:
+                        # Previous phase started before current time.
+                        self._phase_idx = phase_idx - 1
+                    break
+            else:
+                # All of the phases started before current time.
+                # Current phase is the last one of today.
+                self._phase_idx = len(self._phase_params) - 1
+
+        cur_phase_params = self._phase_params[self._phase_idx]
+        self._phase_idx = (self._phase_idx + 1) % len(self._phase_params)
+        nxt_phase_params = self._phase_params[self._phase_idx]
+
+        if self._phase_idx == 0:
+            cur_date += ONE_DAY
+        if (solar_depression := nxt_phase_params.solar_depression) is not None:
+            self._solar_depression = solar_depression
+        nxt_chg = cast(
+            datetime, self._astral_event(cur_date, nxt_phase_params.event, False)
+        )
+
+        self._attr_native_value = cur_phase_params.phase
+        self._attr_icon = self._icon(cur_phase_params)
+        self._attr_extra_state_attributes = {
+            ATTR_BLUE_HOUR: cur_phase_params.blue_hour,
+            ATTR_GOLDEN_HOUR: cur_phase_params.golden_hour,
+            ATTR_RISING: cur_phase_params.rising,
+            ATTR_NEXT_CHANGE: self._as_tz(nxt_chg),
+        }
+
+        self._schedule_update(nxt_chg)
+
+    def _update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data."""
+        self._phase_idx = None
+        super()._update_astral_data(astral_data)
+
+    def _icon(self, phase_params: PhaseParams) -> str:
+        """Determine icon based on state."""
+        if phase_params.phase == "night":
+            return "mdi:weather-night"
+        if phase_params.phase == "day":
+            return "mdi:weather-sunny"
+        if phase_params.rising:
+            return "mdi:weather-sunset-up"
+        return "mdi:weather-sunset-down"
 
 
 class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
@@ -792,15 +904,7 @@ class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
 
         self._prv_dttm = cur_dttm
 
-        @callback
-        def async_schedule_update(now: datetime) -> None:
-            """Schedule entity update."""
-            self._unsub_update = None
-            self.async_schedule_update_ha_state(True)
-
-        self._unsub_update = async_track_point_in_utc_time(
-            self.hass, async_schedule_update, nxt_dttm
-        )
+        self._schedule_update(nxt_dttm)
 
 
 @dataclass(frozen=True)
@@ -1007,58 +1111,6 @@ class Sun2PhaseSensorBase(Sun2CPSensorEntity[str]):
         self._set_attrs(self._attrs_at_elev(cur_elev), self._updates[0].when)
 
         LOGGER.debug("%s: _update time: %s", self.name, dt_util.utcnow() - start_update)
-
-
-class Sun2PhaseSensor(Sun2PhaseSensorBase):
-    """Sun2 Phase Sensor."""
-
-    def __init__(
-        self, sun2_entity_params: Sun2EntityParams, sensor_type: str, icon: str | None
-    ) -> None:
-        """Initialize sensor."""
-        phases = (
-            (-90, "night"),
-            (-18, "astronomical_twilight"),
-            (-12, "nautical_twilight"),
-            (-6, "civil_twilight"),
-            (SUNSET_ELEV, "day"),
-            (90, None),
-        )
-        elevs, states = cast(
-            tuple[tuple[Num], tuple[str | None]],
-            zip(*phases, strict=True),
-        )
-        rising_elevs = sorted([*elevs[1:-1], -4, 6])
-        rising_states = phases[:-1]
-        falling_elevs = rising_elevs[::-1]
-        falling_states = tuple(
-            cast(
-                tuple[tuple[Num, str]],
-                zip(elevs[1:], states[:-1], strict=True),
-            )
-        )[::-1]
-        super().__init__(
-            sun2_entity_params,
-            sensor_type,
-            icon,
-            PhaseData(rising_elevs, rising_states, falling_elevs, falling_states),
-        )
-
-    def _attrs_at_elev(self, elev: Num) -> dict[str, Any]:
-        """Return attributes at elevation."""
-        assert self._cp
-
-        attrs = super()._attrs_at_elev(elev)
-        if self._cp.rising:
-            blue_hour = -6 <= elev < -4
-            golden_hour = -4 <= elev < 6
-        else:
-            blue_hour = -6 < elev <= -4
-            golden_hour = -4 < elev <= 6
-        attrs[ATTR_BLUE_HOUR] = blue_hour
-        attrs[ATTR_GOLDEN_HOUR] = golden_hour
-        attrs[ATTR_RISING] = self._cp.rising
-        return attrs
 
 
 class Sun2DeconzDaylightSensor(Sun2PhaseSensorBase):
