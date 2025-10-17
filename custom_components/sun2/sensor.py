@@ -1,10 +1,10 @@
 """Sun2 Sensor."""
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, time, timedelta
 from itertools import chain
 from math import ceil, floor
@@ -46,11 +46,8 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    ATTR_BLUE_HOUR,
     ATTR_DAYLIGHT,
-    ATTR_GOLDEN_HOUR,
     ATTR_NEXT_CHANGE,
-    ATTR_RISING,
     ATTR_TODAY,
     ATTR_TODAY_HMS,
     ATTR_TOMORROW,
@@ -143,38 +140,31 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
         self._schedule_update(delta)
 
 
-@dataclass
+@dataclass(frozen=True)
+class PhaseAttrs:
+    """Phase attributes."""
+
+
+@dataclass(frozen=True)
 class PhaseParams:
     """Phase parameters."""
 
     event: str
     solar_depression: int | None
     phase: str
-    blue_hour: bool
-    golden_hour: bool
-    rising: bool
+    attrs: PhaseAttrs
+
+    @property
+    def attributes(self) -> dict[str, Any]:
+        """Return attributes as a dictionary."""
+        return asdict(self.attrs)
 
 
-class Sun2PhaseSensor(Sun2Entity, SensorEntity):
-    """Sun2 Phase Sensor."""
+class PhaseSensor(Sun2Entity, SensorEntity, ABC):
+    """Phase sensor base."""
 
     _attr_native_value: str
-    _phase_params = (
-        PhaseParams("solar_midnight", None, "night", False, False, True),
-        PhaseParams("dawn", 18, "astronomical_twilight", False, False, True),
-        PhaseParams("dawn", 12, "nautical_twilight", False, False, True),
-        PhaseParams("dawn", 6, "civil_twilight", True, False, True),
-        PhaseParams("dawn", 4, "civil_twilight", False, True, True),
-        PhaseParams("sunrise", None, "day", False, True, True),
-        PhaseParams("dawn", -6, "day", False, False, True),
-        PhaseParams("solar_noon", None, "day", False, False, False),
-        PhaseParams("dusk", -6, "day", False, True, False),
-        PhaseParams("sunset", None, "civil_twilight", False, True, False),
-        PhaseParams("dusk", 4, "civil_twilight", True, False, False),
-        PhaseParams("dusk", 6, "nautical_twilight", False, False, False),
-        PhaseParams("dusk", 12, "astronomical_twilight", False, False, False),
-        PhaseParams("dusk", 18, "night", False, False, False),
-    )
+    _phase_params: tuple[PhaseParams, ...]
     _phase_idx: int | None = None
 
     def __init__(
@@ -186,15 +176,14 @@ class Sun2PhaseSensor(Sun2Entity, SensorEntity):
             device_class=SensorDeviceClass.ENUM,
             entity_registry_enabled_default=sensor_type in _ENABLED_SENSORS,
             icon=icon,
-            options=[
-                "night",
-                "astronomical_twilight",
-                "nautical_twilight",
-                "civil_twilight",
-                "day",
-            ],
+            options=self.phases,
         )
         super().__init__(sun2_entity_params)
+
+    @property
+    def phases(self) -> list[str]:
+        """Return list of phase state values."""
+        return sorted({params.phase for params in self._phase_params})
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -238,11 +227,8 @@ class Sun2PhaseSensor(Sun2Entity, SensorEntity):
         self._attr_native_value = cur_phase_params.phase
         self._attr_icon = self._icon(cur_phase_params)
         self._attr_extra_state_attributes = {
-            ATTR_BLUE_HOUR: cur_phase_params.blue_hour,
-            ATTR_GOLDEN_HOUR: cur_phase_params.golden_hour,
-            ATTR_RISING: cur_phase_params.rising,
             ATTR_NEXT_CHANGE: self._as_tz(nxt_chg),
-        }
+        } | cur_phase_params.attributes
 
         self._schedule_update(nxt_chg)
 
@@ -251,13 +237,47 @@ class Sun2PhaseSensor(Sun2Entity, SensorEntity):
         self._phase_idx = None
         super()._update_astral_data(astral_data)
 
+    @abstractmethod
+    def _icon(self, phase_params: PhaseParams) -> str:
+        """Determine icon based on state."""
+
+
+@dataclass(frozen=True)
+class Sun2PA(PhaseAttrs):
+    """Sun2 Phase Sensor attributes."""
+
+    blue_hour: bool
+    golden_hour: bool
+    rising: bool
+
+
+class Sun2PhaseSensor(PhaseSensor):
+    """Sun2 Phase Sensor."""
+
+    _phase_params: tuple[PhaseParams, ...] = (
+        PhaseParams("solar_midnight", None, "night", Sun2PA(False, False, True)),
+        PhaseParams("dawn", 18, "astronomical_twilight", Sun2PA(False, False, True)),
+        PhaseParams("dawn", 12, "nautical_twilight", Sun2PA(False, False, True)),
+        PhaseParams("dawn", 6, "civil_twilight", Sun2PA(True, False, True)),
+        PhaseParams("dawn", 4, "civil_twilight", Sun2PA(False, True, True)),
+        PhaseParams("sunrise", None, "day", Sun2PA(False, True, True)),
+        PhaseParams("dawn", -6, "day", Sun2PA(False, False, True)),
+        PhaseParams("solar_noon", None, "day", Sun2PA(False, False, False)),
+        PhaseParams("dusk", -6, "day", Sun2PA(False, True, False)),
+        PhaseParams("sunset", None, "civil_twilight", Sun2PA(False, True, False)),
+        PhaseParams("dusk", 4, "civil_twilight", Sun2PA(True, False, False)),
+        PhaseParams("dusk", 6, "nautical_twilight", Sun2PA(False, False, False)),
+        PhaseParams("dusk", 12, "astronomical_twilight", Sun2PA(False, False, False)),
+        PhaseParams("dusk", 18, "night", Sun2PA(False, False, False)),
+    )
+
     def _icon(self, phase_params: PhaseParams) -> str:
         """Determine icon based on state."""
         if phase_params.phase == "night":
             return "mdi:weather-night"
         if phase_params.phase == "day":
             return "mdi:weather-sunny"
-        if phase_params.rising:
+        if cast(Sun2PA, phase_params.attrs).rising:
             return "mdi:weather-sunset-up"
         return "mdi:weather-sunset-down"
 
