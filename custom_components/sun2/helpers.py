@@ -30,12 +30,13 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 try:
     from homeassistant.core_config import Config
 except ImportError:
-    from homeassistant.core import Config
+    from homeassistant.core import Config  # type: ignore[no-redef]
 
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_call_later, async_track_point_in_utc_time
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
@@ -347,6 +348,25 @@ class Sun2Entity(Entity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         self._setup_fixed_updating()
+
+    def _schedule_update(self, dttm_or_delta: datetime | Num) -> None:
+        """Schedule an update."""
+
+        @callback
+        def async_schedule_update(now: datetime) -> None:
+            """Schedule entity update."""
+            self._unsub_update = None
+            self.async_schedule_update_ha_state(True)
+
+        self._cancel_update()
+        if isinstance(dttm_or_delta, datetime):
+            self._unsub_update = async_track_point_in_utc_time(
+                self.hass, async_schedule_update, dttm_or_delta
+            )
+        else:
+            self._unsub_update = async_call_later(
+                self.hass, dttm_or_delta, async_schedule_update
+            )
 
     def _cancel_update(self) -> None:
         """Cancel update."""

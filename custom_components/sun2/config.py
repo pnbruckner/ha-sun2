@@ -159,7 +159,7 @@ def obs_elv_from_options(
 
         if isinstance(east_obs_elv, Num) and isinstance(west_obs_elv, Num):
             assert east_obs_elv == west_obs_elv
-            return cast(Num, east_obs_elv)
+            return east_obs_elv
 
         obs_elv: ConfigType = {}
         if isinstance(east_obs_elv, Num):
@@ -178,7 +178,7 @@ def obs_elv_from_options(
             }
         return obs_elv
 
-    return options.get(CONF_ELEVATION, hass.config.elevation)
+    return options.get(CONF_ELEVATION, hass.config.elevation)  # type: ignore[no-any-return]
 
 
 def _obs_elv(
