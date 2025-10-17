@@ -7,11 +7,9 @@ DOMAIN = "sun2"
 ELEV_STEP = 0.5
 MAX_ERR_ELEV = 0.02
 MAX_ERR_BIN = 0.001
-MAX_ERR_PHASE = 0.005
 
 SUNSET_ELEV = -0.833
 
-HALF_DAY = timedelta(days=0.5)
 ONE_DAY = timedelta(days=1)
 ONE_SEC = timedelta(seconds=1)
 
@@ -27,7 +25,6 @@ CONF_SUNRISE_OBSTRUCTION = "sunrise_obstruction"
 CONF_SUNSET_OBSTRUCTION = "sunset_obstruction"
 CONF_TIME_AT_ELEVATION = "time_at_elevation"
 
-ATTR_DAYLIGHT = "daylight"
 ATTR_NEXT_CHANGE = "next_change"
 ATTR_TODAY = "today"
 ATTR_TODAY_HMS = "today_hms"
