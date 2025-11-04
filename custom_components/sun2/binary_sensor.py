@@ -69,8 +69,10 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
 
         while not (
             (
-                (self._attr_is_on and tn_elev <= self._threshold)
-                or (not self._attr_is_on and tn_elev > self._threshold)
+                self._attr_is_on
+                and tn_elev <= self._threshold
+                or not self._attr_is_on
+                and tn_elev > self._threshold
             )
             and abs(tn_elev - self._threshold) <= MAX_ERR_BIN
         ):
