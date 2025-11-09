@@ -424,7 +424,7 @@ class Sun2DA(PhaseAttrs):
 class Sun2DeconzDaylightSensor(PhaseSensor):
     """Sun2 deCONZ Phase Sensor."""
 
-    _state_boundaries = (-18, -12, -6, -SUN_APPARENT_RADIUS, -0.3, 6)
+    _state_boundaries = (-18, -12, -6, -SUN_APPARENT_RADIUS, -0.1, 6)
     _ris_states = (
         PhaseState("nadir", Sun2DA(False)),
         PhaseState("night_end", Sun2DA(False)),
