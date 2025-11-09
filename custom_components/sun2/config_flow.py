@@ -167,7 +167,7 @@ class Sun2Flow(ConfigEntryBaseFlow):
                 "time_zone": self.options[CONF_TIME_ZONE],
             }
         return self.async_show_menu(
-            step_id="location_menu", menu_options=menu_options, **kwargs
+            step_id="location_menu", menu_options=menu_options, **kwargs  # type: ignore[arg-type]
         )
 
     async def async_step_location_map(
