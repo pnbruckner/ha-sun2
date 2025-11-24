@@ -348,7 +348,9 @@
                     "night_start": "Natt början",
                     "solar_noon": "Sann middag",
                     "sunrise_end": "Soluppgång slut",
-                    "sunrise_start": "Soluppgång början"
+                    "sunrise_start": "Soluppgång början",
+                    "sunset_end": "Solnedgången slut",
+                    "sunset_start": "Solnedgången börjar"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Dagsljus"},

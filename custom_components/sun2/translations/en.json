@@ -348,7 +348,9 @@
                     "night_start": "Night start",
                     "solar_noon": "Solar noon",
                     "sunrise_end": "Sunrise end",
-                    "sunrise_start": "Sunrise start"
+                    "sunrise_start": "Sunrise start",
+                    "sunset_end": "Sunset end",
+                    "sunset_start": "Sunset start"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Daylight"},

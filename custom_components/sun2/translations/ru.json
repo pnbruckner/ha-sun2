@@ -366,7 +366,9 @@
           "night_start": "Начало ночи",
           "solar_noon": "Полдень",
           "sunrise_end": "Конец восхода",
-          "sunrise_start": "Начало восхода"
+          "sunrise_start": "Начало восхода",
+          "sunset_end": "Конец заката",
+          "senset_start": "Начало заката"
         },
         "state_attributes": {
           "daylight": {

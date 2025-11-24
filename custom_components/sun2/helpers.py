@@ -32,6 +32,7 @@ try:
 except ImportError:
     from homeassistant.core import Config  # type: ignore[no-redef]
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
@@ -309,7 +310,7 @@ class Sun2EntityParams:
     unique_id: str = ""
 
 
-class Sun2Entity(Entity):
+class Sun2Entity(Entity, ABC):
     """Sun2 Entity."""
 
     _unrecorded_attributes = frozenset(
@@ -336,6 +337,17 @@ class Sun2Entity(Entity):
         self._attr_device_info = sun2_entity_params.device_info
         self._astral_data = sun2_entity_params.astral_data
         self.async_on_remove(self._cancel_update)
+
+    @cached_property
+    def _log_name(self) -> str:
+        """Return entity name for logging."""
+        dev_reg = dr.async_get(self.hass)
+        assert self.platform.config_entry
+        cfg_entry_id = self.platform.config_entry.entry_id
+        dev_entry = dev_reg.async_get_device(identifiers={(DOMAIN, cfg_entry_id)})
+        if dev_entry and dev_entry.name:
+            return f"{dev_entry.name} {self.name}"
+        return str(self.name)
 
     def _as_tz(self, dttm: datetime) -> datetime:
         """Return datetime in location's time zone."""

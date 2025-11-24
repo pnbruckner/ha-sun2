@@ -284,7 +284,9 @@
                     "night_start": "Nachtbegin",
                     "solar_noon": "Middagzon",
                     "sunrise_end": "Einde zonsopkomst",
-                    "sunrise_start": "Start zonsopkomst"
+                    "sunrise_start": "Start zonsopkomst",
+                    "sunset_end": "Einde zonsondergang",
+                    "sunset_start": "Start zonsondergang"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Daglicht"},

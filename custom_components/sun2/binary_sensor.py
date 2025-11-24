@@ -175,7 +175,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
                     if self.hass.state == CoreState.running:
                         LOGGER.warning(
                             "%s: Sun elevation will not reach %f again until %s",
-                            self.name,
+                            self._log_name,
                             self._threshold,
                             self._as_tz(nxt_dttm).date(),
                         )
@@ -203,7 +203,10 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         self._attr_is_on = cur_elev > self._threshold
         self._attr_icon = ABOVE_ICON if self._attr_is_on else BELOW_ICON
         LOGGER.debug(
-            "%s: threshold = %f, elevation = %f", self.name, self._threshold, cur_elev
+            "%s: threshold = %f, elevation = %f",
+            self._log_name,
+            self._threshold,
+            cur_elev,
         )
 
         nxt_dttm = self._get_nxt_dttm(cur_dttm)
@@ -222,7 +225,7 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
         elif self.hass.state == CoreState.running:
             LOGGER.error(
                 "%s: Sun elevation never reaches %f at this location",
-                self.name,
+                self._log_name,
                 self._threshold,
             )
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
