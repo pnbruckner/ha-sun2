@@ -198,7 +198,6 @@ class PhaseSensor(Sun2Entity, SensorEntity):
     _first_update = True
     _dt: date
     __rising: bool
-    _ph_params: Sequence[PhaseParams]
     _nxt_ph_idx: int | None
 
     def __init__(
@@ -237,10 +236,18 @@ class PhaseSensor(Sun2Entity, SensorEntity):
     def _rising(self, rising: bool) -> None:
         """Set if sun is rising.
 
-        Also update self._ph_params accordingly.
+        Also clear self._ph_params cache.
         """
         self.__rising = rising
-        self._ph_params = self._ris_ph_params if rising else self._set_ph_params
+        with suppress(AttributeError):
+            del self._ph_params
+
+    @cached_property
+    def _ph_params(self) -> Sequence[PhaseParams]:
+        """Return phase parameters list based on rising state."""
+        if self._rising:
+            return self._ris_ph_params
+        return self._set_ph_params
 
     @property
     def _sun_direction(self) -> SunDirection:
