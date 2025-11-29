@@ -316,7 +316,7 @@ sun2:
     elevation: 0
     binary_sensors:
       - unique_id: bs1
-        elevation
+        elevation: horizon
       - unique_id: bs2
         elevation: 3
       - unique_id: bs3
