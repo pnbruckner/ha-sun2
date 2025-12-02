@@ -161,7 +161,7 @@ Would be equivalent to:
 
 ```yaml
 - unique_id: bs1
-  elevation: -0.833
+  elevation: -0.267
   name: Above horizon
 ```
 
@@ -183,17 +183,17 @@ For example, this:
 
 ```yaml
 - unique_id: s1
-  time_at_elevation: -0.833
+  time_at_elevation: -0.267
 ```
 
 Would be equivalent to:
 
 ```yaml
 - unique_id: s1
-  time_at_elevation: -0.833
+  time_at_elevation: -0.267
   direction: rising
   icon: mdi:weather-sunny
-  name: Rising at minus 0.833 °
+  name: Rising at minus 0.267 °
 ```
 
 #### Elevation at Time Sensor
@@ -223,9 +223,9 @@ Solar Midnight | yes | The time when the sun is at its lowest point closest to 0
 Astronomical Dawn | no | The time in the morning when the sun is 18 degrees below the horizon
 Nautical Dawn | no | The time in the morning when the sun is 12 degrees below the horizon
 Dawn | yes | The time in the morning when the sun is 6 degrees below the horizon
-Rising | yes | AKA Sunrise. The time in the morning when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+Rising | yes | AKA Sunrise. The time in the morning when the sun is 0.267 degrees below the horizon.
 Solar Noon | yes | The time when the sun is at its highest point
-Setting | yes | AKA Sunset. The time in the evening when the sun is 0.833 degrees below the horizon. This is to account for refraction.
+Setting | yes | AKA Sunset. The time in the evening when the sun is 0.267 degrees below the horizon.
 Dusk | yes | The time in the evening when the sun is a 6 degrees below the horizon
 Nautical Dusk | no | The time in the evening when the sun is a 12 degrees below the horizon
 Astronomical Dusk | no | The time in the evening when the sun is a 18 degrees below the horizon
@@ -269,8 +269,8 @@ State | Description
 Night | Sun is below -18°
 Astronomical Twilight | Sun is between -18° and -12°
 Nautical Twilight | Sun is between -12° and -6°
-Civil Twilight | Sun is between -6° and -0.833°
-Day | Sun is above -0.833°
+Civil Twilight | Sun is between -6° and -0.267°
+Day | Sun is above -0.267°
 
 ###### Attributes
 
@@ -316,7 +316,7 @@ sun2:
     elevation: 0
     binary_sensors:
       - unique_id: bs1
-        elevation
+        elevation: horizon
       - unique_id: bs2
         elevation: 3
       - unique_id: bs3
