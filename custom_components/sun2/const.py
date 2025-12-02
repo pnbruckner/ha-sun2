@@ -8,7 +8,7 @@ ELEV_STEP = 0.5
 MAX_ERR_ELEV = 0.02
 MAX_ERR_BIN = 0.001
 
-SUNSET_ELEV = -0.833
+SUNSET_ELEV = -0.267
 
 ONE_DAY = timedelta(days=1)
 ONE_SEC = timedelta(seconds=1)
