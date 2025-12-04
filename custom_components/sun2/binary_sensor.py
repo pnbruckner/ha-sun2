@@ -15,14 +15,14 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_UNIQUE_ID,
 )
-from homeassistant.core import CoreState, callback
-from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.core import CoreState
 
 from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
 from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
+    Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
     nearest_second,
     translate,
@@ -32,7 +32,7 @@ ABOVE_ICON = "mdi:white-balance-sunny"
 BELOW_ICON = "mdi:moon-waxing-crescent"
 
 
-class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
+class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(
@@ -209,26 +209,18 @@ class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
             cur_elev,
         )
 
-        nxt_dttm = self._get_nxt_dttm(cur_dttm)
+        nxt_chg = self._get_nxt_dttm(cur_dttm)
 
-        @callback
-        def schedule_update(_now: datetime) -> None:
-            """Schedule state update."""
-            self._unsub_update = None
-            self.async_schedule_update_ha_state(True)
-
-        if nxt_dttm:
-            self._unsub_update = async_track_point_in_utc_time(
-                self.hass, schedule_update, nxt_dttm
-            )
-            nxt_dttm = self._as_tz(nxt_dttm)
+        if nxt_chg:
+            self._schedule_update(nxt_chg)
+            nxt_chg = self._as_tz(nxt_chg)
         elif self.hass.state == CoreState.running:
             LOGGER.error(
                 "%s: Sun elevation never reaches %f at this location",
                 self._log_name,
                 self._threshold,
             )
-        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
+        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_chg}
 
 
 class Sun2BinarySensorEntrySetup(Sun2EntrySetup):

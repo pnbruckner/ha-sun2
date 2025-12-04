@@ -3,18 +3,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from functools import (  # pylint: disable=hass-deprecated-import
     cached_property,
     lru_cache,
 )
-import logging
 from math import copysign, fabs
 from typing import Any, Self, cast
 
 from astral import LocationInfo
 from astral.location import Location
+from astral.sun import adjust_to_horizon, adjust_to_obscuring_feature
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
@@ -51,12 +52,11 @@ from .const import (
     ATTR_YESTERDAY_HMS,
     CONF_OBS_ELV,
     DOMAIN,
+    LOGGER,
     ONE_DAY,
     SIG_ASTRAL_DATA_UPDATED,
     SIG_HA_LOC_UPDATED,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 Num = float | int
 SUN2_DATA: HassKey[Sun2Data] = HassKey(DOMAIN)
@@ -107,7 +107,7 @@ class LocData:
         """Initialize from LocParams."""
         tzi = dt_util.get_time_zone(tz := lp.time_zone)
         if not tzi:
-            _LOGGER.warning("Did not find time zone: %s", lp.time_zone)
+            LOGGER.warning("Did not find time zone: %s", lp.time_zone)
         return cls(Location(LocationInfo("", "", tz, lp.latitude, lp.longitude)), tzi)
 
 
@@ -445,6 +445,38 @@ class Sun2Entity(Entity, ABC):
 
         except (TypeError, ValueError):
             return None
+
+
+class Sun2EntityWithElvAdjs(Sun2Entity):
+    """Sun2 Entity with elevation adjustments."""
+
+    @cached_property
+    def _ris_elv_adj(self) -> float:
+        """Return rising elevation adjustment."""
+        if isinstance(east_obs_elv := self._astral_data.obs_elvs.east, Num):
+            ris_elv_adj: float = adjust_to_horizon(east_obs_elv)
+        else:
+            ris_elv_adj = adjust_to_obscuring_feature(east_obs_elv)
+        LOGGER.debug("%s: ris_elv_adj: %10.6f", self._log_name, ris_elv_adj)
+        return ris_elv_adj
+
+    @cached_property
+    def _set_elv_adj(self) -> float:
+        """Return setting elevation adjustment."""
+        if isinstance(west_obs_elv := self._astral_data.obs_elvs.west, Num):
+            set_elv_adj: float = adjust_to_horizon(west_obs_elv)
+        else:
+            set_elv_adj = adjust_to_obscuring_feature(west_obs_elv)
+        LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
+        return set_elv_adj
+
+    def _update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data."""
+        super()._update_astral_data(astral_data)
+        with suppress(AttributeError):
+            del self._ris_elv_adj
+        with suppress(AttributeError):
+            del self._set_elv_adj
 
 
 class Sun2EntrySetup(ABC):

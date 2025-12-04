@@ -12,11 +12,7 @@ from math import ceil, floor
 from typing import Any, Generic, TypeVar, cast
 
 from astral import SunDirection
-from astral.sun import (
-    SUN_APPARENT_RADIUS,
-    adjust_to_horizon,
-    adjust_to_obscuring_feature,
-)
+from astral.sun import SUN_APPARENT_RADIUS
 
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN,
@@ -99,6 +95,7 @@ from .helpers import (
     Num,
     Sun2Entity,
     Sun2EntityParams,
+    Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
     hours_to_hms,
     nearest_second,
@@ -183,16 +180,12 @@ class PhaseParams:
         return asdict(self._attrs)
 
 
-class PhaseSensor(Sun2Entity, SensorEntity):
+class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
     """Phase sensor base."""
 
     # Rising & setting phase parameters defined by subclass
     _ris_ph_params: Sequence[PhaseParams]
     _set_ph_params: Sequence[PhaseParams]
-
-    # Rising & setting elevation adjustments derived from observer elevation/obstruction
-    _ris_elv_adj: Num
-    _set_elv_adj: Num
 
     # State parameters
     _first_update = True
@@ -260,7 +253,6 @@ class PhaseSensor(Sun2Entity, SensorEntity):
         """Update state."""
         if self._first_update:
             self._first_update = False
-            self._get_elv_adjs()
 
             # Determine what phase the sensor would have been at the last time the sun
             # direction changed before current time. Then determine what phase the
@@ -401,30 +393,6 @@ class PhaseSensor(Sun2Entity, SensorEntity):
     @abstractmethod
     def _icon(self) -> str:
         """Determine icon based on state."""
-
-    def _update_astral_data(self, astral_data: AstralData) -> None:
-        """Update astral data."""
-        super()._update_astral_data(astral_data)
-        self._get_elv_adjs()
-
-    def _get_elv_adjs(self) -> None:
-        """Get elevation adjustments from observer elevations."""
-        if isinstance(east_obs_elv := self._astral_data.obs_elvs.east, Num):
-            self._ris_elv_adj = adjust_to_horizon(east_obs_elv)
-        else:
-            self._ris_elv_adj = adjust_to_obscuring_feature(east_obs_elv)
-
-        if isinstance(west_obs_elv := self._astral_data.obs_elvs.west, Num):
-            self._set_elv_adj = adjust_to_horizon(west_obs_elv)
-        else:
-            self._set_elv_adj = adjust_to_obscuring_feature(west_obs_elv)
-
-        LOGGER.debug(
-            "%s: ris_elv_adj: %10.6f, set_elv_adj: %10.6f",
-            self._log_name,
-            self._ris_elv_adj,
-            self._set_elv_adj,
-        )
 
     def _solar_midnight(self, dt: date) -> datetime:
         """Return solar midnight."""

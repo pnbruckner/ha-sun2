@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-import logging
 from typing import Any, cast
 
 from astral import SunDirection
@@ -35,10 +34,10 @@ from .const import (
     CONF_SUNSET_OBSTRUCTION,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
+    LOGGER,
 )
 from .helpers import Num, init_translations
 
-_LOGGER = logging.getLogger(__name__)
 _COERCE_NUM = vol.Any(vol.Coerce(int), vol.Coerce(float))
 
 PACKAGE_MERGE_HINT = "list"
@@ -221,7 +220,7 @@ def options_from_obs_elv(
 
         if CONF_OBS_ELV not in loc_config:
             # TODO: Make this a repair issue???
-            _LOGGER.warning(
+            LOGGER.warning(
                 "New config option %s missing @ data[%s][%s], "
                 "will use system general elevation setting",
                 CONF_OBS_ELV,
