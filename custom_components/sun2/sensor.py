@@ -187,10 +187,6 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
     _ris_ph_params: Sequence[PhaseParams]
     _set_ph_params: Sequence[PhaseParams]
 
-    # State parameters
-    _first_update = True
-    _dt: date
-    __rising: bool
     _nxt_ph_idx: int | None
 
     def __init__(
@@ -220,21 +216,6 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         """Return states that are not in phase parameter lists."""
         return set()
 
-    @property
-    def _rising(self) -> bool:
-        """Return if sun is rising."""
-        return self.__rising
-
-    @_rising.setter
-    def _rising(self, rising: bool) -> None:
-        """Set if sun is rising.
-
-        Also clear self._ph_params cache.
-        """
-        self.__rising = rising
-        with suppress(AttributeError):
-            del self._ph_params
-
     @cached_property
     def _ph_params(self) -> Sequence[PhaseParams]:
         """Return phase parameters list based on rising state."""
@@ -242,28 +223,25 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
             return self._ris_ph_params
         return self._set_ph_params
 
-    @property
-    def _sun_direction(self) -> SunDirection:
-        """Return sun direction."""
-        if self._rising:
-            return SunDirection.RISING
-        return SunDirection.SETTING
+    def _rising_changed(self) -> None:
+        """Rising attribute changed."""
+        super()._rising_changed()
+        with suppress(AttributeError):
+            del self._ph_params
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         if self._first_update:
-            self._first_update = False
-
             # Determine what phase the sensor would have been at the last time the sun
             # direction changed before current time. Then determine what phase the
             # sensor should be now.
-            prev_chg_elv = self._solar_elevation(self._prev_dir_chg(cur_dttm))
-            prev_chg_idx = self._find_ph_idx(prev_chg_elv)
+            prv_chg_elv = self._solar_elevation(self._prv_dir_chg_dttm)
+            prv_chg_idx = self._find_ph_idx(prv_chg_elv)
             cur_elv = self._solar_elevation(cur_dttm)
             self._nxt_ph_idx = self._find_ph_idx(cur_elv)
             # For this first update, indicate that the sun direction just changed only
             # if the two phases determined above are the same.
-            chg_dir = self._nxt_ph_idx == prev_chg_idx
+            chg_dir = self._nxt_ph_idx == prv_chg_idx
         elif self._nxt_ph_idx is None:
             # The sun direction just changed.
             # Determine what phase the sensor should be now.
@@ -282,39 +260,6 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         LOGGER.debug("%s: nxt chg: %s", self._log_name, self._dttm_2_str(nxt_chg))
         self._attr_extra_state_attributes[ATTR_NEXT_CHANGE] = self._as_tz(nxt_chg)
         self._schedule_update(nxt_chg)
-
-    def _prev_dir_chg(self, cur_dttm: datetime) -> datetime:
-        """Return last time sun direction changed.
-
-        I.e., find the last solar noon or solar midnight before current time.
-
-        Also initialize self._dt & self._rising based on that determination.
-        """
-
-        # Note that solar midnight for a given date can happen early on that same
-        # day (where the date is the same), or it can happen late on the previous
-        # day (where the date is one less.) Therefore, it's possible for zero, one
-        # or two solar midnight events to happen in the current day.
-        # So, start by checking the current time against today's solar midnight, then
-        # today's solar noon, and lastly, tomorrow's solar midnight.
-        self._dt = self._as_tz(cur_dttm).date()
-        if cur_dttm < (sol_midn := self._solar_midnight(self._dt)):
-            # Last event was solar noon yesterday.
-            self._rising = False
-            self._dt -= ONE_DAY
-            return self._solar_noon(self._dt)
-        if cur_dttm < (sol_noon := self._solar_noon(self._dt)):
-            # Last event was solar midnight today.
-            self._rising = True
-            return sol_midn
-        if cur_dttm < (sol_midn := self._solar_midnight(self._dt + ONE_DAY)):
-            # Last event was solar solar noon today.
-            self._rising = False
-            return sol_noon
-        # Last event was solar midnight tomorrow.
-        self._rising = True
-        self._dt += ONE_DAY
-        return sol_midn
 
     def _find_ph_idx(self, elv: float) -> int | None:
         """Find phase index for elevation."""
@@ -361,7 +306,7 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
             self._nxt_ph_idx is not None
             and (
                 nxt_chg := self._time_at_elevation(
-                    self._dt, self._ph_params[self._nxt_ph_idx].elv, self._sun_direction
+                    self._ph_params[self._nxt_ph_idx].elv
                 )
             )
             is None
@@ -393,70 +338,6 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
     @abstractmethod
     def _icon(self) -> str:
         """Determine icon based on state."""
-
-    def _solar_midnight(self, dt: date) -> datetime:
-        """Return solar midnight."""
-        result = cast(datetime, self._astral_event(dt, "solar_midnight", False))
-        LOGGER.debug(
-            "%s:   SM (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
-        )
-        return result
-
-    def _solar_noon(self, dt: date) -> datetime:
-        """Return solar noon."""
-        result = cast(datetime, self._astral_event(dt, "solar_noon", False))
-        LOGGER.debug(
-            "%s:   SN (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
-        )
-        return result
-
-    def _solar_elevation(self, dttm: datetime) -> float:
-        """Return solar elevation."""
-        result = cast(float, self._astral_event(dttm, "solar_elevation"))
-        LOGGER.debug(
-            "%s:   EL (%s)%13s-> %s",
-            self._log_name,
-            self._dttm_2_str(dttm),
-            "",
-            result,
-        )
-        return result
-
-    def _time_at_elevation(
-        self, dt: date, elevation: float, direction: SunDirection
-    ) -> datetime | None:
-        """Return time at solar elevation."""
-        if direction is SunDirection.RISING:
-            elevation -= self._ris_elv_adj
-        else:
-            elevation -= self._set_elv_adj
-        result = cast(
-            datetime | None,
-            self._astral_event(
-                dt,
-                "time_at_elevation",
-                False,
-                elevation=elevation,
-                direction=direction,
-            ),
-        )
-        if result is None:
-            fmt_result = str(None)
-        else:
-            fmt_result = self._dttm_2_str(result)
-        LOGGER.debug(
-            "%s:   TAE(%s, %10.6f, %20s) -> %s",
-            self._log_name,
-            dt,
-            elevation,
-            direction,
-            fmt_result,
-        )
-        return result
-
-    def _dttm_2_str(self, dttm: datetime) -> str:
-        """Return string representation of datetime in configured time zone."""
-        return self._as_tz(dttm).isoformat(timespec="microseconds")
 
 
 Sun2PA_fields = ((ATTR_BLUE_HOUR, bool), (ATTR_GOLDEN_HOUR, bool), (ATTR_RISING, bool))
@@ -534,7 +415,7 @@ class Sun2DeconzDaylightSensor(PhaseSensor):
     @property
     def _extra_states(self) -> set[str]:
         """Return states that are not in phase parameter lists."""
-        return {STATE_NADIR, STATE_SOL_NOON}
+        return super()._extra_states | {STATE_NADIR, STATE_SOL_NOON}
 
     def _set_state(self, chg_dir: bool) -> None:
         """Set state based on updated parameters."""

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import cast
 
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
@@ -17,14 +16,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import CoreState
 
-from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
+from .const import ATTR_NEXT_CHANGE, LOGGER, ONE_DAY, SUNSET_ELEV
 from .helpers import (
-    Num,
     Sun2Entity,
     Sun2EntityParams,
     Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
-    nearest_second,
     translate,
 )
 
@@ -46,180 +43,71 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         self._event = "solar_elevation"
 
         if isinstance(threshold, str):
+            assert threshold == "horizon"
             self._threshold = SUNSET_ELEV
         else:
             self._threshold = threshold
 
-    def _find_nxt_dttm(
-        self, t0_dttm: datetime, t0_elev: Num, t1_dttm: datetime, t1_elev: Num
-    ) -> datetime:
-        """Find time elevation crosses threshold between 2 points on elevation curve."""
-        # Do a binary search for time between t0 & t1 where elevation is
-        # nearest threshold, but also above (or equal to) it if current
-        # elevation is below it (i.e., current state is False), or below it if
-        # current elevation is above (or equal to) it (i.e., current state is
-        # True.)
-
-        slope = 1 if t1_elev > t0_elev else -1
-
-        # Find mid point and throw away fractional seconds since astral package
-        # ignores microseconds.
-        tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-        tn_elev = cast(float, self._astral_event(tn_dttm))
-
-        while not (
-            (
-                (self._attr_is_on and tn_elev <= self._threshold)
-                or (not self._attr_is_on and tn_elev > self._threshold)
-            )
-            and abs(tn_elev - self._threshold) <= MAX_ERR_BIN
-        ):
-            if (tn_elev - self._threshold) * slope > 0:
-                if t1_dttm == tn_dttm:
-                    break
-                t1_dttm = tn_dttm
-            else:
-                if t0_dttm == tn_dttm:
-                    break
-                t0_dttm = tn_dttm
-            tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-            tn_elev = cast(float, self._astral_event(tn_dttm))
-
-        # Did we go too far?
-        if self._attr_is_on and tn_elev > self._threshold:
-            tn_dttm -= slope * ONE_SEC
-            if cast(float, self._astral_event(tn_dttm)) > self._threshold:
-                raise RuntimeError("Couldn't find next update time")
-        elif not self._attr_is_on and tn_elev <= self._threshold:
-            tn_dttm += slope * ONE_SEC
-            if cast(float, self._astral_event(tn_dttm)) <= self._threshold:
-                raise RuntimeError("Couldn't find next update time")
-
-        return tn_dttm
-
-    def _get_nxt_dttm(self, cur_dttm: datetime) -> datetime | None:
-        """Get next time sensor should change state."""
-        # Find next segment of elevation curve, between a pair of solar noon &
-        # solar midnight, where it crosses the threshold, but in the opposite
-        # direction (i.e., where output should change state.) Note that this
-        # might be today, tomorrow, days away, or never, depending on location,
-        # time of year and specified threshold.
-
-        # Start by finding the next five solar midnight & solar noon "events"
-        # since current time might be anywhere from before today's solar
-        # midnight (if it is this morning) to after tomorrow's solar midnight
-        # (if it is this evening.)
-        date = self._as_tz(cur_dttm).date()
-        evt_dttm1 = cast(datetime, self._astral_event(date, "solar_midnight", False))
-        evt_dttm2 = cast(datetime, self._astral_event(date, "solar_noon", False))
-        evt_dttm3 = cast(
-            datetime, self._astral_event(date + ONE_DAY, "solar_midnight", False)
-        )
-        evt_dttm4 = cast(
-            datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
-        )
-        evt_dttm5 = cast(
-            datetime, self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False)
-        )
-
-        # See if segment we're looking for falls between any of these events.
-        # If not move ahead a day and try again, but don't look more than a
-        # a year ahead.
-        end_date = date + 366 * ONE_DAY
-        while date < end_date:
-            if cur_dttm < evt_dttm1:
-                if self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm1
-                else:
-                    t0_dttm = evt_dttm1
-                    t1_dttm = evt_dttm2
-            elif cur_dttm < evt_dttm2:
-                if not self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm2
-                else:
-                    t0_dttm = evt_dttm2
-                    t1_dttm = evt_dttm3
-            elif cur_dttm < evt_dttm3:
-                if self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm3
-                else:
-                    t0_dttm = evt_dttm3
-                    t1_dttm = evt_dttm4
-            else:  # noqa: PLR5501
-                if not self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm4
-                else:
-                    t0_dttm = evt_dttm4
-                    t1_dttm = evt_dttm5
-
-            t0_elev = cast(float, self._astral_event(t0_dttm))
-            t1_elev = cast(float, self._astral_event(t1_dttm))
-
-            # Did we find it?
-            # Note, if t1_elev > t0_elev, then we're looking for an elevation
-            # ABOVE threshold. In this case we can't use this range if the
-            # threshold is EQUAL to the elevation at t1, because this range
-            # does NOT include any points with a higher elevation value. For
-            # all other cases it's ok for the threshold to equal the elevation
-            # at t0 or t1.
-            if (
-                t0_elev <= self._threshold < t1_elev
-                or t1_elev <= self._threshold <= t0_elev
-            ):
-                nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
-                if nxt_dttm - cur_dttm > ONE_DAY:
-                    if self.hass.state == CoreState.running:
-                        LOGGER.warning(
-                            "%s: Sun elevation will not reach %f again until %s",
-                            self._log_name,
-                            self._threshold,
-                            self._as_tz(nxt_dttm).date(),
-                        )
-                return nxt_dttm
-
-            # Shift one day ahead.
-            date += ONE_DAY
-            evt_dttm1 = evt_dttm3
-            evt_dttm2 = evt_dttm4
-            evt_dttm3 = evt_dttm5
-            evt_dttm4 = cast(
-                datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
-            )
-            evt_dttm5 = cast(
-                datetime,
-                self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False),
-            )
-
-        # Didn't find one.
-        return None
-
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        cur_elev = cast(float, self._astral_event(cur_dttm))
-        self._attr_is_on = cur_elev > self._threshold
+        if self._first_update:
+            if (nxt_chg := self._time_at_elevation(self._threshold)) is None:
+                # Sun doesn't cross threshold today. Base current state on solar
+                # elevation.
+                cur_elv = self._solar_elevation(cur_dttm)
+                if self._rising:
+                    self._attr_is_on = cur_elv >= self._threshold - self._ris_elv_adj
+                else:
+                    self._attr_is_on = cur_elv <= self._threshold - self._set_elv_adj
+            else:
+                # Sun does cross threshold today.
+                if cur_dttm < nxt_chg:
+                    # Sun has not yet crossed threshold on current part of the "solar
+                    # elevation curve." Set state parameters to be on previous part of
+                    # the curve so current state and next change are determined
+                    # correctly.
+                    self._rising = not self._rising
+                    if not self._rising:
+                        self._dt -= ONE_DAY
+                self._attr_is_on = self._rising
+        else:
+            nxt_chg = None
+            self._attr_is_on = self._rising
         self._attr_icon = ABOVE_ICON if self._attr_is_on else BELOW_ICON
-        LOGGER.debug(
-            "%s: threshold = %f, elevation = %f",
-            self._log_name,
-            self._threshold,
-            cur_elev,
-        )
 
-        nxt_chg = self._get_nxt_dttm(cur_dttm)
-
-        if nxt_chg:
-            self._schedule_update(nxt_chg)
-            nxt_chg = self._as_tz(nxt_chg)
-        elif self.hass.state == CoreState.running:
-            LOGGER.error(
-                "%s: Sun elevation never reaches %f at this location",
-                self._log_name,
-                self._threshold,
-            )
+        # Find next time sun crosses threshold. Note that it's possible that might not
+        # happen today, or even tomorrow, depending on location & time of year. Move to
+        # next part of solar elevation curve, and if that doesn't cross threshold, keep
+        # moving to the next part of the curve until a crossing is found, but don't look
+        # more than one year into the future.
+        for _ in range(365 * 2):
+            self._rising = not self._rising
+            if self._rising:
+                self._dt += ONE_DAY
+            if nxt_chg := self._time_at_elevation(self._threshold):
+                self._schedule_update(nxt_chg)
+                nxt_chg = self._as_tz(nxt_chg)
+                # It's ok that nxt_chg is now in location's time zone and cur_dttm is in
+                # UTC. nxt_chg's value will be automatically converted to UTC during the
+                # subtraction operation.
+                if (
+                    nxt_chg - cur_dttm > ONE_DAY
+                    and self.hass.state == CoreState.running
+                ):
+                    LOGGER.warning(
+                        "%s: Sun elevation will not reach %f again until %s",
+                        self._log_name,
+                        self._threshold,
+                        nxt_chg.date(),
+                    )
+                break
+        else:
+            if self.hass.state == CoreState.running:
+                LOGGER.error(
+                    "%s: Sun elevation never reaches %f at this location",
+                    self._log_name,
+                    self._threshold,
+                )
         self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_chg}
 
 

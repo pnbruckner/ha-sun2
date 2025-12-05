@@ -13,7 +13,7 @@ from functools import (  # pylint: disable=hass-deprecated-import
 from math import copysign, fabs
 from typing import Any, Self, cast
 
-from astral import LocationInfo
+from astral import LocationInfo, SunDirection
 from astral.location import Location
 from astral.sun import adjust_to_horizon, adjust_to_obscuring_feature
 
@@ -327,6 +327,7 @@ class Sun2Entity(Entity, ABC):
     _unsub_update: CALLBACK_TYPE | None = None
     _event: str
     _solar_depression: Num | str
+    _first_update = True
 
     @abstractmethod
     def __init__(self, sun2_entity_params: Sun2EntityParams) -> None:
@@ -355,7 +356,17 @@ class Sun2Entity(Entity, ABC):
 
     async def async_update(self) -> None:
         """Update state."""
-        self._update(dt_util.utcnow())
+        cur_dttm = dt_util.utcnow()
+        LOGGER.debug(
+            "%s: --------------------- first update: %s, update time: %s",
+            self._log_name,
+            self._first_update,
+            self._dttm_2_str(cur_dttm),
+        )
+        if self._first_update:
+            self._update_setup(cur_dttm)
+        self._update(cur_dttm)
+        self._first_update = False
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -386,6 +397,12 @@ class Sun2Entity(Entity, ABC):
             self._unsub_update()
             self._unsub_update = None
 
+    def _update_setup(self, cur_dttm: datetime) -> None:
+        """Set up before first update.
+
+        None by default. Override in subclass if needed.
+        """
+
     @abstractmethod
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -405,6 +422,7 @@ class Sun2Entity(Entity, ABC):
 
     def _update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data."""
+        self._first_update = True
         self._cancel_update()
         self._astral_data = astral_data
         self._setup_fixed_updating()
@@ -446,9 +464,45 @@ class Sun2Entity(Entity, ABC):
         except (TypeError, ValueError):
             return None
 
+    def _dttm_2_str(self, dttm: datetime) -> str:
+        """Return string representation of datetime in configured time zone."""
+        return self._as_tz(dttm).isoformat(timespec="microseconds")
+
 
 class Sun2EntityWithElvAdjs(Sun2Entity):
     """Sun2 Entity with elevation adjustments."""
+
+    # Only used for first update.
+    _prv_dir_chg_dttm: datetime
+
+    # State parameters
+    _dt: date
+    __rising: bool
+
+    @property
+    def _rising(self) -> bool:
+        """Return if sun is rising."""
+        return self.__rising
+
+    @_rising.setter
+    def _rising(self, rising: bool) -> None:
+        """Set if sun is rising."""
+        # NOTE: Instance variables starting with double underscores get mangled with
+        # class name.
+        changed = (
+            not hasattr(self, f"_{self.__class__.__name__}__rising")
+            or rising != self.__rising
+        )
+        self.__rising = rising
+        if changed:
+            self._rising_changed()
+
+    @cached_property
+    def _sun_direction(self) -> SunDirection:
+        """Return sun direction."""
+        if self._rising:
+            return SunDirection.RISING
+        return SunDirection.SETTING
 
     @cached_property
     def _ris_elv_adj(self) -> float:
@@ -470,6 +524,41 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
         LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
         return set_elv_adj
 
+    def _update_setup(self, cur_dttm: datetime) -> None:
+        """Set up before first update.
+
+        Find the last time that the sun changed direction (i.e., the last solar noon or
+        solar midnight before current time.)
+
+        Also initialize self._dt & self._rising based on that determination.
+        """
+
+        # Note that solar midnight for a given date can happen early on that same
+        # day (where the date is the same), or it can happen late on the previous
+        # day (where the date is one less.) Therefore, it's possible for zero, one
+        # or two solar midnight events to happen in the current day.
+        # So, start by checking the current time against today's solar midnight, then
+        # today's solar noon, and lastly, tomorrow's solar midnight.
+        self._dt = self._as_tz(cur_dttm).date()
+        if cur_dttm < (sol_midn := self._solar_midnight(self._dt)):
+            # Last event was solar noon yesterday.
+            self._rising = False
+            self._dt -= ONE_DAY
+            self._prv_dir_chg_dttm = self._solar_noon(self._dt)
+        elif cur_dttm < (sol_noon := self._solar_noon(self._dt)):
+            # Last event was solar midnight today.
+            self._rising = True
+            self._prv_dir_chg_dttm = sol_midn
+        elif cur_dttm < (sol_midn := self._solar_midnight(self._dt + ONE_DAY)):
+            # Last event was solar solar noon today.
+            self._rising = False
+            self._prv_dir_chg_dttm = sol_noon
+        else:
+            # Last event was solar midnight tomorrow.
+            self._rising = True
+            self._dt += ONE_DAY
+            self._prv_dir_chg_dttm = sol_midn
+
     def _update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data."""
         super()._update_astral_data(astral_data)
@@ -477,6 +566,69 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
             del self._ris_elv_adj
         with suppress(AttributeError):
             del self._set_elv_adj
+
+    def _rising_changed(self) -> None:
+        """Rising attribute changed."""
+        with suppress(AttributeError):
+            del self._sun_direction
+
+    def _solar_midnight(self, dt: date) -> datetime:
+        """Return solar midnight."""
+        result = cast(datetime, self._astral_event(dt, "solar_midnight", False))
+        LOGGER.debug(
+            "%s:   SM (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
+        )
+        return result
+
+    def _solar_noon(self, dt: date) -> datetime:
+        """Return solar noon."""
+        result = cast(datetime, self._astral_event(dt, "solar_noon", False))
+        LOGGER.debug(
+            "%s:   SN (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
+        )
+        return result
+
+    def _solar_elevation(self, dttm: datetime) -> float:
+        """Return solar elevation."""
+        result = cast(float, self._astral_event(dttm, "solar_elevation"))
+        LOGGER.debug(
+            "%s:   EL (%s)%13s-> %s",
+            self._log_name,
+            self._dttm_2_str(dttm),
+            "",
+            result,
+        )
+        return result
+
+    def _time_at_elevation(self, elevation: float) -> datetime | None:
+        """Return time at solar elevation."""
+        if self._rising:
+            elevation -= self._ris_elv_adj
+        else:
+            elevation -= self._set_elv_adj
+        result = cast(
+            datetime | None,
+            self._astral_event(
+                self._dt,
+                "time_at_elevation",
+                False,
+                elevation=elevation,
+                direction=self._sun_direction,
+            ),
+        )
+        if result is None:
+            fmt_result = str(None)
+        else:
+            fmt_result = self._dttm_2_str(result)
+        LOGGER.debug(
+            "%s:   TAE(%s, %10.6f, %-20s) -> %s",
+            self._log_name,
+            self._dt,
+            elevation,
+            self._sun_direction,
+            fmt_result,
+        )
+        return result
 
 
 class Sun2EntrySetup(ABC):
