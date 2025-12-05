@@ -469,13 +469,13 @@ class Sun2Entity(Entity, ABC):
         return self._as_tz(dttm).isoformat(timespec="microseconds")
 
 
-class Sun2EntityWithElvAdjs(Sun2Entity):
-    """Sun2 Entity with elevation adjustments."""
+class Sun2EntityWithElvParams(Sun2Entity):
+    """Sun2 Entity with elevation curve parameters."""
 
     # Only used for first update.
     _prv_dir_chg_dttm: datetime
 
-    # State parameters
+    # Elevation curve parameters
     _dt: date
     __rising: bool
 
@@ -503,26 +503,6 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
         if self._rising:
             return SunDirection.RISING
         return SunDirection.SETTING
-
-    @cached_property
-    def _ris_elv_adj(self) -> float:
-        """Return rising elevation adjustment."""
-        if isinstance(east_obs_elv := self._astral_data.obs_elvs.east, Num):
-            ris_elv_adj: float = adjust_to_horizon(east_obs_elv)
-        else:
-            ris_elv_adj = adjust_to_obscuring_feature(east_obs_elv)
-        LOGGER.debug("%s: ris_elv_adj: %10.6f", self._log_name, ris_elv_adj)
-        return ris_elv_adj
-
-    @cached_property
-    def _set_elv_adj(self) -> float:
-        """Return setting elevation adjustment."""
-        if isinstance(west_obs_elv := self._astral_data.obs_elvs.west, Num):
-            set_elv_adj: float = adjust_to_horizon(west_obs_elv)
-        else:
-            set_elv_adj = adjust_to_obscuring_feature(west_obs_elv)
-        LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
-        return set_elv_adj
 
     def _update_setup(self, cur_dttm: datetime) -> None:
         """Set up before first update.
@@ -559,14 +539,6 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
             self._dt += ONE_DAY
             self._prv_dir_chg_dttm = sol_midn
 
-    def _update_astral_data(self, astral_data: AstralData) -> None:
-        """Update astral data."""
-        super()._update_astral_data(astral_data)
-        with suppress(AttributeError):
-            del self._ris_elv_adj
-        with suppress(AttributeError):
-            del self._set_elv_adj
-
     def _rising_changed(self) -> None:
         """Rising attribute changed."""
         with suppress(AttributeError):
@@ -602,10 +574,6 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
 
     def _time_at_elevation(self, elevation: float) -> datetime | None:
         """Return time at solar elevation."""
-        if self._rising:
-            elevation -= self._ris_elv_adj
-        else:
-            elevation -= self._set_elv_adj
         result = cast(
             datetime | None,
             self._astral_event(
@@ -629,6 +597,44 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
             fmt_result,
         )
         return result
+
+
+class Sun2EntityWithElvAdjs(Sun2EntityWithElvParams):
+    """Sun2 Entity with elevation adjustments."""
+
+    @cached_property
+    def _ris_elv_adj(self) -> float:
+        """Return rising elevation adjustment."""
+        if isinstance(east_obs_elv := self._astral_data.obs_elvs.east, Num):
+            ris_elv_adj: float = adjust_to_horizon(east_obs_elv)
+        else:
+            ris_elv_adj = adjust_to_obscuring_feature(east_obs_elv)
+        LOGGER.debug("%s: ris_elv_adj: %10.6f", self._log_name, ris_elv_adj)
+        return ris_elv_adj
+
+    @cached_property
+    def _set_elv_adj(self) -> float:
+        """Return setting elevation adjustment."""
+        if isinstance(west_obs_elv := self._astral_data.obs_elvs.west, Num):
+            set_elv_adj: float = adjust_to_horizon(west_obs_elv)
+        else:
+            set_elv_adj = adjust_to_obscuring_feature(west_obs_elv)
+        LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
+        return set_elv_adj
+
+    def _update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data."""
+        super()._update_astral_data(astral_data)
+        with suppress(AttributeError):
+            del self._ris_elv_adj
+        with suppress(AttributeError):
+            del self._set_elv_adj
+
+    def _time_at_elevation(self, elevation: float) -> datetime | None:
+        """Return time at solar elevation."""
+        return super()._time_at_elevation(
+            elevation - (self._ris_elv_adj if self._rising else self._set_elv_adj)
+        )
 
 
 class Sun2EntrySetup(ABC):

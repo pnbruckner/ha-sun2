@@ -16,17 +16,22 @@ from homeassistant.const import (
 )
 from homeassistant.core import CoreState
 
-from .const import ATTR_NEXT_CHANGE, LOGGER, ONE_DAY, SUNSET_ELEV
+from .const import (
+    ATTR_NEXT_CHANGE,
+    ICON_ABOVE,
+    ICON_BELOW,
+    LOGGER,
+    ONE_DAY,
+    SUNSET_ELEV,
+)
 from .helpers import (
     Sun2Entity,
     Sun2EntityParams,
     Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
+    nearest_second,
     translate,
 )
-
-ABOVE_ICON = "mdi:white-balance-sunny"
-BELOW_ICON = "mdi:moon-waxing-crescent"
 
 
 class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
@@ -53,8 +58,9 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         if self._first_update:
             if (nxt_chg := self._time_at_elevation(self._threshold)) is None:
                 # Sun doesn't cross threshold today. Base current state on solar
-                # elevation.
-                cur_elv = self._solar_elevation(cur_dttm)
+                # elevation. Since astral package ignores microseconds when determining
+                # solar elevation, round current time to nearest second.
+                cur_elv = self._solar_elevation(nearest_second(cur_dttm))
                 if self._rising:
                     self._attr_is_on = cur_elv >= self._threshold - self._ris_elv_adj
                 else:
@@ -73,7 +79,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         else:
             nxt_chg = None
             self._attr_is_on = self._rising
-        self._attr_icon = ABOVE_ICON if self._attr_is_on else BELOW_ICON
+        self._attr_icon = ICON_ABOVE if self._attr_is_on else ICON_BELOW
 
         # Find next time sun crosses threshold. Note that it's possible that might not
         # happen today, or even tomorrow, depending on location & time of year. Move to

@@ -8,7 +8,6 @@ from dataclasses import asdict, dataclass, make_dataclass
 from datetime import date, datetime, time, timedelta
 from functools import cached_property  # pylint: disable=hass-deprecated-import
 from itertools import chain
-from math import ceil, floor
 from typing import Any, Generic, TypeVar, cast
 
 from astral import SunDirection
@@ -22,7 +21,6 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
-    ATTR_ICON,
     CONF_ICON,
     CONF_NAME,
     CONF_SENSORS,
@@ -62,12 +60,12 @@ from .const import (
     CONF_ELEVATION_AT_TIME,
     CONF_TIME_AT_ELEVATION,
     ELEV_STEP,
+    ICON_AZIMUTH,
     ICON_DAY,
     ICON_NIGHT,
     ICON_RISING,
     ICON_SETTING,
     LOGGER,
-    MAX_ERR_ELEV,
     ONE_DAY,
     STATE_ASTRO_TW,
     STATE_CIVIL_TW,
@@ -91,11 +89,11 @@ from .const import (
     SUNSET_ELEV,
 )
 from .helpers import (
-    AstralData,
     Num,
     Sun2Entity,
     Sun2EntityParams,
     Sun2EntityWithElvAdjs,
+    Sun2EntityWithElvParams,
     Sun2EntrySetup,
     hours_to_hms,
     nearest_second,
@@ -115,7 +113,6 @@ _ENABLED_SENSORS = [
 ]
 _SOLAR_DEPRESSIONS = ("astronomical", "civil", "nautical")
 _DELTA = timedelta(minutes=5)
-
 
 _T = TypeVar("_T")
 
@@ -142,8 +139,8 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        # Astral package ignores microseconds, so round to nearest second
-        # before continuing.
+        # Astral package ignores microseconds when determining azimuth & solar
+        # elevation, so round to nearest second before continuing.
         cur_dttm = nearest_second(cur_dttm)
         self._attr_native_value = self._astral_event(cur_dttm)
 
@@ -532,7 +529,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             self._at_time = at_time
         entity_description = SensorEntityDescription(
             key=CONF_ELEVATION_AT_TIME,
-            icon="mdi:weather-sunny",
+            icon=ICON_DAY,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=2,
@@ -668,8 +665,8 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         """Initialize sensor."""
         if not icon:
             icon = {
-                SunDirection.RISING: "mdi:weather-sunset-up",
-                SunDirection.SETTING: "mdi:weather-sunset-down",
+                SunDirection.RISING: ICON_RISING,
+                SunDirection.SETTING: ICON_SETTING,
             }[direction]
         self._direction = direction
         self._elevation = elevation
@@ -841,253 +838,67 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
         return cast(float | None, super()._astral_event(dttm))
 
 
-@dataclass
-class CurveParameters:
-    """Parameters that describe current portion of elevation curve.
-
-    The ends of the current portion of the curve are bounded by a pair of solar
-    midnight and solar noon, such that tl_dttm <= cur_dttm < tr_dttm. rising is True if
-    tr_elev > tl_elev (i.e., tL represents a solar midnight and tR represents a solar
-    noon.) mid_date is the date of the midpoint between tL & tR. nxt_noon is the solar
-    noon for tomorrow (i.e., cur_date + 1.)
-    """
-
-    tl_dttm: datetime
-    tl_elev: Num
-    tr_dttm: datetime
-    tr_elev: Num
-    mid_date: date
-    nxt_noon: datetime
-    rising: bool
-
-
-class Sun2CPSensorEntity(Sun2SensorEntity[_T]):
-    """Sun2 Sensor Entity with elevation curve methods."""
-
-    _cp: CurveParameters | None = None
-
-    @abstractmethod
-    def __init__(
-        self,
-        sun2_entity_params: Sun2EntityParams,
-        entity_description: SensorEntityDescription,
-        default_solar_depression: Num | str = 0,
-    ) -> None:
-        """Initialize sensor."""
-        super().__init__(
-            sun2_entity_params, entity_description, default_solar_depression
-        )
-        self._event = "solar_elevation"
-
-    @property
-    def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return entity specific state attributes."""
-        if hasattr(self, "_attr_extra_state_attributes"):
-            return self._attr_extra_state_attributes
-        return None
-
-    def _update_astral_data(self, astral_data: AstralData) -> None:
-        """Update astral data."""
-        self._cp = None
-        super()._update_astral_data(astral_data)
-
-    def _setup_fixed_updating(self) -> None:
-        """Set up fixed updating."""
-
-    def _attrs_at_elev(self, elev: Num) -> dict[str, Any]:
-        """Return attributes at elevation."""
-        assert self._cp
-
-        if self._cp.rising:
-            if elev < -18:
-                icon = "mdi:weather-night"
-            elif elev < SUNSET_ELEV:
-                icon = "mdi:weather-sunset-up"
-            else:
-                icon = "mdi:weather-sunny"
-        else:  # noqa: PLR5501
-            if elev > SUNSET_ELEV:
-                icon = "mdi:weather-sunny"
-            elif elev > -18:
-                icon = "mdi:weather-sunset-down"
-            else:
-                icon = "mdi:weather-night"
-        return {ATTR_ICON: icon}
-
-    def _set_attrs(self, attrs: dict[str, Any], nxt_chg: datetime) -> None:
-        """Set attributes."""
-        self._attr_icon = cast(str | None, attrs.pop(ATTR_ICON, "mdi:weather-sunny"))
-        attrs[ATTR_NEXT_CHANGE] = self._as_tz(nxt_chg)
-        self._attr_extra_state_attributes = attrs
-
-    def _get_curve_params(self, cur_dttm: datetime, cur_elev: Num) -> CurveParameters:
-        """Calculate elevation curve parameters."""
-        cur_date = self._as_tz(cur_dttm).date()
-
-        # Find the highest and lowest points on the elevation curve that encompass
-        # current time, where it is ok for the current time to be the same as the
-        # first of these two points.
-        # Note that the astral solar_midnight event will always come before the astral
-        # solar_noon event for any given date, even if it actually falls on the previous
-        # day.
-        hi_dttm = cast(datetime, self._astral_event(cur_date, "solar_noon", False))
-        lo_dttm = cast(datetime, self._astral_event(cur_date, "solar_midnight", False))
-        nxt_noon = cast(
-            datetime, self._astral_event(cur_date + ONE_DAY, "solar_noon", False)
-        )
-        if cur_dttm < lo_dttm:
-            tl_dttm = cast(
-                datetime, self._astral_event(cur_date - ONE_DAY, "solar_noon", False)
-            )
-            tr_dttm = lo_dttm
-        elif cur_dttm < hi_dttm:
-            tl_dttm = lo_dttm
-            tr_dttm = hi_dttm
-        else:
-            lo_dttm = cast(
-                datetime,
-                self._astral_event(cur_date + ONE_DAY, "solar_midnight", False),
-            )
-            if cur_dttm < lo_dttm:
-                tl_dttm = hi_dttm
-                tr_dttm = lo_dttm
-            else:
-                tl_dttm = lo_dttm
-                tr_dttm = nxt_noon
-        tl_elev = cast(float, self._astral_event(tl_dttm))
-        tr_elev = cast(float, self._astral_event(tr_dttm))
-        rising = tr_elev > tl_elev
-
-        LOGGER.debug(
-            "%s: tL = %s/%0.3f, cur = %s/%0.3f, tR = %s/%0.3f, rising = %s",
-            self._log_name,
-            self._as_tz(tl_dttm),
-            tl_elev,
-            self._as_tz(cur_dttm),
-            cur_elev,
-            self._as_tz(tr_dttm),
-            tr_elev,
-            rising,
-        )
-
-        mid_date = self._as_tz(tl_dttm + (tr_dttm - tl_dttm) / 2).date()
-        return CurveParameters(
-            tl_dttm, tl_elev, tr_dttm, tr_elev, mid_date, nxt_noon, rising
-        )
-
-    def _get_dttm_at_elev(
-        self, t0_dttm: datetime, t1_dttm: datetime, elev: Num, max_err: Num
-    ) -> datetime | None:
-        """Get datetime at elevation."""
-        assert self._cp
-
-        msg_base = f"{self._log_name}: trg = {elev:+7.3f}: "
-        t0_elev = cast(float, self._astral_event(t0_dttm))
-        t1_elev = cast(float, self._astral_event(t1_dttm))
-        est_elev = elev + 1.5 * max_err
-        est = 0
-        while abs(est_elev - elev) >= max_err:
-            est += 1
-            msg = (
-                msg_base
-                + f"t0 = {self._as_tz(t0_dttm)}/{t0_elev:+7.3f}, t1 = {self._as_tz(t1_dttm)}/{t1_elev:+7.3f} ->"
-            )
-            try:
-                est_dttm = nearest_second(
-                    t0_dttm
-                    + (t1_dttm - t0_dttm) * ((elev - t0_elev) / (t1_elev - t0_elev))
-                )
-            except ZeroDivisionError:
-                LOGGER.debug("%s ZeroDivisionError", msg)
-                return None
-            if est_dttm < self._cp.tl_dttm or est_dttm > self._cp.tr_dttm:
-                LOGGER.debug("%s outside range", msg)
-                return None
-            est_elev = cast(float, self._astral_event(est_dttm))
-            LOGGER.debug(
-                "%s est = %s/%+7.3f[%+7.3f/%2i]",
-                msg,
-                self._as_tz(est_dttm),
-                est_elev,
-                est_elev - elev,
-                est,
-            )
-            if est_dttm in (t0_dttm, t1_dttm):
-                break
-            if est_dttm > t1_dttm:
-                t0_dttm = t1_dttm
-                t0_elev = t1_elev
-                t1_dttm = est_dttm
-                t1_elev = est_elev
-            elif t0_elev < elev < est_elev or t0_elev > elev > est_elev:
-                t1_dttm = est_dttm
-                t1_elev = est_elev
-            else:
-                t0_dttm = est_dttm
-                t0_elev = est_elev
-        return est_dttm
-
-
-class Sun2ElevationSensor(Sun2CPSensorEntity[float]):
+class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
     """Sun2 Elevation Sensor."""
-
-    _prv_dttm: datetime | None = None
 
     def __init__(
         self, sun2_entity_params: Sun2EntityParams, sensor_type: str, icon: str | None
     ) -> None:
         """Initialize sensor."""
-        entity_description = SensorEntityDescription(
+        self.entity_description = SensorEntityDescription(
             key=sensor_type,
+            entity_registry_enabled_default=False,
             icon=icon,
             native_unit_of_measurement=DEGREE,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=1,
         )
-        super().__init__(sun2_entity_params, entity_description)
+        super().__init__(sun2_entity_params)
+        self._event = "solar_elevation"
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        # Astral package ignores microseconds, so round to nearest second
-        # before continuing.
-        cur_dttm = nearest_second(cur_dttm)
-        cur_elev = cast(float, self._astral_event(cur_dttm))
-        self._attr_native_value = rnd_elev = round(cur_elev, 1)
-        LOGGER.debug("%s: Raw elevation = %f -> %s", self._log_name, cur_elev, rnd_elev)
+        # Astral package ignores microseconds when determining solar elevation, so round
+        # to nearest second.
+        cur_elv = cast(float, self._astral_event(nearest_second(cur_dttm)))
+        self._attr_native_value = rnd_elv = round(cur_elv, 1)
+        self._attr_icon = self._icon(cur_elv)
+        LOGGER.debug("%s: Raw elevation = %f -> %s", self._log_name, cur_elv, rnd_elv)
 
-        if not self._cp or cur_dttm >= self._cp.tr_dttm:
-            self._prv_dttm = None
-            self._cp = self._get_curve_params(cur_dttm, cur_elev)
-
-        if self._prv_dttm:
-            # Extrapolate based on previous point and current point to find next point.
-            # But if that crosses sunrise/sunset elevation, then make next point the
-            # sunrise/sunset elevation so icon updates at the right time.
-            if self._cp.rising:
-                elev = floor((rnd_elev + ELEV_STEP) / ELEV_STEP) * ELEV_STEP
-                if rnd_elev < SUNSET_ELEV and elev > SUNSET_ELEV + MAX_ERR_ELEV:
-                    elev = SUNSET_ELEV + MAX_ERR_ELEV
-            else:
-                elev = ceil((rnd_elev - ELEV_STEP) / ELEV_STEP) * ELEV_STEP
-                if rnd_elev > SUNSET_ELEV and elev < SUNSET_ELEV - MAX_ERR_ELEV:
-                    elev = SUNSET_ELEV - MAX_ERR_ELEV
-            nxt_dttm = self._get_dttm_at_elev(
-                self._prv_dttm, cur_dttm, elev, MAX_ERR_ELEV
-            )
+        # Move elevation by desired step. If that elevation does not occur today, then
+        # move to next solar noon or solar midnight event.
+        if self._rising:
+            nxt_elv = round(cur_elv / ELEV_STEP) * ELEV_STEP + ELEV_STEP
         else:
-            nxt_dttm = None
-
-        if not nxt_dttm:
-            if self._cp.tr_dttm - _DELTA <= cur_dttm < self._cp.tr_dttm:
-                nxt_dttm = self._cp.tr_dttm
+            nxt_elv = round(cur_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
+        if (nxt_chg := self._time_at_elevation(nxt_elv)) is None:
+            if self._rising:
+                nxt_chg = self._solar_noon(self._dt)
+                self._rising = False
             else:
-                nxt_dttm = cur_dttm + _DELTA
+                self._dt += ONE_DAY
+                nxt_chg = self._solar_midnight(self._dt)
+                self._rising = True
 
-        self._set_attrs(self._attrs_at_elev(cur_elev), nxt_dttm)
+        assert nxt_chg > cur_dttm
 
-        self._prv_dttm = cur_dttm
+        LOGGER.debug("%s: nxt chg: %s", self._log_name, self._dttm_2_str(nxt_chg))
+        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: self._as_tz(nxt_chg)}
+        self._schedule_update(nxt_chg)
 
-        self._schedule_update(nxt_dttm)
+    def _icon(self, elev: Num) -> str:
+        """Return icon for elevation."""
+        if self._rising:
+            if elev < -18:
+                return ICON_NIGHT
+            if elev < SUNSET_ELEV:
+                return ICON_RISING
+            return ICON_DAY
+        if elev > SUNSET_ELEV:
+            return ICON_DAY
+        if elev > -18:
+            return ICON_SETTING
+        return ICON_NIGHT
 
 
 @dataclass
@@ -1100,32 +911,32 @@ class SensorParams:
 
 _SENSOR_TYPES = {
     # Points in time
-    "solar_midnight": SensorParams(Sun2PointInTimeSensor, "mdi:weather-night"),
-    "astronomical_dawn": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
-    "nautical_dawn": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
-    "dawn": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
-    "sunrise": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-up"),
-    "solar_noon": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunny"),
-    "sunset": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
-    "dusk": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
-    "nautical_dusk": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
-    "astronomical_dusk": SensorParams(Sun2PointInTimeSensor, "mdi:weather-sunset-down"),
+    "solar_midnight": SensorParams(Sun2PointInTimeSensor, ICON_NIGHT),
+    "astronomical_dawn": SensorParams(Sun2PointInTimeSensor, ICON_RISING),
+    "nautical_dawn": SensorParams(Sun2PointInTimeSensor, ICON_RISING),
+    "dawn": SensorParams(Sun2PointInTimeSensor, ICON_RISING),
+    "sunrise": SensorParams(Sun2PointInTimeSensor, ICON_RISING),
+    "solar_noon": SensorParams(Sun2PointInTimeSensor, ICON_DAY),
+    "sunset": SensorParams(Sun2PointInTimeSensor, ICON_SETTING),
+    "dusk": SensorParams(Sun2PointInTimeSensor, ICON_SETTING),
+    "nautical_dusk": SensorParams(Sun2PointInTimeSensor, ICON_SETTING),
+    "astronomical_dusk": SensorParams(Sun2PointInTimeSensor, ICON_SETTING),
     # Time periods
-    "daylight": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
-    "civil_daylight": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
-    "nautical_daylight": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
-    "astronomical_daylight": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-sunny"),
-    "night": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-night"),
-    "civil_night": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-night"),
-    "nautical_night": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-night"),
-    "astronomical_night": SensorParams(Sun2PeriodOfTimeSensor, "mdi:weather-night"),
+    "daylight": SensorParams(Sun2PeriodOfTimeSensor, ICON_DAY),
+    "civil_daylight": SensorParams(Sun2PeriodOfTimeSensor, ICON_DAY),
+    "nautical_daylight": SensorParams(Sun2PeriodOfTimeSensor, ICON_DAY),
+    "astronomical_daylight": SensorParams(Sun2PeriodOfTimeSensor, ICON_DAY),
+    "night": SensorParams(Sun2PeriodOfTimeSensor, ICON_NIGHT),
+    "civil_night": SensorParams(Sun2PeriodOfTimeSensor, ICON_NIGHT),
+    "nautical_night": SensorParams(Sun2PeriodOfTimeSensor, ICON_NIGHT),
+    "astronomical_night": SensorParams(Sun2PeriodOfTimeSensor, ICON_NIGHT),
     # Min/Max elevation
-    "min_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-night"),
-    "max_elevation": SensorParams(Sun2MinMaxElevationSensor, "mdi:weather-sunny"),
+    "min_elevation": SensorParams(Sun2MinMaxElevationSensor, ICON_NIGHT),
+    "max_elevation": SensorParams(Sun2MinMaxElevationSensor, ICON_DAY),
     # Azimuth & Elevation
-    "azimuth": SensorParams(Sun2AzimuthSensor, "mdi:sun-angle"),
-    "sunrise_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
-    "sunset_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, "mdi:sun-angle"),
+    "azimuth": SensorParams(Sun2AzimuthSensor, ICON_AZIMUTH),
+    "sunrise_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, ICON_AZIMUTH),
+    "sunset_azimuth": SensorParams(Sun2SunriseSunsetAzimuthSensor, ICON_AZIMUTH),
     "elevation": SensorParams(Sun2ElevationSensor, None),
     # Phase
     "sun_phase": SensorParams(Sun2PhaseSensor, None),

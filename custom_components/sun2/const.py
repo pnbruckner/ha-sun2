@@ -5,13 +5,9 @@ import logging
 DOMAIN = "sun2"
 
 ELEV_STEP = 0.5
-MAX_ERR_ELEV = 0.02
-MAX_ERR_BIN = 0.001
-
 SUNSET_ELEV = -0.267
 
 ONE_DAY = timedelta(days=1)
-ONE_SEC = timedelta(seconds=1)
 
 LOGGER = logging.getLogger(__package__)
 
@@ -37,6 +33,9 @@ ATTR_TOMORROW_HMS = "tomorrow_hms"
 ATTR_YESTERDAY = "yesterday"
 ATTR_YESTERDAY_HMS = "yesterday_hms"
 
+ICON_ABOVE = "mdi:white-balance-sunny"
+ICON_AZIMUTH = "mdi:sun-angle"
+ICON_BELOW = "mdi:moon-waxing-crescent"
 ICON_DAY = "mdi:weather-sunny"
 ICON_NIGHT = "mdi:weather-night"
 ICON_RISING = "mdi:weather-sunset-up"
