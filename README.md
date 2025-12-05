@@ -142,7 +142,7 @@ A list of one or more of the following.
 
 #### `elevation`
 
-`'on'` when sun's elevation is above threshold, `'off'` when at or below threshold.
+`'on'` when sun rises to or above threshold, `'off'` when sets to or below threshold.
 
 Key | Optional | Description
 -|-|-
