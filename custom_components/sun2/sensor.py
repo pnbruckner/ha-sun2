@@ -841,6 +841,8 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
 class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
     """Sun2 Elevation Sensor."""
 
+    _nxt_elv: float
+
     def __init__(
         self, sun2_entity_params: Sun2EntityParams, sensor_type: str, icon: str | None
     ) -> None:
@@ -860,18 +862,22 @@ class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
         """Update state."""
         # Astral package ignores microseconds when determining solar elevation, so round
         # to nearest second.
-        cur_elv = cast(float, self._astral_event(nearest_second(cur_dttm)))
-        self._attr_native_value = rnd_elv = round(cur_elv, 1)
-        self._attr_icon = self._icon(cur_elv)
-        LOGGER.debug("%s: Raw elevation = %f -> %s", self._log_name, cur_elv, rnd_elv)
+        raw_elv = cast(float, self._astral_event(nearest_second(cur_dttm)))
+        if self._first_update:
+            self._nxt_elv = round(raw_elv, 1)
+        self._attr_native_value = self._nxt_elv
+        self._attr_icon = self._icon(self._nxt_elv)
+        LOGGER.debug(
+            "%s: Raw elevation = %f -> %s", self._log_name, raw_elv, self._nxt_elv
+        )
 
         # Move elevation by desired step. If that elevation does not occur today, then
         # move to next solar noon or solar midnight event.
         if self._rising:
-            nxt_elv = round(cur_elv / ELEV_STEP) * ELEV_STEP + ELEV_STEP
+            self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP + ELEV_STEP
         else:
-            nxt_elv = round(cur_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
-        if (nxt_chg := self._time_at_elevation(nxt_elv)) is None:
+            self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
+        if (nxt_chg := self._time_at_elevation(self._nxt_elv)) is None:
             if self._rising:
                 nxt_chg = self._solar_noon(self._dt)
                 self._rising = False
@@ -879,6 +885,9 @@ class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
                 self._dt += ONE_DAY
                 nxt_chg = self._solar_midnight(self._dt)
                 self._rising = True
+            self._nxt_elv = round(
+                cast(float, self._astral_event(nearest_second(nxt_chg))), 1
+            )
 
         assert nxt_chg > cur_dttm
 
