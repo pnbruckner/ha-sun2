@@ -4,9 +4,9 @@
   "codeowners": ["@pnbruckner"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/3.4.4b2/README.md",
+  "documentation": "https://github.com/pnbruckner/ha-sun2/blob/4.0.0b0/README.md",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/pnbruckner/ha-sun2/issues",
   "requirements": [],
-  "version": "3.4.4b2"
+  "version": "4.0.0b0"
 }
