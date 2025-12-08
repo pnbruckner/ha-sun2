@@ -36,7 +36,7 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
-from .helpers import Num, init_translations
+from .helpers import Num
 
 _COERCE_NUM = vol.Any(vol.Coerce(int), vol.Coerce(float))
 
@@ -254,7 +254,6 @@ async def async_validate_config(
     hass: HomeAssistant, config: ConfigType
 ) -> ConfigType | None:
     """Validate configuration."""
-    await init_translations(hass)
 
     config = _SUN2_CONFIG_SCHEMA(config)
     if DOMAIN not in config:

@@ -152,7 +152,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if ha_loc_data_changed := new_ha_loc_data != s2data.ha_loc_data:
             s2data.ha_loc_data = new_ha_loc_data
 
-        if not any(key in event.data for key in ("location_name", "language")):
+        if "location_name" not in event.data:
             if ha_loc_data_changed:
                 async_dispatcher_send(hass, SIG_HA_LOC_UPDATED)
             return

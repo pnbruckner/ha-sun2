@@ -185,9 +185,25 @@
     "binary_sensor": {
       "elevation": {
         "state_attributes": {
-          "next_change": {
-            "name": "Следующее изменение"
-          }
+          "next_change": {"name": "Следующее изменение"}
+        }
+      },
+      "elevation_hor": {
+        "name": "Выше горизонта",
+        "state_attributes": {
+          "next_change": {"name": "Следующее изменение"}
+        }
+      },
+      "elevation_neg": {
+        "name": "Выше минус {elevation}°",
+        "state_attributes": {
+          "next_change": {"name": "Следующее изменение"}
+        }
+      },
+      "elevation_pos": {
+        "name": "Выше {elevation}°",
+        "state_attributes": {
+          "next_change": {"name": "Следующее изменение"}
         }
       }
     },
@@ -402,6 +418,20 @@
         }
       },
       "elevation_at_time": {
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "elevation_at_time_name": {
+        "name": "Высота в {elev_time}",
         "state_attributes": {
           "today": {
             "name": "Сегодня"
@@ -631,6 +661,62 @@
             "name": "Вчера"
           }
         }
+      },
+      "time_at_elevation_rising_neg": {
+        "name": "Восход на высоте минус {elevation}°",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "time_at_elevation_rising_pos": {
+        "name": "Восход на высоте {elevation}°",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "time_at_elevation_setting_neg": {
+        "name": "Закат на высоте минус {elevation}°",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
+      },
+      "time_at_elevation_setting_pos": {
+        "name": "Закат на высоте {elevation}°",
+        "state_attributes": {
+          "today": {
+            "name": "Сегодня"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "yesterday": {
+            "name": "Вчера"
+          }
+        }
       }
     }
   },
@@ -639,18 +725,6 @@
       "options": {
         "rising": "Восход",
         "setting": "Закат"
-      }
-    },
-    "misc": {
-      "options": {
-        "above_horizon": "Выше горизонта",
-        "above_neg_elev": "Выше минус {elevation} °",
-        "above_pos_elev": "Выше {elevation} °",
-        "elevation_at": "Высота в {elev_time}",
-        "rising_neg_elev": "Восход на высоте минус {elevation} °",
-        "rising_pos_elev": "Восход на высоте {elevation} °",
-        "setting_neg_elev": "Закат на высоте минус {elevation} °",
-        "setting_pos_elev": "Закат на высоте {elevation} °"
       }
     }
   },

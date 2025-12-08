@@ -98,7 +98,6 @@ from .helpers import (
     hours_to_hms,
     nearest_second,
     next_midnight,
-    translate,
 )
 
 _ENABLED_SENSORS = [
@@ -520,7 +519,10 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
     _unsub_listen: CALLBACK_TYPE | None = None
 
     def __init__(
-        self, sun2_entity_params: Sun2EntityParams, name: str, at_time: str | time
+        self,
+        sun2_entity_params: Sun2EntityParams,
+        name: str | None,
+        at_time: str | time,
     ) -> None:
         """Initialize sensor."""
         if isinstance(at_time, str):
@@ -536,6 +538,10 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         )
         super().__init__(sun2_entity_params, entity_description, name=name)
         self._event = "solar_elevation"
+
+        if not name:
+            self._attr_translation_key = CONF_ELEVATION_AT_TIME + "_name"
+            self._attr_translation_placeholders = {"elev_time": str(at_time)}
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -657,7 +663,7 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
     def __init__(
         self,
         sun2_entity_params: Sun2EntityParams,
-        name: str,
+        name: str | None,
         icon: str | None,
         direction: SunDirection,
         elevation: float,
@@ -671,6 +677,11 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
         self._direction = direction
         self._elevation = elevation
         super().__init__(sun2_entity_params, CONF_TIME_AT_ELEVATION, icon, name)
+
+        if not name:
+            suffix = f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}"
+            self._attr_translation_key = f"{CONF_TIME_AT_ELEVATION}_{suffix}"
+            self._attr_translation_placeholders = {"elevation": str(abs(elevation))}
 
     def _astral_event(
         self,
@@ -983,11 +994,7 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
                 if isinstance(at_time, str):
                     with suppress(ValueError):
                         at_time = time.fromisoformat(at_time)
-                yield Sun2ElevationAtTimeSensor(
-                    self._sun2_entity_params,
-                    self._elevation_at_time_name(name, at_time),
-                    at_time,
-                )
+                yield Sun2ElevationAtTimeSensor(self._sun2_entity_params, name, at_time)
                 continue
 
             if (elevation := config.get(CONF_TIME_AT_ELEVATION)) is not None:
@@ -996,7 +1003,7 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
                 )
                 yield Sun2TimeAtElevationSensor(
                     self._sun2_entity_params,
-                    self._time_at_elevation_name(name, direction, elevation),
+                    name,
                     config.get(CONF_ICON),
                     direction,
                     elevation,
@@ -1004,24 +1011,6 @@ class Sun2SensorEntrySetup(Sun2EntrySetup):
                 continue
 
             raise ValueError(f"Unexpected sensor config: {config}")
-
-    def _elevation_at_time_name(self, name: str | None, at_time: str | time) -> str:
-        """Return elevation_at_time sensor name."""
-        if name:
-            return name
-        return translate(self._hass, "elevation_at", {"elev_time": str(at_time)})
-
-    def _time_at_elevation_name(
-        self, name: str | None, direction: SunDirection, elevation: float
-    ) -> str:
-        """Return time_at_elevation sensor name."""
-        if name:
-            return name
-        return translate(
-            self._hass,
-            f"{direction.name.lower()}_{'neg' if elevation < 0 else 'pos'}_elev",
-            {"elevation": str(abs(elevation))},
-        )
 
 
 async_setup_entry = Sun2SensorEntrySetup.async_setup_entry

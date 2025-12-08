@@ -39,7 +39,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later, async_track_point_in_utc_time
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
 
@@ -216,8 +215,6 @@ class Sun2Data:
     """Sun2 shared data."""
 
     ha_loc_data: LocData
-    translations: dict[str, str] = field(default_factory=dict)
-    language: str | None = None
     config_data: dict[str, ConfigData] = field(default_factory=dict)
 
 
@@ -240,35 +237,6 @@ def hours_to_hms(hours: Num | None) -> str | None:
         return str(timedelta(seconds=int(cast(Num, hours) * 3600)))
     except TypeError:
         return None
-
-
-_TRANS_PREFIX = f"component.{DOMAIN}.selector.misc.options"
-
-
-async def init_translations(hass: HomeAssistant) -> None:
-    """Initialize translations."""
-    s2data = await init_sun2_data(hass)
-    if s2data.language != hass.config.language:
-        sel_trans = await async_get_translations(
-            hass, hass.config.language, "selector", [DOMAIN], False
-        )
-        s2data.translations = {}
-        for sel_key, val in sel_trans.items():
-            prefix, key = sel_key.rsplit(".", 1)
-            if prefix == _TRANS_PREFIX:
-                s2data.translations[key] = val
-
-
-def translate(
-    hass: HomeAssistant, key: str, placeholders: dict[str, Any] | None = None
-) -> str:
-    """Sun2 translations."""
-    trans = sun2_data(hass).translations[key]
-    if not placeholders:
-        return trans
-    for ph_key, val in placeholders.items():
-        trans = trans.replace(f"{{{ph_key}}}", str(val))
-    return trans
 
 
 def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:

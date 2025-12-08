@@ -193,7 +193,7 @@ Would be equivalent to:
   time_at_elevation: -0.267
   direction: rising
   icon: mdi:weather-sunny
-  name: Rising at minus 0.267 °
+  name: Rising at minus 0.267°
 ```
 
 #### Elevation at Time Sensor

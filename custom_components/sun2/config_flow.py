@@ -62,7 +62,7 @@ from .const import (
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
 )
-from .helpers import Num, init_translations
+from .helpers import Num
 
 _LOCATION_OPTIONS = [CONF_LATITUDE, CONF_LONGITUDE, CONF_TIME_ZONE]
 
@@ -342,7 +342,6 @@ class Sun2Flow(ConfigEntryBaseFlow):
         self, _: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle entity options."""
-        await init_translations(self.hass)
         menu_options = ["add_entities_menu"]
         if self.options.get(CONF_BINARY_SENSORS) or self.options.get(CONF_SENSORS):
             menu_options.append("remove_entities")

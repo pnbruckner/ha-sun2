@@ -30,7 +30,6 @@ from .helpers import (
     Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
     nearest_second,
-    translate,
 )
 
 
@@ -38,20 +37,31 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
     """Sun2 Elevation Sensor."""
 
     def __init__(
-        self, sun2_entity_params: Sun2EntityParams, name: str, threshold: float | str
+        self,
+        sun2_entity_params: Sun2EntityParams,
+        name: str | None,
+        threshold: float | str,
     ) -> None:
         """Initialize sensor."""
-        self.entity_description = BinarySensorEntityDescription(
-            key=CONF_ELEVATION, name=name
-        )
+        self.entity_description = BinarySensorEntityDescription(key=CONF_ELEVATION)
         super().__init__(sun2_entity_params)
         self._event = "solar_elevation"
 
-        if isinstance(threshold, str):
+        if threshold_is_horizon := isinstance(threshold, str):
             assert threshold == "horizon"
             self._threshold = SUNSET_ELEV
         else:
             self._threshold = threshold
+        if name:
+            self._attr_name = name
+        elif threshold_is_horizon:
+            self._attr_translation_key = CONF_ELEVATION + "_hor"
+        elif threshold < 0:  # type: ignore[operator]
+            self._attr_translation_key = CONF_ELEVATION + "_neg"
+            self._attr_translation_placeholders = {"elevation": str(-threshold)}  # type: ignore[operator]
+        else:
+            self._attr_translation_key = CONF_ELEVATION + "_pos"
+            self._attr_translation_placeholders = {"elevation": str(threshold)}
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -129,22 +139,8 @@ class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
             self._sun2_entity_params.unique_id = unique_id
             threshold = config[CONF_ELEVATION]
             yield Sun2ElevationSensor(
-                self._sun2_entity_params,
-                self._elevation_name(config.get(CONF_NAME), threshold),
-                threshold,
+                self._sun2_entity_params, config.get(CONF_NAME), threshold
             )
-
-    def _elevation_name(self, name: str | None, threshold: float | str) -> str:
-        """Return elevation sensor name."""
-        if name:
-            return name
-        if isinstance(threshold, str):
-            return translate(self._hass, "above_horizon")
-        if threshold < 0:
-            return translate(
-                self._hass, "above_neg_elev", {"elevation": str(-threshold)}
-            )
-        return translate(self._hass, "above_pos_elev", {"elevation": str(threshold)})
 
 
 async_setup_entry = Sun2BinarySensorEntrySetup.async_setup_entry

@@ -251,6 +251,24 @@
                 "state_attributes": {
                     "next_change": {"name": "Next change"}
                 }
+            },
+            "elevation_hor": {
+                "name": "Above horizon",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_neg": {
+                "name": "Above minus {elevation}°",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_pos": {
+                "name": "Above {elevation}°",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
             }
         },
         "sensor": {
@@ -372,6 +390,14 @@
                 }
             },
             "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "elevation_at_time_name": {
+                "name": "Elevation at {elev_time}",
                 "state_attributes": {
                     "today": {"name": "Today"},
                     "tomorrow": {"name": "Tomorrow"},
@@ -513,6 +539,38 @@
                     "tomorrow": {"name": "Tomorrow"},
                     "yesterday": {"name": "Yesterday"}
                 }
+            },
+            "time_at_elevation_rising_neg": {
+                "name": "Rising at minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_rising_pos": {
+                "name": "Rising at {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_setting_neg": {
+                "name": "Setting at minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_setting_pos": {
+                "name": "Setting at {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             }
         }
     },
@@ -521,18 +579,6 @@
             "options": {
                 "rising": "Rising",
                 "setting": "Setting"
-            }
-        },
-        "misc": {
-            "options": {
-                "above_horizon": "Above horizon",
-                "above_neg_elev": "Above minus {elevation} °",
-                "above_pos_elev": "Above {elevation} °",
-                "elevation_at": "Elevation at {elev_time}",
-                "rising_neg_elev": "Rising at minus {elevation} °",
-                "rising_pos_elev": "Rising at {elevation} °",
-                "setting_neg_elev": "Setting at minus {elevation} °",
-                "setting_pos_elev": "Setting at {elevation} °"
             }
         }
     },
