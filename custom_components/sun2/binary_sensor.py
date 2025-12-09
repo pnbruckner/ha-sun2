@@ -99,7 +99,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
                 cur_elv = self._solar_elevation(nearest_second(cur_dttm))
                 if self._rising:
                     return cur_elv >= self._threshold - self._ris_elv_adj
-                return cur_elv <= self._threshold - self._set_elv_adj
+                return cur_elv > self._threshold - self._set_elv_adj
             # Sun does cross threshold today.
             if cur_dttm < nxt_chg:
                 # Sun has not yet crossed threshold on current part of the "solar
