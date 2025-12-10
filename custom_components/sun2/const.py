@@ -8,6 +8,7 @@ ELEV_STEP = 0.5
 SUNSET_ELEV = -0.267
 
 ONE_DAY = timedelta(days=1)
+ONE_YEAR = timedelta(365)
 
 LOGGER = logging.getLogger(__package__)
 

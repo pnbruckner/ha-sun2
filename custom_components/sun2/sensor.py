@@ -67,6 +67,7 @@ from .const import (
     ICON_SETTING,
     LOGGER,
     ONE_DAY,
+    ONE_YEAR,
     STATE_ASTRO_TW,
     STATE_CIVIL_TW,
     STATE_DAWN,
@@ -638,8 +639,11 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         self._tomorrow = cast(float | None, self._astral_event(dttm + ONE_DAY))
 
 
-class Sun2PointInTimeSensor(Sun2SensorEntity[datetime | str]):
+class Sun2PointInTimeSensor(Sun2SensorEntity[datetime]):
     """Sun2 Point in Time Sensor."""
+
+    _future_date: date | None = None
+    _future_value: datetime | None = None
 
     def __init__(
         self,
@@ -655,6 +659,36 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[datetime | str]):
             icon=icon,
         )
         super().__init__(sun2_entity_params, entity_description, "civil", name)
+
+    def _update(self, cur_dttm: datetime) -> None:
+        """Update state."""
+        super()._update(cur_dttm)
+        # Does event occur today?
+        if self._attr_native_value is not None:
+            self._future_date = None
+            self._future_value = None
+            return
+        # It does not. Was the next time the event occurs in the future already found?
+        if self._future_value is not None:
+            return
+        # It was not. Look for next time the event occurs in the future up to one year
+        # beyond today, starting with the day after the last day checked (or starting
+        # with tomorrow if this is the first day the event does not occur.)
+        cur_date = self._as_tz(cur_dttm).date()
+        if (chk_date := self._future_date) is None:
+            chk_date = cur_date
+        while (chk_date := chk_date + ONE_DAY) <= cur_date + ONE_YEAR:
+            self._future_date = chk_date
+            self._future_value = cast(datetime | None, self._astral_event(chk_date))
+            if self._future_value is not None:
+                self._attr_native_value = self._future_value
+                LOGGER.debug(
+                    "%s: Does not occur again until %s",
+                    self._log_name,
+                    self._dttm_2_str(self._future_value),
+                )
+                return
+        LOGGER.debug("%s: Does not occur within the next year", self._log_name)
 
 
 class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
