@@ -1,6 +1,7 @@
 """Sun2 Binary Sensor."""
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -15,12 +16,14 @@ from homeassistant.const import (
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import CoreState
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_NEXT_CHANGE,
     ICON_ABOVE,
     ICON_BELOW,
     LOGGER,
+    MAX_UPDATE_TIME,
     ONE_DAY,
     SUNSET_ELEV,
 )
@@ -66,12 +69,12 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
             self._attr_translation_key = CONF_ELEVATION + "_pos"
             self._attr_translation_placeholders = {"elevation": str(threshold)}
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         self._attr_is_on = self._get_cur_state(cur_dttm)
         self._attr_icon = ICON_ABOVE if self._attr_is_on else ICON_BELOW
 
-        if nxt_chg := self._get_nxt_chg():
+        if nxt_chg := await self._get_nxt_chg():
             self._schedule_update(nxt_chg)
             nxt_chg = self._as_tz(nxt_chg)
             # It's ok that nxt_chg is now in location's time zone and cur_dttm is in
@@ -114,19 +117,23 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
                     self._dt -= ONE_DAY
         return self._rising
 
-    def _get_nxt_chg(self) -> datetime | None:
+    async def _get_nxt_chg(self) -> datetime | None:
         """Get next time sun crosses threshold."""
         # Find next time sun crosses threshold. Note that it's possible that might not
         # happen today, or even tomorrow, depending on location & time of year. Move to
         # next part of solar elevation curve, and if that doesn't cross threshold, keep
         # moving to the next part of the curve until a crossing is found, but don't look
         # more than one year into the future.
+        start = dt_util.utcnow()
         for _ in range(365 * 2):
             self._rising = not self._rising
             if self._rising:
                 self._dt += ONE_DAY
             if nxt_chg := self._time_at_elevation(self._threshold):
                 return nxt_chg
+            if dt_util.utcnow() - start > MAX_UPDATE_TIME:
+                await asyncio.sleep(0)
+                start = dt_util.utcnow()
         return None
 
 

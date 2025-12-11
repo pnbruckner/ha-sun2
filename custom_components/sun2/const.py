@@ -7,6 +7,8 @@ DOMAIN = "sun2"
 ELEV_STEP = 0.5
 SUNSET_ELEV = -0.267
 
+MAX_UPDATE_TIME = timedelta(milliseconds=50)
+
 ONE_DAY = timedelta(days=1)
 ONE_YEAR = timedelta(365)
 

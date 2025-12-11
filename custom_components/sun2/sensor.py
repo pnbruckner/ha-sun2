@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+import asyncio
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, make_dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from functools import cached_property  # pylint: disable=hass-deprecated-import
 from itertools import chain
 from typing import Any, Generic, TypeVar, cast
@@ -66,6 +67,7 @@ from .const import (
     ICON_RISING,
     ICON_SETTING,
     LOGGER,
+    MAX_UPDATE_TIME,
     ONE_DAY,
     ONE_YEAR,
     STATE_ASTRO_TW,
@@ -115,7 +117,6 @@ _ENABLED_SENSORS = [
     CONF_TIME_AT_ELEVATION,
 ]
 _SOLAR_DEPRESSIONS = ("astronomical", "civil", "nautical")
-_DELTA = timedelta(minutes=5)
 
 _T = TypeVar("_T")
 
@@ -139,7 +140,7 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
         )
         super().__init__(sun2_entity_params)
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         # Astral package ignores microseconds when determining azimuth & solar
         # elevation, so round to nearest second before continuing.
@@ -228,7 +229,7 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         with suppress(AttributeError):
             del self._ph_params
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         if self._first_update:
             # Determine what phase the sensor would have been at the last time the sun
@@ -606,7 +607,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             self._unsub_listen()
             self._unsub_listen = None
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         if not self._at_time:
             self._yesterday = None
@@ -628,7 +629,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
 class Sun2SensorEntityWithUpdate(Sun2SensorEntity[_T]):
     """Sun2 Sensor Entity with update methods."""
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         cur_date = self._as_tz(cur_dttm).date()
         self._yesterday = self._astral_event(cur_date - ONE_DAY)
@@ -684,9 +685,9 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
         )
         super().__init__(sun2_entity_params, entity_description, name=name)
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        super()._update(cur_dttm)
+        await super()._update(cur_dttm)
         # Does event occur today?
         if self._attr_native_value is not None:
             self._future_date = None
@@ -701,6 +702,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
         cur_date = self._as_tz(cur_dttm).date()
         if (chk_date := self._future_date) is None:
             chk_date = cur_date
+        start = dt_util.utcnow()
         while (chk_date := chk_date + ONE_DAY) <= cur_date + ONE_YEAR:
             self._future_date = chk_date
             self._future_value = self._astral_event(chk_date)
@@ -712,6 +714,9 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
                     self._dttm_2_str(self._future_value),
                 )
                 return
+            if dt_util.utcnow() - start > MAX_UPDATE_TIME:
+                await asyncio.sleep(0)
+                start = dt_util.utcnow()
         LOGGER.debug("%s: Does not occur within the next year", self._log_name)
 
     def _astral_event(self, dt: date) -> datetime | None:
@@ -907,7 +912,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
         )
         super().__init__(sun2_entity_params)
 
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         # Astral package ignores microseconds when determining solar elevation, so round
         # to nearest second.

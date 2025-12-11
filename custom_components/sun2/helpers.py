@@ -354,20 +354,21 @@ class Sun2Entity(Entity, ABC):
         """Update state."""
         cur_dttm = dt_util.utcnow()
         LOGGER.debug(
-            "%s: +++++++++++++++++++++ first update: %s, update time: %s",
+            "%s: +++++++++++++++++++++ first update: %s, update at: %s",
             self._log_name,
             self._first_update,
             self._dttm_2_str(cur_dttm),
         )
         if self._first_update:
             self._update_setup(cur_dttm)
-        self._update(cur_dttm)
-        self._first_update = False
+        await self._update(cur_dttm)
         LOGGER.debug(
-            "%s: --------------------- update took: %0.6f",
+            "%s: --------------------- first update: %s, update took: %0.6f",
             self._log_name,
+            self._first_update,
             (dt_util.utcnow() - cur_dttm).total_seconds(),
         )
+        self._first_update = False
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -405,7 +406,7 @@ class Sun2Entity(Entity, ABC):
         """
 
     @abstractmethod
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
 
     def _setup_fixed_updating(self) -> None:
