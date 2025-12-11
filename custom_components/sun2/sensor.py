@@ -695,6 +695,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
             return
         # It does not. Was the next time the event occurs in the future already found?
         if self._future_value is not None:
+            self._attr_native_value = self._future_value
             return
         # It was not. Look for next time the event occurs in the future up to one year
         # beyond today, starting with the day after the last day checked (or starting
