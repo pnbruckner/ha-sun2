@@ -9,6 +9,7 @@ from datetime import date, datetime, time, timedelta, tzinfo
 from functools import (  # pylint: disable=hass-deprecated-import
     cached_property,
     lru_cache,
+    partial,
 )
 from math import copysign, fabs
 from typing import Any, Self, cast
@@ -279,7 +280,12 @@ class Sun2EntityParams:
 
 
 class Sun2Entity(Entity, ABC):
-    """Sun2 Entity."""
+    """Sun2 Entity.
+
+    Assumes async_update & anything called via async_request_call are protected by a
+    semaphore. To make sure the semaphore is created and used, platform modules MUST
+    declare PARALLEL_UPDATES = 1!
+    """
 
     _unrecorded_attributes = frozenset(
         {
@@ -293,8 +299,6 @@ class Sun2Entity(Entity, ABC):
     )
     _attr_should_poll = False
     _unsub_update: CALLBACK_TYPE | None = None
-    _event: str
-    _solar_depression: Num | str
     _first_update = True
 
     @abstractmethod
@@ -318,15 +322,39 @@ class Sun2Entity(Entity, ABC):
             return f"{dev_entry.name} {self.name}"
         return str(self.name)
 
+    @cached_property
+    def _loc(self) -> Location:
+        """Return astral location."""
+        return self._astral_data.loc_data.loc
+
+    @cached_property
+    def _tzi(self) -> tzinfo | None:
+        """Return time zone info."""
+        return self._astral_data.loc_data.tzi
+
+    @cached_property
+    def _east_obs_elv(self) -> ObsElv:
+        """Return easterly observer elevation."""
+        return self._astral_data.obs_elvs.east
+
+    @cached_property
+    def _west_obs_elv(self) -> ObsElv:
+        """Return westerly observer elevation."""
+        return self._astral_data.obs_elvs.west
+
     def _as_tz(self, dttm: datetime) -> datetime:
         """Return datetime in location's time zone."""
-        return dttm.astimezone(self._astral_data.loc_data.tzi)
+        return dttm.astimezone(self._tzi)
+
+    def _dttm_2_str(self, dttm: datetime) -> str:
+        """Return string representation of datetime in configured time zone."""
+        return self._as_tz(dttm).isoformat(timespec="microseconds")
 
     async def async_update(self) -> None:
         """Update state."""
         cur_dttm = dt_util.utcnow()
         LOGGER.debug(
-            "%s: --------------------- first update: %s, update time: %s",
+            "%s: +++++++++++++++++++++ first update: %s, update time: %s",
             self._log_name,
             self._first_update,
             self._dttm_2_str(cur_dttm),
@@ -335,6 +363,11 @@ class Sun2Entity(Entity, ABC):
             self._update_setup(cur_dttm)
         self._update(cur_dttm)
         self._first_update = False
+        LOGGER.debug(
+            "%s: --------------------- update took: %0.6f",
+            self._log_name,
+            (dt_util.utcnow() - cur_dttm).total_seconds(),
+        )
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -393,52 +426,159 @@ class Sun2Entity(Entity, ABC):
         self._first_update = True
         self._cancel_update()
         self._astral_data = astral_data
+        with suppress(AttributeError):
+            del self._loc
+        with suppress(AttributeError):
+            del self._tzi
+        with suppress(AttributeError):
+            del self._east_obs_elv
+        with suppress(AttributeError):
+            del self._west_obs_elv
         self._setup_fixed_updating()
 
-    def _astral_event(
+    def _dawn(
+        self, dt: date, solar_depression: Num | str, *, local: bool = False
+    ) -> datetime | None:
+        """Return dawn."""
+        self._loc.solar_depression = solar_depression
+        return self._astral_dt_2_dttm_none(
+            "DWN",
+            dt,
+            partial(self._loc.dawn, local=local, observer_elevation=self._east_obs_elv),
+        )
+
+    def _dusk(
+        self, dt: date, solar_depression: Num | str, *, local: bool = False
+    ) -> datetime | None:
+        """Return dusk."""
+        self._loc.solar_depression = solar_depression
+        return self._astral_dt_2_dttm_none(
+            "DSK",
+            dt,
+            partial(self._loc.dusk, local=local, observer_elevation=self._west_obs_elv),
+        )
+
+    def _solar_azimuth(self, dttm: datetime) -> float:
+        """Return solar azimuth."""
+        return self._astral_dttm_2_float("AZ", dttm, self._loc.solar_azimuth)
+
+    def _solar_elevation(self, dttm: datetime) -> float:
+        """Return solar elevation."""
+        return self._astral_dttm_2_float("EL", dttm, self._loc.solar_elevation)
+
+    def _solar_midnight(self, dt: date, *, local: bool = False) -> datetime:
+        """Return solar midnight."""
+        return cast(
+            datetime,
+            self._astral_dt_2_dttm_none(
+                "SM", dt, partial(self._loc.midnight, local=local)
+            ),
+        )
+
+    def _solar_noon(self, dt: date, *, local: bool = False) -> datetime:
+        """Return solar noon."""
+        return cast(
+            datetime,
+            self._astral_dt_2_dttm_none("SN", dt, partial(self._loc.noon, local=local)),
+        )
+
+    def _sunrise(
+        self, dt: date, observer_elevation: ObsElv | None = None, *, local: bool = False
+    ) -> datetime | None:
+        """Return sunrise."""
+        if observer_elevation is None:
+            observer_elevation = self._east_obs_elv
+        return self._astral_dt_2_dttm_none(
+            "SR",
+            dt,
+            partial(
+                self._loc.sunrise, local=local, observer_elevation=observer_elevation
+            ),
+        )
+
+    def _sunset(
+        self, dt: date, observer_elevation: ObsElv | None = None, *, local: bool = False
+    ) -> datetime | None:
+        """Return sunset."""
+        if observer_elevation is None:
+            observer_elevation = self._west_obs_elv
+        return self._astral_dt_2_dttm_none(
+            "SS",
+            dt,
+            partial(
+                self._loc.sunset, local=local, observer_elevation=observer_elevation
+            ),
+        )
+
+    def _time_at_elevation(
         self,
-        date_or_dttm: date | datetime,
-        event: str | None = None,
-        local: bool = True,
-        /,
-        **kwargs: Any,
-    ) -> Any:
-        """Return astral event result."""
-        if not event:
-            event = self._event
-        loc = self._astral_data.loc_data.loc
-        if hasattr(self, "_solar_depression"):
-            loc.solar_depression = self._solar_depression
-
+        elevation: float,
+        *,
+        dt: date | None = None,
+        direction: SunDirection = SunDirection.RISING,
+        local: bool = False,
+    ) -> datetime | None:
+        """Return time at solar elevation."""
+        result: datetime | None
         try:
-            if event in ("solar_midnight", "solar_noon"):
-                return getattr(loc, event.split("_")[1])(date_or_dttm, local)
-
-            if event == "time_at_elevation":
-                return loc.time_at_elevation(
-                    kwargs["elevation"], date_or_dttm, kwargs["direction"], local
-                )
-
-            if event in ("sunrise", "dawn"):
-                kwargs = {"observer_elevation": self._astral_data.obs_elvs.east}
-            elif event in ("sunset", "dusk"):
-                kwargs = {"observer_elevation": self._astral_data.obs_elvs.west}
-            else:
-                kwargs = {}
-            if event not in ("solar_azimuth", "solar_elevation"):
-                kwargs["local"] = local
-            return getattr(loc, event)(date_or_dttm, **kwargs)
-
+            result = self._loc.time_at_elevation(elevation, dt, direction, local)
         except (TypeError, ValueError):
-            return None
+            result = None
+            fmt_result = str(None)
+        else:
+            fmt_result = self._dttm_2_str(result)
+        LOGGER.debug(
+            "%s:   TAE(%s, %10.6f, %-20s) -> %s",
+            self._log_name,
+            dt,
+            elevation,
+            direction,
+            fmt_result,
+        )
+        return result
 
-    def _dttm_2_str(self, dttm: datetime) -> str:
-        """Return string representation of datetime in configured time zone."""
-        return self._as_tz(dttm).isoformat(timespec="microseconds")
+    def _astral_dt_2_dttm_none(
+        self, label: str, dt: date, func: Callable[[date], datetime]
+    ) -> datetime | None:
+        """Call an astral function.
+
+        Astral function takes a date and returns a datetime or throws an exception, in
+        which case, return None.
+        """
+        result: datetime | None
+        try:
+            result = func(dt)
+        except (TypeError, ValueError):
+            result = None
+            fmt_result = str(None)
+        else:
+            fmt_result = self._dttm_2_str(result)
+        LOGGER.debug(
+            "%s:   %-3s(%s)%35s-> %s", self._log_name, label, dt, "", fmt_result
+        )
+        return result
+
+    def _astral_dttm_2_float(
+        self, label: str, dttm: datetime, func: Callable[[datetime], float]
+    ) -> float:
+        """Call an astral function.
+
+        Astral function takes a datetime and returns a float.
+        """
+        result = func(dttm)
+        LOGGER.debug(
+            "%s:   %-3s(%s)%13s-> %s",
+            self._log_name,
+            label,
+            self._dttm_2_str(dttm),
+            "",
+            result,
+        )
+        return result
 
 
-class Sun2EntityWithElvParams(Sun2Entity):
-    """Sun2 Entity with elevation curve parameters."""
+class Sun2EntityWithElvAdjs(Sun2Entity):
+    """Sun2 Entity with elevation adjustments."""
 
     # Only used for first update.
     _prv_dir_chg_dttm: datetime
@@ -471,6 +611,39 @@ class Sun2EntityWithElvParams(Sun2Entity):
         if self._rising:
             return SunDirection.RISING
         return SunDirection.SETTING
+
+    @cached_property
+    def _ris_elv_adj(self) -> float:
+        """Return rising elevation adjustment."""
+        if isinstance(self._east_obs_elv, Num):
+            ris_elv_adj: float = adjust_to_horizon(self._east_obs_elv)
+        else:
+            ris_elv_adj = adjust_to_obscuring_feature(self._east_obs_elv)
+        LOGGER.debug("%s: ris_elv_adj: %10.6f", self._log_name, ris_elv_adj)
+        return ris_elv_adj
+
+    @cached_property
+    def _set_elv_adj(self) -> float:
+        """Return setting elevation adjustment."""
+        if isinstance(self._west_obs_elv, Num):
+            set_elv_adj: float = adjust_to_horizon(self._west_obs_elv)
+        else:
+            set_elv_adj = adjust_to_obscuring_feature(self._west_obs_elv)
+        LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
+        return set_elv_adj
+
+    def _rising_changed(self) -> None:
+        """Rising attribute changed."""
+        with suppress(AttributeError):
+            del self._sun_direction
+
+    def _update_astral_data(self, astral_data: AstralData) -> None:
+        """Update astral data."""
+        super()._update_astral_data(astral_data)
+        with suppress(AttributeError):
+            del self._ris_elv_adj
+        with suppress(AttributeError):
+            del self._set_elv_adj
 
     def _update_setup(self, cur_dttm: datetime) -> None:
         """Set up before first update.
@@ -507,101 +680,21 @@ class Sun2EntityWithElvParams(Sun2Entity):
             self._dt += ONE_DAY
             self._prv_dir_chg_dttm = sol_midn
 
-    def _rising_changed(self) -> None:
-        """Rising attribute changed."""
-        with suppress(AttributeError):
-            del self._sun_direction
-
-    def _solar_midnight(self, dt: date) -> datetime:
-        """Return solar midnight."""
-        result = cast(datetime, self._astral_event(dt, "solar_midnight", False))
-        LOGGER.debug(
-            "%s:   SM (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
-        )
-        return result
-
-    def _solar_noon(self, dt: date) -> datetime:
-        """Return solar noon."""
-        result = cast(datetime, self._astral_event(dt, "solar_noon", False))
-        LOGGER.debug(
-            "%s:   SN (%s)%35s-> %s", self._log_name, dt, "", self._dttm_2_str(result)
-        )
-        return result
-
-    def _solar_elevation(self, dttm: datetime) -> float:
-        """Return solar elevation."""
-        result = cast(float, self._astral_event(dttm, "solar_elevation"))
-        LOGGER.debug(
-            "%s:   EL (%s)%13s-> %s",
-            self._log_name,
-            self._dttm_2_str(dttm),
-            "",
-            result,
-        )
-        return result
-
-    def _time_at_elevation(self, elevation: float) -> datetime | None:
-        """Return time at solar elevation."""
-        result = cast(
-            datetime | None,
-            self._astral_event(
-                self._dt,
-                "time_at_elevation",
-                False,
-                elevation=elevation,
-                direction=self._sun_direction,
-            ),
-        )
-        if result is None:
-            fmt_result = str(None)
-        else:
-            fmt_result = self._dttm_2_str(result)
-        LOGGER.debug(
-            "%s:   TAE(%s, %10.6f, %-20s) -> %s",
-            self._log_name,
-            self._dt,
-            elevation,
-            self._sun_direction,
-            fmt_result,
-        )
-        return result
-
-
-class Sun2EntityWithElvAdjs(Sun2EntityWithElvParams):
-    """Sun2 Entity with elevation adjustments."""
-
-    @cached_property
-    def _ris_elv_adj(self) -> float:
-        """Return rising elevation adjustment."""
-        if isinstance(east_obs_elv := self._astral_data.obs_elvs.east, Num):
-            ris_elv_adj: float = adjust_to_horizon(east_obs_elv)
-        else:
-            ris_elv_adj = adjust_to_obscuring_feature(east_obs_elv)
-        LOGGER.debug("%s: ris_elv_adj: %10.6f", self._log_name, ris_elv_adj)
-        return ris_elv_adj
-
-    @cached_property
-    def _set_elv_adj(self) -> float:
-        """Return setting elevation adjustment."""
-        if isinstance(west_obs_elv := self._astral_data.obs_elvs.west, Num):
-            set_elv_adj: float = adjust_to_horizon(west_obs_elv)
-        else:
-            set_elv_adj = adjust_to_obscuring_feature(west_obs_elv)
-        LOGGER.debug("%s: set_elv_adj: %10.6f", self._log_name, set_elv_adj)
-        return set_elv_adj
-
-    def _update_astral_data(self, astral_data: AstralData) -> None:
-        """Update astral data."""
-        super()._update_astral_data(astral_data)
-        with suppress(AttributeError):
-            del self._ris_elv_adj
-        with suppress(AttributeError):
-            del self._set_elv_adj
-
-    def _time_at_elevation(self, elevation: float) -> datetime | None:
+    def _time_at_elevation(
+        self,
+        elevation: float,
+        *,
+        adj_elv: bool = True,
+        local: bool = False,
+        **kwargs: Any,
+    ) -> datetime | None:
         """Return time at solar elevation."""
         return super()._time_at_elevation(
-            elevation - (self._ris_elv_adj if self._rising else self._set_elv_adj)
+            elevation
+            - adj_elv * (self._ris_elv_adj if self._rising else self._set_elv_adj),
+            dt=self._dt,
+            direction=self._sun_direction,
+            local=local,
         )
 
 

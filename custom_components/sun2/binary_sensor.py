@@ -32,9 +32,13 @@ from .helpers import (
     nearest_second,
 )
 
+# Cause Semaphore to be created to make async_update, and anything protected by
+# async_request_call, atomic.
+PARALLEL_UPDATES = 1
 
-class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
-    """Sun2 Elevation Sensor."""
+
+class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
+    """Sun2 Elevation Binary Sensor."""
 
     def __init__(
         self,
@@ -45,7 +49,6 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         """Initialize sensor."""
         self.entity_description = BinarySensorEntityDescription(key=CONF_ELEVATION)
         super().__init__(sun2_entity_params)
-        self._event = "solar_elevation"
 
         if threshold_is_horizon := isinstance(threshold, str):
             assert threshold == "horizon"
@@ -138,7 +141,7 @@ class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
                 unique_id = self._uid_prefix + unique_id
             self._sun2_entity_params.unique_id = unique_id
             threshold = config[CONF_ELEVATION]
-            yield Sun2ElevationSensor(
+            yield Sun2ElevationBinarySensor(
                 self._sun2_entity_params, config.get(CONF_NAME), threshold
             )
 

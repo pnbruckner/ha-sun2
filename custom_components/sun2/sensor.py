@@ -94,12 +94,15 @@ from .helpers import (
     Sun2Entity,
     Sun2EntityParams,
     Sun2EntityWithElvAdjs,
-    Sun2EntityWithElvParams,
     Sun2EntrySetup,
     hours_to_hms,
     nearest_second,
     next_midnight,
 )
+
+# Cause Semaphore to be created to make async_update, and anything protected by
+# async_request_call, atomic.
+PARALLEL_UPDATES = 1
 
 _ENABLED_SENSORS = [
     "solar_midnight",
@@ -135,16 +138,15 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
             suggested_display_precision=2,
         )
         super().__init__(sun2_entity_params)
-        self._event = "solar_azimuth"
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         # Astral package ignores microseconds when determining azimuth & solar
         # elevation, so round to nearest second before continuing.
         cur_dttm = nearest_second(cur_dttm)
-        self._attr_native_value = self._astral_event(cur_dttm)
+        self._attr_native_value = self._solar_azimuth(cur_dttm)
 
-        elevation = self._astral_event(cur_dttm, "solar_elevation")
+        elevation = self._solar_elevation(cur_dttm)
         if elevation >= 10:
             delta = 4 * 60
         elif elevation >= 0:
@@ -453,22 +455,16 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
         self,
         sun2_entity_params: Sun2EntityParams,
         entity_description: SensorEntityDescription,
-        default_solar_depression: Num | str = 0,
         name: str | None = None,
     ) -> None:
         """Initialize sensor."""
-        key = entity_description.key
         if name:
             self._attr_name = name
-        self._attr_entity_registry_enabled_default = key in _ENABLED_SENSORS
+        self._attr_entity_registry_enabled_default = (
+            entity_description.key in _ENABLED_SENSORS
+        )
         self.entity_description = entity_description
         super().__init__(sun2_entity_params)
-
-        if any(key.startswith(sol_dep + "_") for sol_dep in _SOLAR_DEPRESSIONS):
-            self._solar_depression, self._event = key.rsplit("_", 1)
-        else:
-            self._solar_depression = default_solar_depression
-            self._event = key
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -501,15 +497,6 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
             self.hass, async_schedule_update_at_midnight, next_midn
         )
 
-    def _update(self, cur_dttm: datetime) -> None:
-        """Update state."""
-        cur_date = self._as_tz(cur_dttm).date()
-        self._yesterday = cast(_T | None, self._astral_event(cur_date - ONE_DAY))
-        self._attr_native_value = self._today = cast(
-            _T | None, self._astral_event(cur_date)
-        )
-        self._tomorrow = cast(_T | None, self._astral_event(cur_date + ONE_DAY))
-
 
 class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
     """Sun2 Elevation at Time Sensor."""
@@ -538,7 +525,6 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             suggested_display_precision=2,
         )
         super().__init__(sun2_entity_params, entity_description, name=name)
-        self._event = "solar_elevation"
 
         if not name:
             self._attr_translation_key = CONF_ELEVATION_AT_TIME + "_name"
@@ -631,15 +617,53 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             dttm = self._at_time
         else:
             dttm = datetime.combine(cur_dttm.date(), self._at_time)
-        self._attr_native_value = cast(float | None, self._astral_event(dttm))
+        self._attr_native_value = self._solar_elevation(dttm)
         if isinstance(self._at_time, datetime):
             return
-        self._yesterday = cast(float | None, self._astral_event(dttm - ONE_DAY))
+        self._yesterday = self._solar_elevation(dttm - ONE_DAY)
         self._today = self._attr_native_value
-        self._tomorrow = cast(float | None, self._astral_event(dttm + ONE_DAY))
+        self._tomorrow = self._solar_elevation(dttm + ONE_DAY)
 
 
-class Sun2PointInTimeSensor(Sun2SensorEntity[datetime]):
+class Sun2SensorEntityWithUpdate(Sun2SensorEntity[_T]):
+    """Sun2 Sensor Entity with update methods."""
+
+    def _update(self, cur_dttm: datetime) -> None:
+        """Update state."""
+        cur_date = self._as_tz(cur_dttm).date()
+        self._yesterday = self._astral_event(cur_date - ONE_DAY)
+        self._attr_native_value = self._today = self._astral_event(cur_date)
+        self._tomorrow = self._astral_event(cur_date + ONE_DAY)
+
+    @abstractmethod
+    def _astral_event(self, dt: date) -> _T | None:
+        """Return astral event result."""
+
+
+class Sun2SensorEntityWithEvent(Sun2SensorEntityWithUpdate[_T]):
+    """Sun2 Sensor Entity with update methods, event & solar depression."""
+
+    _event: str
+    _solar_depression: Num | str
+
+    def __init__(
+        self,
+        sun2_entity_params: Sun2EntityParams,
+        entity_description: SensorEntityDescription,
+        default_solar_depression: Num | str = "civil",
+        name: str | None = None,
+    ) -> None:
+        """Initialize sensor."""
+        super().__init__(sun2_entity_params, entity_description, name)
+        key = entity_description.key
+        if any(key.startswith(sol_dep + "_") for sol_dep in _SOLAR_DEPRESSIONS):
+            self._solar_depression, self._event = key.rsplit("_", 1)
+        else:
+            self._solar_depression = default_solar_depression
+            self._event = key
+
+
+class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
     """Sun2 Point in Time Sensor."""
 
     _future_date: date | None = None
@@ -658,7 +682,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[datetime]):
             device_class=SensorDeviceClass.TIMESTAMP,
             icon=icon,
         )
-        super().__init__(sun2_entity_params, entity_description, "civil", name)
+        super().__init__(sun2_entity_params, entity_description, name=name)
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -679,7 +703,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[datetime]):
             chk_date = cur_date
         while (chk_date := chk_date + ONE_DAY) <= cur_date + ONE_YEAR:
             self._future_date = chk_date
-            self._future_value = cast(datetime | None, self._astral_event(chk_date))
+            self._future_value = self._astral_event(chk_date)
             if self._future_value is not None:
                 self._attr_native_value = self._future_value
                 LOGGER.debug(
@@ -689,6 +713,24 @@ class Sun2PointInTimeSensor(Sun2SensorEntity[datetime]):
                 )
                 return
         LOGGER.debug("%s: Does not occur within the next year", self._log_name)
+
+    def _astral_event(self, dt: date) -> datetime | None:
+        """Return astral event result."""
+        match self._event:
+            case "dawn":
+                return self._dawn(dt, self._solar_depression, local=True)
+            case "dusk":
+                return self._dusk(dt, self._solar_depression, local=True)
+            case "solar_midnight":
+                return self._solar_midnight(dt, local=True)
+            case "solar_noon":
+                return self._solar_noon(dt, local=True)
+            case "sunrise":
+                return self._sunrise(dt, local=True)
+            case "sunset":
+                return self._sunset(dt, local=True)
+            case _:
+                raise RuntimeError("Unexpected event type")
 
 
 class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
@@ -717,20 +759,13 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
             self._attr_translation_key = f"{CONF_TIME_AT_ELEVATION}_{suffix}"
             self._attr_translation_placeholders = {"elevation": str(abs(elevation))}
 
-    def _astral_event(
-        self,
-        date_or_dttm: date | datetime,
-        event: str | None = None,
-        local: bool = True,
-        /,
-        **kwargs: Any,
-    ) -> Any:
-        return super()._astral_event(
-            date_or_dttm, direction=self._direction, elevation=self._elevation
+    def _astral_event(self, dt: date) -> datetime | None:
+        return self._time_at_elevation(
+            self._elevation, dt=dt, direction=self._direction, local=True
         )
 
 
-class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
+class Sun2PeriodOfTimeSensor(Sun2SensorEntityWithEvent[float]):
     """Sun2 Period of Time Sensor."""
 
     def __init__(
@@ -783,29 +818,20 @@ class Sun2PeriodOfTimeSensor(Sun2SensorEntity[float]):
             self.entity_id, SENSOR_DOMAIN, sensor_options or None
         )
 
-    def _astral_event(
-        self,
-        date_or_dttm: date | datetime,
-        event: str | None = None,
-        local: bool = True,
-        /,
-        **kwargs: Any,
-    ) -> float | None:
+    def _astral_event(self, dt: date) -> float | None:
         """Return astral event result."""
-        start: datetime | None
-        end: datetime | None
         if self._event == "daylight":
-            start = super()._astral_event(date_or_dttm, "dawn", False)
-            end = super()._astral_event(date_or_dttm, "dusk", False)
+            start = self._dawn(dt, self._solar_depression)
+            end = self._dusk(dt, self._solar_depression)
         else:
-            start = super()._astral_event(date_or_dttm, "dusk", False)
-            end = super()._astral_event(date_or_dttm + ONE_DAY, "dawn", False)
+            start = self._dusk(dt, self._solar_depression)
+            end = self._dawn(dt + ONE_DAY, self._solar_depression)
         if not start or not end:
             return None
         return (end - start).total_seconds() / 3600
 
 
-class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
+class Sun2MinMaxElevationSensor(Sun2SensorEntityWithUpdate[float]):
     """Sun2 Min/Max Elevation Sensor."""
 
     def __init__(
@@ -820,29 +846,17 @@ class Sun2MinMaxElevationSensor(Sun2SensorEntity[float]):
             suggested_display_precision=3,
         )
         super().__init__(sun2_entity_params, entity_description)
-        self._event = {
-            "min_elevation": "solar_midnight",
-            "max_elevation": "solar_noon",
-        }[sensor_type]
+        if sensor_type == "min_elevation":
+            self._method = self._solar_midnight
+        else:
+            self._method = self._solar_noon
 
-    def _astral_event(
-        self,
-        date_or_dttm: date | datetime,
-        event: str | None = None,
-        local: bool = True,
-        /,
-        **kwargs: Any,
-    ) -> float | None:
+    def _astral_event(self, dt: date) -> float:
         """Return astral event result."""
-        return cast(
-            float | None,
-            super()._astral_event(
-                cast(datetime, super()._astral_event(date_or_dttm)), "solar_elevation"
-            ),
-        )
+        return self._solar_elevation(self._method(dt))
 
 
-class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
+class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntityWithUpdate[float]):
     """Sun2 Azimuth at Sunrise or Sunset Sensor."""
 
     def __init__(
@@ -857,33 +871,24 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntity[float]):
             suggested_display_precision=2,
         )
         super().__init__(sun2_entity_params, entity_description)
-        self._event = "solar_azimuth"
-        self._method = sensor_type.split("_")[0]
+        if sensor_type == "sunrise_azimuth":
+            self._method = self._sunrise
+        else:
+            self._method = self._sunset
 
-    def _astral_event(
-        self,
-        date_or_dttm: date | datetime,
-        event: str | None = None,
-        local: bool = True,
-        /,
-        **kwargs: Any,
-    ) -> float | None:
+    def _astral_event(self, dt: date) -> float | None:
         """Return astral event result."""
         # Get sunrise or sunset time.
-        # Don't use parent method because observer elevation should not be used
-        # because there is no way to know if currently configured observer elevation
-        # was valid yesterday or will be valid tomorrow since it is very possible the
-        # state of this sensor will be used to automatically change the observer
-        # configuration throughout the year. This also avoids a potentially infinite
-        # feedback loop.
-        try:
-            dttm = getattr(self._astral_data.loc_data.loc, self._method)(date_or_dttm)
-        except (TypeError, ValueError):
+        # Configured observer elevation should not be used because there is no way to
+        # know if it was valid yesterday or will be valid tomorrow since it is very
+        # possible the state of this sensor will be used to automatically change it
+        # throughout the year. This also avoids a potentially infinite feedback loop.
+        if (dttm := self._method(dt, observer_elevation=0.0)) is None:
             return None
-        return cast(float | None, super()._astral_event(dttm))
+        return self._solar_azimuth(dttm)
 
 
-class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
+class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
     """Sun2 Elevation Sensor."""
 
     _nxt_elv: float
@@ -901,20 +906,17 @@ class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
             suggested_display_precision=1,
         )
         super().__init__(sun2_entity_params)
-        self._event = "solar_elevation"
 
     def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         # Astral package ignores microseconds when determining solar elevation, so round
         # to nearest second.
-        raw_elv = cast(float, self._astral_event(nearest_second(cur_dttm)))
+        raw_elv = self._solar_elevation(cur_dttm)
         if self._first_update:
             self._nxt_elv = round(raw_elv, 1)
-        self._attr_native_value = self._nxt_elv
+        self._attr_native_value = raw_elv
         self._attr_icon = self._icon(self._nxt_elv)
-        LOGGER.debug(
-            "%s: Raw elevation = %f -> %s", self._log_name, raw_elv, self._nxt_elv
-        )
+        LOGGER.debug("%s: %0.1f -> %f", self._log_name, self._nxt_elv, raw_elv)
 
         # Move elevation by desired step. If that elevation does not occur today, then
         # move to next solar noon or solar midnight event.
@@ -922,7 +924,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
             self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP + ELEV_STEP
         else:
             self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
-        if (nxt_chg := self._time_at_elevation(self._nxt_elv)) is None:
+        if (nxt_chg := self._time_at_elevation(self._nxt_elv, adj_elv=False)) is None:
             if self._rising:
                 nxt_chg = self._solar_noon(self._dt)
                 self._rising = False
@@ -930,9 +932,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvParams, SensorEntity):
                 self._dt += ONE_DAY
                 nxt_chg = self._solar_midnight(self._dt)
                 self._rising = True
-            self._nxt_elv = round(
-                cast(float, self._astral_event(nearest_second(nxt_chg))), 1
-            )
+            self._nxt_elv = round(self._solar_elevation(nearest_second(nxt_chg)), 1)
 
         assert nxt_chg > cur_dttm
 
