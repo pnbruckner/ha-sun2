@@ -69,7 +69,6 @@ from .const import (
     LOGGER,
     MAX_UPDATE_TIME,
     ONE_DAY,
-    ONE_YEAR,
     STATE_ASTRO_TW,
     STATE_CIVIL_TW,
     STATE_DAWN,
@@ -206,8 +205,8 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
     def _phases(self) -> list[str]:
         """Return list of phase state values."""
         return sorted(
-            {pp.state for pp in self._ris_ph_params if pp.state is not None}
-            | {pp.state for pp in self._set_ph_params if pp.state is not None}
+            {pp.state for pp in self._ris_ph_params}
+            | {pp.state for pp in self._set_ph_params}
             | self._extra_states
         )
 
@@ -302,14 +301,8 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         else:
             # Was in the last listed phase, so use solar noon or solar midnight below.
             self._nxt_ph_idx = None
-        if (
-            self._nxt_ph_idx is not None
-            and (
-                nxt_chg := self._time_at_elevation(
-                    self._ph_params[self._nxt_ph_idx].elv
-                )
-            )
-            is None
+        if self._nxt_ph_idx is not None and not (
+            nxt_chg := self._time_at_elevation(self._ph_params[self._nxt_ph_idx].elv)
         ):
             # Next listed phase does not occur today, so use solar noon or solar
             # midnight below.
@@ -328,7 +321,7 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
                 self._dt += ONE_DAY
                 nxt_chg = self._solar_midnight(self._dt)
 
-        assert nxt_chg is not None
+        assert nxt_chg
         return nxt_chg
 
     @abstractmethod
@@ -632,9 +625,14 @@ class Sun2SensorEntityWithUpdate(Sun2SensorEntity[_T]):
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
         cur_date = self._as_tz(cur_dttm).date()
-        self._yesterday = self._astral_event(cur_date - ONE_DAY)
-        self._attr_native_value = self._today = self._astral_event(cur_date)
+        if self._first_update:
+            self._yesterday = self._astral_event(cur_date - ONE_DAY)
+            self._today = self._astral_event(cur_date)
+        else:
+            self._yesterday = self._today
+            self._today = self._tomorrow
         self._tomorrow = self._astral_event(cur_date + ONE_DAY)
+        self._attr_native_value = self._today
 
     @abstractmethod
     def _astral_event(self, dt: date) -> _T | None:
@@ -687,38 +685,82 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
 
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
-        await super()._update(cur_dttm)
-        # Does event occur today?
-        if self._attr_native_value is not None:
-            self._future_date = None
-            self._future_value = None
-            return
-        # It does not. Was the next time the event occurs in the future already found?
-        if self._future_value is not None:
-            self._attr_native_value = self._future_value
-            return
-        # It was not. Look for next time the event occurs in the future up to one year
-        # beyond today, starting with the day after the last day checked (or starting
-        # with tomorrow if this is the first day the event does not occur.)
         cur_date = self._as_tz(cur_dttm).date()
-        if (chk_date := self._future_date) is None:
-            chk_date = cur_date
-        start = dt_util.utcnow()
-        while (chk_date := chk_date + ONE_DAY) <= cur_date + ONE_YEAR:
-            self._future_date = chk_date
-            self._future_value = self._astral_event(chk_date)
-            if self._future_value is not None:
+
+        # Did last update result in checking for a future event?
+        if self._future_date:
+            # Yes. That means self._today & self._tomorrow were both None.
+
+            # TODO: Remove these assert's.
+            assert not self._today and not self._tomorrow
+
+            # No need to use parent's _update method. However, still need to set
+            # yesterday to "yesterday's today", which in this case is None.
+            self._yesterday = None
+
+            # Did last check find a future event?
+            if self._future_value:
+                # Yes. That means the sensor's state was set to that future value. I.e.,
+                # it was determined the next event happens sometime in the future, but
+                # somewhere beyond yesterday's tomorrow (i.e., today.)
+
+                # TODO: Remove these assert's.
+                assert self._attr_native_value == self._future_value
+
+                # Has tomorrow made it to that future date?
+                if cur_date + ONE_DAY == self._future_date:
+                    self._tomorrow = self._future_value
+                    self._future_date = None
+                    self._future_value = None
+            else:
+                # No. The sensor's state is None (aka, unknown.) Also, warning has
+                # already been issued that event does not occur within the next year.
+
+                # TODO: Remove these assert's.
+                assert not self._attr_native_value
+
+                # Check one more day.
+                self._check_for_future_event(self._future_date + ONE_DAY)
+            return
+
+        # No. Continue normally.
+        await super()._update(cur_dttm)
+        if self._today:
+            return
+
+        # Event does not happen today. Does it happen tomorrow?
+        if self._tomorrow:
+            self._attr_native_value = self._tomorrow
+            return
+
+        # Event does not occur today or tomorrow.
+        # Look for next time the event occurs in the future up to one year beyond today,
+        # starting with the day after tomorrow.
+        self._future_date = cur_date + ONE_DAY
+        try_until = dt_util.utcnow() + MAX_UPDATE_TIME
+        for _ in range(365):
+            self._check_for_future_event(self._future_date + ONE_DAY)
+            if self._future_value:
                 self._attr_native_value = self._future_value
-                LOGGER.debug(
-                    "%s: Does not occur again until %s",
-                    self._log_name,
-                    self._dttm_2_str(self._future_value),
-                )
                 return
-            if dt_util.utcnow() - start > MAX_UPDATE_TIME:
+
+            if dt_util.utcnow() >= try_until:
+                # Give someone else a turn!
                 await asyncio.sleep(0)
-                start = dt_util.utcnow()
-        LOGGER.debug("%s: Does not occur within the next year", self._log_name)
+                try_until = dt_util.utcnow() + MAX_UPDATE_TIME
+
+        LOGGER.warning("%s does not occur within the next year", self._log_name)
+
+    def _check_for_future_event(self, chk_date: date) -> None:
+        """Check if event happens on future date."""
+        self._future_date = chk_date
+        self._future_value = self._astral_event(chk_date)
+        if self._future_value:
+            LOGGER.debug(
+                "%s: Does not occur again until %s",
+                self._log_name,
+                self._dttm_2_str(self._future_value),
+            )
 
     def _astral_event(self, dt: date) -> datetime | None:
         """Return astral event result."""
@@ -889,7 +931,7 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntityWithUpdate[float]):
         # know if it was valid yesterday or will be valid tomorrow since it is very
         # possible the state of this sensor will be used to automatically change it
         # throughout the year. This also avoids a potentially infinite feedback loop.
-        if (dttm := self._method(dt, observer_elevation=0.0)) is None:
+        if not (dttm := self._method(dt, observer_elevation=0.0)):
             return None
         return self._solar_azimuth(dttm)
 
@@ -930,7 +972,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
             self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP + ELEV_STEP
         else:
             self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
-        if (nxt_chg := self._time_at_elevation(self._nxt_elv, adj_elv=False)) is None:
+        if not (nxt_chg := self._time_at_elevation(self._nxt_elv, adj_elv=False)):
             if self._rising:
                 nxt_chg = self._solar_noon(self._dt)
                 self._rising = False
