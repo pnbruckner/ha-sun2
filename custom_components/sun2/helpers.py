@@ -582,8 +582,11 @@ class Sun2Entity(Entity, ABC):
 class Sun2EntityWithElvAdjs(Sun2Entity):
     """Sun2 Entity with elevation adjustments."""
 
-    # Only used for first update.
-    _prv_dir_chg_dttm: datetime
+    # Override in subclass if _nxt_dir_chg_dttm not used.
+    _use_nxt_dir_chg: bool = True
+
+    _prv_dir_chg_dttm: datetime  # Only used for first update
+    _nxt_dir_chg_dttm: datetime
 
     # Elevation curve parameters
     _dt: date
@@ -639,6 +642,18 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
         with suppress(AttributeError):
             del self._sun_direction
 
+    def _change_sun_direction(self) -> None:
+        """Change sun direction."""
+        self._rising = not self._rising
+        if self._rising:
+            self._dt += ONE_DAY
+        if not self._use_nxt_dir_chg:
+            return
+        if self._rising:
+            self._nxt_dir_chg_dttm = self._solar_noon(self._dt)
+        else:
+            self._nxt_dir_chg_dttm = self._solar_midnight(self._dt + ONE_DAY)
+
     def _update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data."""
         super()._update_astral_data(astral_data)
@@ -668,19 +683,27 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
             self._rising = False
             self._dt -= ONE_DAY
             self._prv_dir_chg_dttm = self._solar_noon(self._dt)
+            if self._use_nxt_dir_chg:
+                self._nxt_dir_chg_dttm = sol_midn
         elif cur_dttm < (sol_noon := self._solar_noon(self._dt)):
             # Last event was solar midnight today.
             self._rising = True
             self._prv_dir_chg_dttm = sol_midn
+            if self._use_nxt_dir_chg:
+                self._nxt_dir_chg_dttm = sol_noon
         elif cur_dttm < (sol_midn := self._solar_midnight(self._dt + ONE_DAY)):
             # Last event was solar solar noon today.
             self._rising = False
             self._prv_dir_chg_dttm = sol_noon
+            if self._use_nxt_dir_chg:
+                self._nxt_dir_chg_dttm = sol_midn
         else:
             # Last event was solar midnight tomorrow.
             self._rising = True
             self._dt += ONE_DAY
             self._prv_dir_chg_dttm = sol_midn
+            if self._use_nxt_dir_chg:
+                self._nxt_dir_chg_dttm = self._solar_noon(self._dt)
 
     def _time_at_elevation(
         self,

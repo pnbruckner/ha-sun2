@@ -43,6 +43,8 @@ PARALLEL_UPDATES = 1
 class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
     """Sun2 Elevation Binary Sensor."""
 
+    _use_nxt_dir_chg: bool = False
+
     def __init__(
         self,
         sun2_entity_params: Sun2EntityParams,
@@ -126,9 +128,7 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         # more than one year into the future.
         start = dt_util.utcnow()
         for _ in range(365 * 2):
-            self._rising = not self._rising
-            if self._rising:
-                self._dt += ONE_DAY
+            self._change_sun_direction()
             if nxt_chg := self._time_at_elevation(self._threshold):
                 return nxt_chg
             if dt_util.utcnow() - start > MAX_UPDATE_TIME:

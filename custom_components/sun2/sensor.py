@@ -313,13 +313,8 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         if self._nxt_ph_idx is None:
             # Couldn't find a phase boundary that happens today, so use solar noon or
             # solar midnight, whichever comes next.
-            if self._rising:
-                self._rising = False
-                nxt_chg = self._solar_noon(self._dt)
-            else:
-                self._rising = True
-                self._dt += ONE_DAY
-                nxt_chg = self._solar_midnight(self._dt)
+            nxt_chg = self._nxt_dir_chg_dttm
+            self._change_sun_direction()
 
         assert nxt_chg
         return nxt_chg
@@ -973,13 +968,8 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
         else:
             self._nxt_elv = round(self._nxt_elv / ELEV_STEP) * ELEV_STEP - ELEV_STEP
         if not (nxt_chg := self._time_at_elevation(self._nxt_elv, adj_elv=False)):
-            if self._rising:
-                nxt_chg = self._solar_noon(self._dt)
-                self._rising = False
-            else:
-                self._dt += ONE_DAY
-                nxt_chg = self._solar_midnight(self._dt)
-                self._rising = True
+            nxt_chg = self._nxt_dir_chg_dttm
+            self._change_sun_direction()
             self._nxt_elv = round(self._solar_elevation(nearest_second(nxt_chg)), 1)
 
         assert nxt_chg > cur_dttm
