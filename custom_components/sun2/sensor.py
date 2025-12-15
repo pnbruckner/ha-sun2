@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, make_dataclass
 from datetime import date, datetime, time
 from functools import cached_property  # pylint: disable=hass-deprecated-import
 from itertools import chain
+from math import fabs
 from typing import Any, Generic, TypeVar, cast
 
 from astral import SunDirection
@@ -120,7 +121,7 @@ _SOLAR_DEPRESSIONS = ("astronomical", "civil", "nautical")
 _T = TypeVar("_T")
 
 
-class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
+class Sun2AzimuthSensor(Sun2EntityWithElvAdjs, SensorEntity):
     """Sun2 Azimuth Sensor."""
 
     def __init__(
@@ -141,22 +142,22 @@ class Sun2AzimuthSensor(Sun2Entity, SensorEntity):
 
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
+        if cur_dttm >= self._nxt_dir_chg_dttm:
+            self._change_sun_direction()
+
         # Astral package ignores microseconds when determining azimuth & solar
         # elevation, so round to nearest second before continuing.
         cur_dttm = nearest_second(cur_dttm)
         self._attr_native_value = self._solar_azimuth(cur_dttm)
 
-        elevation = self._solar_elevation(cur_dttm)
-        if elevation >= 10:
-            delta = 4 * 60
-        elif elevation >= 0:
-            delta = 2 * 60
-        elif elevation >= -6:
-            delta = 4 * 60
-        elif elevation >= -18:
-            delta = 8 * 60
+        if self._rising:
+            threshold = SUN_APPARENT_RADIUS - self._ris_elv_adj
         else:
-            delta = 20 * 60
+            threshold = SUN_APPARENT_RADIUS - self._set_elv_adj
+        if fabs(self._solar_elevation(cur_dttm) - threshold) <= 6:
+            delta = 2 * 60
+        else:
+            delta = 10 * 60
         self._schedule_update(delta)
 
 
