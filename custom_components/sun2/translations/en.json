@@ -57,10 +57,11 @@
                 "title": "Location Options",
                 "data": {
                     "location": "Location",
+                    "location_text": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
-                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitude, longitude"
                 }
             },
             "location_menu": {
@@ -177,10 +178,11 @@
                 "title": "Location Options",
                 "data": {
                     "location": "Location",
+                    "location_text": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
-                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitude, longitude"
                 }
             },
             "location_menu": {

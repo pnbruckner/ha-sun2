@@ -56,12 +56,12 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
+                    "location_text": "Locatie",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
-                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "breedtegraad, lengtegraad"
                 }
             },
             "location_name": {
@@ -146,12 +146,12 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
+                    "location_text": "Locatie",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
-                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "breedtegraad, lengtegraad"
                 }
             },
             "remove_entities": {

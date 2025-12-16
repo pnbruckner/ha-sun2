@@ -57,10 +57,11 @@
                 "title": "Platsalternativ",
                 "data": {
                     "location": "Plats",
+                    "location_text": "Plats",
                     "time_zone": "Tidszon"
                 },
                 "data_description": {
-                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitud, longitud"
                 }
             },
             "location_menu": {
@@ -177,10 +178,11 @@
                 "title": "Platsalternativ",
                 "data": {
                     "location": "Plats",
+                    "location_text": "Plats",
                     "time_zone": "Tidszon"
                 },
                 "data_description": {
-                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitud, longitud"
                 }
             },
             "location_menu": {

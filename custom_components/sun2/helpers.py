@@ -817,7 +817,8 @@ class Sun2EntrySetup(ABC):
             self._obs_elvs = obs_elvs
         astral_data = AstralData(loc_data, obs_elvs)
         for entity in self._entities:
-            self._update_entity(entity, astral_data)
+            if entity.enabled:
+                self._update_entity(entity, astral_data)
 
     def _update_entity(self, entity: Sun2Entity, astral_data: AstralData) -> None:
         """Update entity with new astral data."""

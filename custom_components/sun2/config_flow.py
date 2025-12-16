@@ -5,6 +5,7 @@ from abc import abstractmethod
 from collections.abc import Mapping
 from contextlib import suppress
 from typing import Any, cast
+import zoneinfo
 
 import voluptuous as vol
 
@@ -34,7 +35,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
@@ -56,6 +56,7 @@ from .const import (
     CONF_ABOVE_GROUND,
     CONF_DIRECTION,
     CONF_ELEVATION_AT_TIME,
+    CONF_LOCATION_TEXT,
     CONF_OBS_ELV,
     CONF_SUNRISE_OBSTRUCTION,
     CONF_SUNSET_OBSTRUCTION,
@@ -191,20 +192,20 @@ class Sun2Flow(ConfigEntryBaseFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            user_input[CONF_TIME_ZONE] = cv.time_zone(user_input[CONF_TIME_ZONE])
-            location: dict[str, Any] | str = user_input.pop(CONF_LOCATION)
-            if isinstance(location, dict):
+            if self._use_map:
+                location: dict[str, Any] = user_input.pop(CONF_LOCATION)
                 user_input[CONF_LATITUDE] = location[CONF_LATITUDE]
                 user_input[CONF_LONGITUDE] = location[CONF_LONGITUDE]
             else:
+                location_text: str = user_input.pop(CONF_LOCATION_TEXT)
                 try:
                     lat = lon = ""
                     with suppress(ValueError):
-                        lat, lon = location.split(",")
+                        lat, lon = location_text.split(",")
                         lat = lat.strip()
                         lon = lon.strip()
                     if not lat or not lon:
-                        lat, lon = location.split()
+                        lat, lon = location_text.split()
                         lat = lat.strip()
                         lon = lon.strip()
                     user_input[CONF_LATITUDE] = float(lat)
@@ -215,23 +216,32 @@ class Sun2Flow(ConfigEntryBaseFlow):
                 self.options.update(user_input)
                 return await self.async_step_observer_elevation()
 
-        location_selector = LocationSelector if self._use_map else TextSelector
-        data_schema = vol.Schema(
+        if self._use_map:
+            data_schema = vol.Schema({vol.Required(CONF_LOCATION): LocationSelector()})
+        else:
+            data_schema = vol.Schema({vol.Required(CONF_LOCATION_TEXT): TextSelector()})
+        time_zones = list(
+            await self.hass.async_add_executor_job(zoneinfo.available_timezones)
+        )
+        data_schema = data_schema.extend(
             {
-                vol.Required(CONF_LOCATION): location_selector(),
-                vol.Required(CONF_TIME_ZONE): TextSelector(),
+                vol.Required(CONF_TIME_ZONE): SelectSelector(
+                    SelectSelectorConfig(options=time_zones, sort=True)
+                ),
             }
         )
 
         latitude, longitude, time_zone = loc_from_options(self.hass, self.options)
-        suggested_values: dict[str, Any] = {CONF_TIME_ZONE: time_zone}
+        suggested_values: dict[str, Any] = {}
         if self._use_map:
             suggested_values[CONF_LOCATION] = {
                 CONF_LATITUDE: latitude,
                 CONF_LONGITUDE: longitude,
             }
         else:
-            suggested_values[CONF_LOCATION] = f"{latitude}, {longitude}"
+            suggested_values[CONF_LOCATION_TEXT] = f"{latitude}, {longitude}"
+        if time_zone in time_zones:
+            suggested_values[CONF_TIME_ZONE] = time_zone
         data_schema = self.add_suggested_values_to_schema(data_schema, suggested_values)
 
         return self.async_show_form(

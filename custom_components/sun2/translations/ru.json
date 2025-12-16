@@ -56,12 +56,12 @@
       "location": {
         "title": "Настройки Местоположения",
         "data": {
-          "elevation": "Высота над уровнем земли",
           "location": "Местоположение",
+          "location_text": "Местоположение",
           "time_zone": "Часовой пояс"
         },
         "data_description": {
-          "time_zone": "См. столбец \"Идентификатор TZ\" на https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+          "location_text": "широта, долгота"
         }
       },
       "location_name": {
@@ -146,12 +146,12 @@
       "location": {
         "title": "Настройки Местоположения",
         "data": {
-          "elevation": "Высота над уровнем земли",
           "location": "Местоположение",
+          "location_text": "Местоположение",
           "time_zone": "Часовой пояс"
         },
         "data_description": {
-          "time_zone": "См. столбец \"Идентификатор TZ\" на https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+          "location_text": "широта, долгота"
         }
       },
       "remove_entities": {
