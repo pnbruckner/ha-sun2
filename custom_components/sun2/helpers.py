@@ -108,7 +108,11 @@ class LocData:
         tzi = dt_util.get_time_zone(tz := lp.time_zone)
         if not tzi:
             LOGGER.warning("Did not find time zone: %s", lp.time_zone)
-        return cls(Location(LocationInfo("", "", tz, lp.latitude, lp.longitude)), tzi)
+        loc = Location(LocationInfo("", "", tz, lp.latitude, lp.longitude))
+        # Cache results of methods used by many entity types.
+        loc.midnight = lru_cache(10)(loc.midnight)
+        loc.noon = lru_cache(10)(loc.noon)
+        return cls(loc, tzi)
 
 
 @lru_cache
@@ -555,8 +559,16 @@ class Sun2Entity(Entity, ABC):
             fmt_result = self._dttm_2_str(result)
             if local:
                 result = nearest_second(result)
+            if hasattr(func, "cache_info"):
+                fmt_result += f" cache_info: {func.cache_info()}"
         LOGGER.debug(
-            "%s:   %-3s(%s)%35s-> %s", self._log_name, label, dt, "", fmt_result
+            "%s:   %-3s(%s, %5s)%28s-> %s",
+            self._log_name,
+            label,
+            dt,
+            local,
+            "",
+            fmt_result,
         )
         return result
 
