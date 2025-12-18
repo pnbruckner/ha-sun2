@@ -43,6 +43,8 @@ PARALLEL_UPDATES = 1
 class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
     """Sun2 Elevation Binary Sensor."""
 
+    _supports_entity_update_action = True
+
     _use_nxt_dir_chg: bool = False
 
     def __init__(
@@ -75,6 +77,10 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         """Update state."""
         self._attr_is_on = self._get_cur_state(cur_dttm)
         self._attr_icon = ICON_ABOVE if self._attr_is_on else ICON_BELOW
+
+        if self._update_scheduled:
+            # homeassistant.update_entity was called. Leave next scheduled update as is.
+            return
 
         if nxt_chg := await self._get_nxt_chg():
             self._schedule_update(nxt_chg)

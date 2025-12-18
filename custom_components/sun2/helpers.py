@@ -18,6 +18,11 @@ from astral import LocationInfo, SunDirection
 from astral.location import Location
 from astral.sun import adjust_to_horizon, adjust_to_obscuring_feature
 
+from homeassistant.components.binary_sensor import (
+    DOMAIN as BS_DOMAIN,
+    BinarySensorEntity,
+)
+from homeassistant.components.sensor import DOMAIN as S_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     CONF_ELEVATION,
@@ -25,7 +30,7 @@ from homeassistant.const import (
     CONF_LONGITUDE,
     CONF_TIME_ZONE,
 )
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 # Config moved from core to core_config in 2024.11
 
@@ -34,12 +39,16 @@ try:
 except ImportError:
     from homeassistant.core import Config  # type: ignore[no-redef]
 
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_call_later, async_track_point_in_utc_time
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_device_registry_updated_event,
+    async_track_entity_registry_updated_event,
+    async_track_point_in_utc_time,
+)
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
 
@@ -244,10 +253,10 @@ def hours_to_hms(hours: Num | None) -> str | None:
         return None
 
 
-def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
+def sun2_dev_info(hass: HomeAssistant, entry: ConfigEntry) -> dr.DeviceInfo:
     """Sun2 device (service) info."""
-    return DeviceInfo(
-        entry_type=DeviceEntryType.SERVICE,
+    return dr.DeviceInfo(
+        entry_type=dr.DeviceEntryType.SERVICE,
         identifiers={(DOMAIN, entry.entry_id)},
         translation_key="service",
         translation_placeholders={"location": entry.title},
@@ -278,7 +287,7 @@ class AstralData:
 class Sun2EntityParams:
     """Sun2Entity parameters."""
 
-    device_info: DeviceInfo
+    device_info: dr.DeviceInfo
     astral_data: AstralData
     unique_id: str = ""
 
@@ -291,6 +300,10 @@ class Sun2Entity(Entity, ABC):
     declare PARALLEL_UPDATES = 1!
     """
 
+    # Override in subclass as needed
+    _supports_entity_update_action = False
+    _reschedule_at_midnight = False
+
     _unrecorded_attributes = frozenset(
         {
             ATTR_NEXT_CHANGE,
@@ -302,6 +315,7 @@ class Sun2Entity(Entity, ABC):
         }
     )
     _attr_should_poll = False
+
     _unsub_update: CALLBACK_TYPE | None = None
     _first_update = True
 
@@ -318,13 +332,21 @@ class Sun2Entity(Entity, ABC):
     @cached_property
     def _log_name(self) -> str:
         """Return entity name for logging."""
+        uid = cast(str, self.unique_id)
+        ent_reg = er.async_get(self.hass)
+        ent_domain = BS_DOMAIN if isinstance(self, BinarySensorEntity) else S_DOMAIN
+        ent_name = (
+            (eid := ent_reg.async_get_entity_id(ent_domain, DOMAIN, uid))
+            and (ent_entry := ent_reg.async_get(eid))
+            and (ent_entry.name or ent_entry.original_name)
+        ) or str(self.name)
         dev_reg = dr.async_get(self.hass)
         assert self.platform.config_entry
         cfg_entry_id = self.platform.config_entry.entry_id
         dev_entry = dev_reg.async_get_device(identifiers={(DOMAIN, cfg_entry_id)})
-        if dev_entry and dev_entry.name:
-            return f"{dev_entry.name} {self.name}"
-        return str(self.name)
+        if dev_entry and (dev_name := dev_entry.name_by_user or dev_entry.name):
+            return f"{dev_name} {ent_name}"
+        return ent_name
 
     @cached_property
     def _loc(self) -> Location:
@@ -346,6 +368,11 @@ class Sun2Entity(Entity, ABC):
         """Return westerly observer elevation."""
         return self._astral_data.obs_elvs.west
 
+    @property
+    def _update_scheduled(self) -> bool:
+        """Return if an update is currently scheduled."""
+        return bool(self._unsub_update)
+
     def _as_tz(self, dttm: datetime) -> datetime:
         """Return datetime in location's time zone."""
         return dttm.astimezone(self._tzi)
@@ -356,6 +383,15 @@ class Sun2Entity(Entity, ABC):
 
     async def async_update(self) -> None:
         """Update state."""
+        # If there is a scheduled update pending, then update must have been invoked by
+        # homeassistant.update_entity action because scheduled updates are automatically
+        # cleared before this method is called. If action is not supported by the
+        # sensor, then simply ignore it. Warn the user so they know not to bother in the
+        # future.
+        if self._update_scheduled and not self._supports_entity_update_action:
+            LOGGER.warning("%s: Does not support homeassistant.update_entity action")
+            return
+
         cur_dttm = dt_util.utcnow()
         LOGGER.debug(
             "%s: +++++++++++++++++++++ first update: %s, update at: %s",
@@ -372,14 +408,41 @@ class Sun2Entity(Entity, ABC):
             self._first_update,
             (dt_util.utcnow() - cur_dttm).total_seconds(),
         )
+
+        if self._reschedule_at_midnight:
+            self._schedule_update(next_midnight(self._as_tz(cur_dttm)))
+
         self._first_update = False
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
-        self._setup_fixed_updating()
+
+        def reset_log_name(
+            event: Event[dr.EventDeviceRegistryUpdatedData]
+            | Event[er.EventEntityRegistryUpdatedData]
+            | None = None,
+        ) -> None:
+            """Clear _log_name cache."""
+            with suppress(AttributeError):
+                del self._log_name
+
+        reset_log_name()
+        assert self.device_entry
+        assert self.entity_id
+        self.async_on_remove(
+            async_track_device_registry_updated_event(
+                self.hass, self.device_entry.id, reset_log_name
+            )
+        )
+        self.async_on_remove(
+            async_track_entity_registry_updated_event(
+                self.hass, self.entity_id, reset_log_name
+            )
+        )
 
     def _schedule_update(self, dttm_or_delta: datetime | Num) -> None:
         """Schedule an update."""
+        assert not self._unsub_update
 
         @callback
         def async_schedule_update(now: datetime) -> None:
@@ -387,7 +450,6 @@ class Sun2Entity(Entity, ABC):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
-        self._cancel_update()
         if isinstance(dttm_or_delta, datetime):
             self._unsub_update = async_track_point_in_utc_time(
                 self.hass, async_schedule_update, dttm_or_delta
@@ -413,12 +475,6 @@ class Sun2Entity(Entity, ABC):
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
 
-    def _setup_fixed_updating(self) -> None:
-        """Set up fixed updating.
-
-        None by default. Override in subclass if needed.
-        """
-
     async def update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data.
 
@@ -428,7 +484,6 @@ class Sun2Entity(Entity, ABC):
 
     def _update_astral_data(self, astral_data: AstralData) -> None:
         """Update astral data."""
-        self._first_update = True
         self._cancel_update()
         self._astral_data = astral_data
         with suppress(AttributeError):
@@ -439,7 +494,7 @@ class Sun2Entity(Entity, ABC):
             del self._east_obs_elv
         with suppress(AttributeError):
             del self._west_obs_elv
-        self._setup_fixed_updating()
+        self._first_update = True
 
     def _dawn(
         self, dt: date, solar_depression: Num | str, *, local: bool = False
@@ -682,6 +737,7 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
 
         Also initialize self._dt & self._rising based on that determination.
         """
+        super()._update_setup(cur_dttm)
 
         # Note that solar midnight for a given date can happen early on that same
         # day (where the date is the same), or it can happen late on the previous

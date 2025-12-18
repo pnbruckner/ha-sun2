@@ -38,10 +38,7 @@ from homeassistant.core import (
     EventStateChangedData,
     callback,
 )
-from homeassistant.helpers.event import (
-    async_track_point_in_utc_time,
-    async_track_state_change_event,
-)
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -97,7 +94,6 @@ from .helpers import (
     Sun2EntrySetup,
     hours_to_hms,
     nearest_second,
-    next_midnight,
 )
 
 # Cause Semaphore to be created to make async_update, and anything protected by
@@ -122,6 +118,8 @@ _T = TypeVar("_T")
 class Sun2AzimuthSensor(Sun2EntityWithElvAdjs, SensorEntity):
     """Sun2 Azimuth Sensor."""
 
+    _supports_entity_update_action = True
+
     def __init__(
         self, sun2_entity_params: Sun2EntityParams, sensor_type: str, icon: str | None
     ) -> None:
@@ -140,6 +138,10 @@ class Sun2AzimuthSensor(Sun2EntityWithElvAdjs, SensorEntity):
 
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
+        # In case homeassistant.update_entity was called, cancel previously scheduled
+        # update.
+        self._cancel_update()
+
         if cur_dttm >= self._nxt_dir_chg_dttm:
             self._change_sun_direction()
 
@@ -430,8 +432,10 @@ class Sun2DeconzDaylightSensor(PhaseSensor):
         return ICON_SETTING
 
 
-class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
-    """Sun2 Sensor Entity."""
+class Sun2SensorEntityWithYTT(Sun2Entity, SensorEntity, Generic[_T]):
+    """Sun2 Sensor Entity with yesterday, today & tomorrow attributes."""
+
+    _reschedule_at_midnight = True
 
     _attr_native_value: _T | None  # type: ignore[assignment]
     _yesterday: _T | None = None
@@ -463,30 +467,8 @@ class Sun2SensorEntity(Sun2Entity, SensorEntity, Generic[_T]):
             ATTR_TOMORROW: self._tomorrow,
         }
 
-    def _setup_fixed_updating(self) -> None:
-        """Set up fixed updating."""
-        # Default behavior is to update every midnight.
-        # Override for sensor types that should update at a different time,
-        # or that have a more dynamic update schedule (in which case override
-        # with a method that does nothing and set up the update at the end of
-        # an override of _update instead.)
 
-        @callback
-        def async_schedule_update_at_midnight(now: datetime) -> None:
-            """Schedule an update at midnight."""
-            next_midn = next_midnight(self._as_tz(now))
-            self._unsub_update = async_track_point_in_utc_time(
-                self.hass, async_schedule_update_at_midnight, next_midn
-            )
-            self.async_schedule_update_ha_state(True)
-
-        next_midn = next_midnight(self._as_tz(dt_util.utcnow()))
-        self._unsub_update = async_track_point_in_utc_time(
-            self.hass, async_schedule_update_at_midnight, next_midn
-        )
-
-
-class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
+class Sun2ElevationAtTimeSensor(Sun2SensorEntityWithYTT[float]):
     """Sun2 Elevation at Time Sensor."""
 
     _at_time: time | datetime | None = None
@@ -525,17 +507,33 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
             return None
         return super().extra_state_attributes
 
-    def _setup_fixed_updating(self) -> None:
-        """Set up fixed updating."""
-        super()._setup_fixed_updating()
+    def _cancel_update(self) -> None:
+        """Cancel update."""
+        super()._cancel_update()
+        if self._unsub_track:
+            self._unsub_track()
+            self._unsub_track = None
+        if self._unsub_listen:
+            self._unsub_listen()
+            self._unsub_listen = None
+
+    def _update_setup(self, cur_dttm: datetime) -> None:
+        """Set up before first update.
+
+        Update _at_time parameter per input_datetime (if configured).
+        """
+        super()._update_setup(cur_dttm)
         if not self._input_datetime:
+            assert isinstance(self._at_time, time)
             return
 
         @callback
-        def update_at_time(
+        def update_at_time_param(
             event: Event | Event[EventStateChangedData] | None = None,
         ) -> None:
             """Update time from input_datetime entity."""
+            at_time_was = self._at_time
+
             self._at_time = None
             if event and event.event_type == EVENT_STATE_CHANGED:
                 state = event.data["new_state"]
@@ -551,7 +549,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
                     )
                 else:
                     self._unsub_listen = self.hass.bus.async_listen(
-                        EVENT_HOMEASSISTANT_STARTED, update_at_time
+                        EVENT_HOMEASSISTANT_STARTED, update_at_time_param
                     )
             elif not state.attributes["has_time"]:
                 LOGGER.error(
@@ -575,24 +573,15 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
                     state.attributes["second"],
                 )
 
-            self.async_schedule_update_ha_state(True)
+            if event and self._at_time != at_time_was:
+                self.async_schedule_update_ha_state(True)
 
         self._unsub_track = async_track_state_change_event(
             self.hass,
             self._input_datetime,
-            update_at_time,
+            update_at_time_param,
         )
-        update_at_time()
-
-    def _cancel_update(self) -> None:
-        """Cancel update."""
-        super()._cancel_update()
-        if self._unsub_track:
-            self._unsub_track()
-            self._unsub_track = None
-        if self._unsub_listen:
-            self._unsub_listen()
-            self._unsub_listen = None
+        update_at_time_param()
 
     async def _update(self, cur_dttm: datetime) -> None:
         """Update state."""
@@ -613,7 +602,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntity[float]):
         self._tomorrow = self._solar_elevation(dttm + ONE_DAY)
 
 
-class Sun2SensorEntityWithUpdate(Sun2SensorEntity[_T]):
+class Sun2SensorEntityWithUpdate(Sun2SensorEntityWithYTT[_T]):
     """Sun2 Sensor Entity with update methods."""
 
     async def _update(self, cur_dttm: datetime) -> None:
@@ -909,6 +898,8 @@ class Sun2SunriseSunsetAzimuthSensor(Sun2SensorEntityWithUpdate[float]):
 class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
     """Sun2 Elevation Sensor."""
 
+    _supports_entity_update_action = True
+
     _nxt_elv: float
 
     def __init__(
@@ -935,6 +926,10 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
         self._attr_native_value = raw_elv
         self._attr_icon = self._icon(self._nxt_elv)
         LOGGER.debug("%s: %0.1f -> %f", self._log_name, self._nxt_elv, raw_elv)
+
+        if self._update_scheduled:
+            # homeassistant.update_entity was called. Leave next scheduled update as is.
+            return
 
         # Move elevation by desired step. If that elevation does not occur today, then
         # move to next solar noon or solar midnight event.
