@@ -497,26 +497,26 @@ class Sun2Entity(Entity, ABC):
         self._first_update = True
 
     def _dawn(
-        self, dt: date, solar_depression: Num | str, *, local: bool = False
+        self, dt: date, solar_depression: Num | str, *, rnd: bool = False
     ) -> datetime | None:
         """Return dawn."""
         self._loc.solar_depression = solar_depression
         return self._astral_dt_2_dttm_none(
             "DWN",
             dt,
-            local,
+            rnd,
             partial(self._loc.dawn, observer_elevation=self._east_obs_elv),
         )
 
     def _dusk(
-        self, dt: date, solar_depression: Num | str, *, local: bool = False
+        self, dt: date, solar_depression: Num | str, *, rnd: bool = False
     ) -> datetime | None:
         """Return dusk."""
         self._loc.solar_depression = solar_depression
         return self._astral_dt_2_dttm_none(
             "DSK",
             dt,
-            local,
+            rnd,
             partial(self._loc.dusk, observer_elevation=self._west_obs_elv),
         )
 
@@ -528,21 +528,21 @@ class Sun2Entity(Entity, ABC):
         """Return solar elevation."""
         return self._astral_dttm_2_float("EL", dttm, self._loc.solar_elevation)
 
-    def _solar_midnight(self, dt: date, *, local: bool = False) -> datetime:
+    def _solar_midnight(self, dt: date, *, rnd: bool = False) -> datetime:
         """Return solar midnight."""
         return cast(
-            datetime, self._astral_dt_2_dttm_none("SM", dt, local, self._loc.midnight)
+            datetime, self._astral_dt_2_dttm_none("SM", dt, rnd, self._loc.midnight)
         )
 
-    def _solar_noon(self, dt: date, *, local: bool = False) -> datetime:
+    def _solar_noon(self, dt: date, *, rnd: bool = False) -> datetime:
         """Return solar noon."""
         return cast(
             datetime,
-            self._astral_dt_2_dttm_none("SN", dt, local, self._loc.noon),
+            self._astral_dt_2_dttm_none("SN", dt, rnd, self._loc.noon),
         )
 
     def _sunrise(
-        self, dt: date, observer_elevation: ObsElv | None = None, *, local: bool = False
+        self, dt: date, observer_elevation: ObsElv | None = None, *, rnd: bool = False
     ) -> datetime | None:
         """Return sunrise."""
         if observer_elevation is None:
@@ -550,12 +550,12 @@ class Sun2Entity(Entity, ABC):
         return self._astral_dt_2_dttm_none(
             "SR",
             dt,
-            local,
+            rnd,
             partial(self._loc.sunrise, observer_elevation=observer_elevation),
         )
 
     def _sunset(
-        self, dt: date, observer_elevation: ObsElv | None = None, *, local: bool = False
+        self, dt: date, observer_elevation: ObsElv | None = None, *, rnd: bool = False
     ) -> datetime | None:
         """Return sunset."""
         if observer_elevation is None:
@@ -563,7 +563,7 @@ class Sun2Entity(Entity, ABC):
         return self._astral_dt_2_dttm_none(
             "SS",
             dt,
-            local,
+            rnd,
             partial(self._loc.sunset, observer_elevation=observer_elevation),
         )
 
@@ -573,18 +573,18 @@ class Sun2Entity(Entity, ABC):
         *,
         dt: date | None = None,
         direction: SunDirection = SunDirection.RISING,
-        local: bool = False,
+        rnd: bool = False,
     ) -> datetime | None:
         """Return time at solar elevation."""
         result: datetime | None
         try:
-            result = self._loc.time_at_elevation(elevation, dt, direction, local)
+            result = self._loc.time_at_elevation(elevation, dt, direction, False)
         except (TypeError, ValueError):
             result = None
             fmt_result = str(None)
         else:
             fmt_result = self._dttm_2_str(result)
-            if local:
+            if rnd:
                 result = nearest_second(result)
         LOGGER.debug(
             "%s:   TAE(%s, %10.6f, %-20s) -> %s",
@@ -597,7 +597,7 @@ class Sun2Entity(Entity, ABC):
         return result
 
     def _astral_dt_2_dttm_none(
-        self, label: str, dt: date, local: bool, func: Callable[[date, bool], datetime]
+        self, label: str, dt: date, rnd: bool, func: Callable[[date, bool], datetime]
     ) -> datetime | None:
         """Call an astral function.
 
@@ -606,22 +606,21 @@ class Sun2Entity(Entity, ABC):
         """
         result: datetime | None
         try:
-            result = func(dt, local)
+            result = func(dt, False)
         except (TypeError, ValueError):
             result = None
             fmt_result = str(None)
         else:
             fmt_result = self._dttm_2_str(result)
-            if local:
+            if rnd:
                 result = nearest_second(result)
             if hasattr(func, "cache_info"):
                 fmt_result += f" cache_info: {func.cache_info()}"
         LOGGER.debug(
-            "%s:   %-3s(%s, %5s)%28s-> %s",
+            "%s:   %-3s(%s)%35s-> %s",
             self._log_name,
             label,
             dt,
-            local,
             "",
             fmt_result,
         )
@@ -778,7 +777,7 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
         elevation: float,
         *,
         adj_elv: bool = True,
-        local: bool = False,
+        rnd: bool = False,
         **kwargs: Any,
     ) -> datetime | None:
         """Return time at solar elevation."""
@@ -787,7 +786,7 @@ class Sun2EntityWithElvAdjs(Sun2Entity):
             - adj_elv * (self._ris_elv_adj if self._rising else self._set_elv_adj),
             dt=self._dt,
             direction=self._sun_direction,
-            local=local,
+            rnd=rnd,
         )
 
 

@@ -749,19 +749,22 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
         """Return astral event result."""
         match self._event:
             case "dawn":
-                return self._dawn(dt, self._solar_depression, local=True)
+                result = self._dawn(dt, self._solar_depression, rnd=True)
             case "dusk":
-                return self._dusk(dt, self._solar_depression, local=True)
+                result = self._dusk(dt, self._solar_depression, rnd=True)
             case "solar_midnight":
-                return self._solar_midnight(dt, local=True)
+                result = self._solar_midnight(dt, rnd=True)
             case "solar_noon":
-                return self._solar_noon(dt, local=True)
+                result = self._solar_noon(dt, rnd=True)
             case "sunrise":
-                return self._sunrise(dt, local=True)
+                result = self._sunrise(dt, rnd=True)
             case "sunset":
-                return self._sunset(dt, local=True)
+                result = self._sunset(dt, rnd=True)
             case _:
                 raise RuntimeError("Unexpected event type")
+        if result is None:
+            return None
+        return self._as_tz(result)
 
 
 class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
@@ -791,9 +794,13 @@ class Sun2TimeAtElevationSensor(Sun2PointInTimeSensor):
             self._attr_translation_placeholders = {"elevation": str(abs(elevation))}
 
     def _astral_event(self, dt: date) -> datetime | None:
-        return self._time_at_elevation(
-            self._elevation, dt=dt, direction=self._direction, local=True
-        )
+        if (
+            result := self._time_at_elevation(
+                self._elevation, dt=dt, direction=self._direction, rnd=True
+            )
+        ) is None:
+            return None
+        return self._as_tz(result)
 
 
 class Sun2PeriodOfTimeSensor(Sun2SensorEntityWithEvent[float]):
