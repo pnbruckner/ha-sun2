@@ -18,15 +18,7 @@ from homeassistant.const import (
 from homeassistant.core import CoreState
 from homeassistant.util import dt as dt_util
 
-from .const import (
-    ATTR_NEXT_CHANGE,
-    ICON_ABOVE,
-    ICON_BELOW,
-    LOGGER,
-    MAX_UPDATE_TIME,
-    ONE_DAY,
-    SUNSET_ELEV,
-)
+from .const import ICON_ABOVE, ICON_BELOW, LOGGER, MAX_UPDATE_TIME, ONE_DAY, SUNSET_ELEV
 from .helpers import (
     Sun2Entity,
     Sun2EntityParams,
@@ -42,8 +34,6 @@ PARALLEL_UPDATES = 1
 
 class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
     """Sun2 Elevation Binary Sensor."""
-
-    _supports_entity_update_action = True
 
     _use_nxt_dir_chg: bool = False
 
@@ -72,28 +62,20 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
         else:
             self._attr_translation_key = CONF_ELEVATION + "_pos"
             self._attr_translation_placeholders = {"elevation": str(threshold)}
+        self._attr_extra_state_attributes = {}
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         self._attr_is_on = self._get_cur_state(cur_dttm)
         self._attr_icon = ICON_ABOVE if self._attr_is_on else ICON_BELOW
 
-        if self._update_scheduled:
-            # homeassistant.update_entity was called. Leave next scheduled update as is.
-            return
-
         if nxt_chg := await self._get_nxt_chg():
-            self._schedule_update(nxt_chg)
-            nxt_chg = self._as_tz(nxt_chg)
-            # It's ok that nxt_chg is now in location's time zone and cur_dttm is in
-            # UTC. nxt_chg's value will be automatically converted to UTC during the
-            # subtraction operation.
             if nxt_chg - cur_dttm > ONE_DAY and self.hass.state == CoreState.running:
                 LOGGER.warning(
                     "%s: Sun elevation will not reach %f again until %s",
                     self._log_name,
                     self._threshold,
-                    nxt_chg.date(),
+                    self._as_tz(nxt_chg).date(),
                 )
         elif self.hass.state == CoreState.running:
             LOGGER.error(
@@ -101,7 +83,7 @@ class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
                 self._log_name,
                 self._threshold,
             )
-        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_chg}
+        self._schedule_update(nxt_chg)
 
     def _get_cur_state(self, cur_dttm: datetime) -> bool:
         """Get current sensor state."""

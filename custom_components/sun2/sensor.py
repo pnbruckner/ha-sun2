@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, make_dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from functools import cached_property  # pylint: disable=hass-deprecated-import
 from itertools import chain
 from math import fabs
@@ -45,7 +45,6 @@ from .const import (
     ATTR_BLUE_HOUR,
     ATTR_DAYLIGHT,
     ATTR_GOLDEN_HOUR,
-    ATTR_NEXT_CHANGE,
     ATTR_RISING,
     ATTR_TODAY,
     ATTR_TODAY_HMS,
@@ -135,30 +134,34 @@ class Sun2AzimuthSensor(Sun2EntityWithElvAdjs, SensorEntity):
             suggested_display_precision=2,
         )
         super().__init__(sun2_entity_params)
+        if self._auto_update:
+            self._attr_extra_state_attributes = {}
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
-        # In case homeassistant.update_entity was called, cancel previously scheduled
-        # update.
-        self._cancel_update()
+        if requested:
+            self._cancel_update()
 
         if cur_dttm >= self._nxt_dir_chg_dttm:
             self._change_sun_direction()
 
         # Astral package ignores microseconds when determining azimuth & solar
-        # elevation, so round to nearest second before continuing.
-        cur_dttm = nearest_second(cur_dttm)
-        self._attr_native_value = self._solar_azimuth(cur_dttm)
+        # elevation, so round to nearest second.
+        rnd_dttm = nearest_second(cur_dttm)
+        self._attr_native_value = self._solar_azimuth(rnd_dttm)
+
+        if not self._auto_update:
+            return
 
         if self._rising:
             threshold = SUN_APPARENT_RADIUS - self._ris_elv_adj
         else:
             threshold = SUN_APPARENT_RADIUS - self._set_elv_adj
-        if fabs(self._solar_elevation(cur_dttm) - threshold) <= 6:
+        if fabs(self._solar_elevation(rnd_dttm) - threshold) <= 6:
             delta = 2 * 60
         else:
             delta = 10 * 60
-        self._schedule_update(delta)
+        self._schedule_update(cur_dttm + timedelta(seconds=delta))
 
 
 @dataclass(frozen=True)
@@ -229,7 +232,7 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
         with suppress(AttributeError):
             del self._ph_params
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         if self._first_update:
             # Determine what phase the sensor would have been at the last time the sun
@@ -257,8 +260,6 @@ class PhaseSensor(Sun2EntityWithElvAdjs, SensorEntity):
 
         nxt_chg = self._find_next_change()
         # LOGGER.debug("*4*: dt: %s, ris: %s, nxt idx: %s", self._dt, self._rising, self._nxt_ph_idx)
-        LOGGER.debug("%s: nxt chg: %s", self._log_name, self._dttm_2_str(nxt_chg))
-        self._attr_extra_state_attributes[ATTR_NEXT_CHANGE] = self._as_tz(nxt_chg)
         self._schedule_update(nxt_chg)
 
     def _find_ph_idx(self, elv: float) -> int | None:
@@ -583,7 +584,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntityWithYTT[float]):
         )
         update_at_time_param()
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         if not self._at_time:
             self._yesterday = None
@@ -605,7 +606,7 @@ class Sun2ElevationAtTimeSensor(Sun2SensorEntityWithYTT[float]):
 class Sun2SensorEntityWithUpdate(Sun2SensorEntityWithYTT[_T]):
     """Sun2 Sensor Entity with update methods."""
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         cur_date = self._as_tz(cur_dttm).date()
         if self._first_update:
@@ -666,7 +667,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
         )
         super().__init__(sun2_entity_params, entity_description, name=name)
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         cur_date = self._as_tz(cur_dttm).date()
 
@@ -707,7 +708,7 @@ class Sun2PointInTimeSensor(Sun2SensorEntityWithEvent[datetime]):
             return
 
         # No. Continue normally.
-        await super()._update(cur_dttm)
+        await super()._update(cur_dttm, requested)
         if self._today:
             return
 
@@ -907,6 +908,7 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
 
     _supports_entity_update_action = True
 
+    # Only used when "polling" is not disabled by user.
     _nxt_elv: float
 
     def __init__(
@@ -922,21 +924,29 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
             suggested_display_precision=1,
         )
         super().__init__(sun2_entity_params)
+        if self._auto_update:
+            self._attr_extra_state_attributes = {}
 
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
         # Astral package ignores microseconds when determining solar elevation, so round
         # to nearest second.
-        raw_elv = self._solar_elevation(cur_dttm)
+        self._attr_native_value = raw_elv = self._solar_elevation(cur_dttm)
+
+        if requested or not self._auto_update:
+            self._attr_icon = self._icon(raw_elv)
+            return
+
+        # NOTE: Requested updates cannot happen before entity has had a chance to
+        #       complete its first update.
         if self._first_update:
             self._nxt_elv = round(raw_elv, 1)
-        self._attr_native_value = raw_elv
-        self._attr_icon = self._icon(self._nxt_elv)
-        LOGGER.debug("%s: %0.1f -> %f", self._log_name, self._nxt_elv, raw_elv)
+        else:
+            LOGGER.debug("%s: target was: %0.1f", self._log_name, self._nxt_elv)
 
-        if self._update_scheduled:
-            # homeassistant.update_entity was called. Leave next scheduled update as is.
-            return
+        # Base icon on targeted value, since raw value may be "before" target due to
+        # inaccuracies in time_at_elevation.
+        self._attr_icon = self._icon(self._nxt_elv)
 
         # Move elevation by desired step. If that elevation does not occur today, then
         # move to next solar noon or solar midnight event.
@@ -951,8 +961,6 @@ class Sun2ElevationSensor(Sun2EntityWithElvAdjs, SensorEntity):
 
         assert nxt_chg > cur_dttm
 
-        LOGGER.debug("%s: nxt chg: %s", self._log_name, self._dttm_2_str(nxt_chg))
-        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: self._as_tz(nxt_chg)}
         self._schedule_update(nxt_chg)
 
     def _icon(self, elev: Num) -> str:

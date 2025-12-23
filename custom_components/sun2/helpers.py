@@ -44,7 +44,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
-    async_call_later,
     async_track_device_registry_updated_event,
     async_track_entity_registry_updated_event,
     async_track_point_in_utc_time,
@@ -218,6 +217,7 @@ class ConfigData:
     """Sun2 config entry data."""
 
     title: str
+    pref_disable_polling: bool
     binary_sensors: list[dict[str, Any]]
     sensors: list[dict[str, Any]]
     loc_data: LocData | None
@@ -287,6 +287,7 @@ class AstralData:
 class Sun2EntityParams:
     """Sun2Entity parameters."""
 
+    pref_disable_polling: bool
     device_info: dr.DeviceInfo
     astral_data: AstralData
     unique_id: str = ""
@@ -326,6 +327,12 @@ class Sun2Entity(Entity, ABC):
         self._attr_translation_key = self.entity_description.key
         self._attr_unique_id = sun2_entity_params.unique_id
         self._attr_device_info = sun2_entity_params.device_info
+        # Automatically update sensor if entity does not support user requested updates
+        # or, if it does, only if user has not disabled "polling."
+        self._auto_update = (
+            not self._supports_entity_update_action
+            or not sun2_entity_params.pref_disable_polling
+        )
         self._astral_data = sun2_entity_params.astral_data
         self.async_on_remove(self._cancel_update)
 
@@ -368,11 +375,6 @@ class Sun2Entity(Entity, ABC):
         """Return westerly observer elevation."""
         return self._astral_data.obs_elvs.west
 
-    @property
-    def _update_scheduled(self) -> bool:
-        """Return if an update is currently scheduled."""
-        return bool(self._unsub_update)
-
     def _as_tz(self, dttm: datetime) -> datetime:
         """Return datetime in location's time zone."""
         return dttm.astimezone(self._tzi)
@@ -383,25 +385,37 @@ class Sun2Entity(Entity, ABC):
 
     async def async_update(self) -> None:
         """Update state."""
-        # If there is a scheduled update pending, then update must have been invoked by
-        # homeassistant.update_entity action because scheduled updates are automatically
-        # cleared before this method is called. If action is not supported by the
-        # sensor, then simply ignore it. Warn the user so they know not to bother in the
-        # future.
-        if self._update_scheduled and not self._supports_entity_update_action:
-            LOGGER.warning("%s: Does not support homeassistant.update_entity action")
+        # User can request an update using the homeassistant.update_entity action,
+        # although this cannot happen before the entity has had a chance to complete its
+        # first update. Since there is no indication from HA as to whether this update
+        # is being called due to a user request or from an update the entity itself has
+        # scheduled, this must be determined by considering the auto update "feature" of
+        # this base class. If the entity is not updating itself, then the request must
+        # have come from the user. Or, if the entity is updating itself, then the
+        # request must have come from the user if there is a pending update, since the
+        # pending update gets cleared before this method is called.
+        requested = not self._first_update and (
+            not self._auto_update or self._unsub_update is not None
+        )
+
+        if requested and not self._supports_entity_update_action:
+            LOGGER.warning(
+                "%s: Does not support homeassistant.update_entity action",
+                self._log_name,
+            )
             return
 
         cur_dttm = dt_util.utcnow()
         LOGGER.debug(
-            "%s: +++++++++++++++++++++ first update: %s, update at: %s",
+            "%s: +++++++++++++++++++++ first update: %s, update at: %s%s",
             self._log_name,
             self._first_update,
             self._dttm_2_str(cur_dttm),
+            " (requested)" if requested else "",
         )
         if self._first_update:
             self._update_setup(cur_dttm)
-        await self._update(cur_dttm)
+        await self._update(cur_dttm, requested)
         LOGGER.debug(
             "%s: --------------------- first update: %s, update took: %0.6f",
             self._log_name,
@@ -410,7 +424,9 @@ class Sun2Entity(Entity, ABC):
         )
 
         if self._reschedule_at_midnight:
-            self._schedule_update(next_midnight(self._as_tz(cur_dttm)))
+            self._schedule_update(
+                next_midnight(self._as_tz(cur_dttm)), update_attr=False
+            )
 
         self._first_update = False
 
@@ -440,7 +456,9 @@ class Sun2Entity(Entity, ABC):
             )
         )
 
-    def _schedule_update(self, dttm_or_delta: datetime | Num) -> None:
+    def _schedule_update(
+        self, nxt_chg: datetime | None, update_attr: bool = True
+    ) -> None:
         """Schedule an update."""
         assert not self._unsub_update
 
@@ -450,13 +468,18 @@ class Sun2Entity(Entity, ABC):
             self._unsub_update = None
             self.async_schedule_update_ha_state(True)
 
-        if isinstance(dttm_or_delta, datetime):
+        if nxt_chg:
             self._unsub_update = async_track_point_in_utc_time(
-                self.hass, async_schedule_update, dttm_or_delta
+                self.hass, async_schedule_update, nxt_chg
             )
+            fmt_nxt_chg = self._dttm_2_str(nxt_chg)
         else:
-            self._unsub_update = async_call_later(
-                self.hass, dttm_or_delta, async_schedule_update
+            fmt_nxt_chg = str(None)
+
+        LOGGER.debug("%s: nxt chg: %s", self._log_name, fmt_nxt_chg)
+        if update_attr:
+            self._attr_extra_state_attributes[ATTR_NEXT_CHANGE] = (
+                self._as_tz(nxt_chg) if nxt_chg else None
             )
 
     def _cancel_update(self) -> None:
@@ -472,7 +495,7 @@ class Sun2Entity(Entity, ABC):
         """
 
     @abstractmethod
-    async def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
 
     async def update_astral_data(self, astral_data: AstralData) -> None:
@@ -815,6 +838,7 @@ class Sun2EntrySetup(ABC):
         self._imported = entry.source == SOURCE_IMPORT
         self._uid_prefix = f"{entry.entry_id}-"
         self._sun2_entity_params = Sun2EntityParams(
+            entry.pref_disable_polling,
             sun2_dev_info(hass, entry),
             AstralData(self._new_loc_data(loc_data), obs_elvs),
         )
