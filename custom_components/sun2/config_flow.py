@@ -4,9 +4,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Mapping
 from contextlib import suppress
+from copy import deepcopy
 from typing import Any, cast
 import zoneinfo
 
+from propcache.api import cached_property
 import voluptuous as vol
 
 from homeassistant.components.binary_sensor import DOMAIN as BS_DOMAIN
@@ -17,7 +19,7 @@ from homeassistant.config_entries import (
     ConfigEntryBaseFlow,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlowWithConfigEntry,
+    OptionsFlow,
 )
 from homeassistant.const import (
     CONF_BINARY_SENSORS,
@@ -109,27 +111,21 @@ def loc_from_options(
 class Sun2Flow(ConfigEntryBaseFlow):
     """Sun2 flow mixin."""
 
-    _existing_entries: list[ConfigEntry] | None = None
-    _existing_entities: dict[str, str] | None = None
+    options: dict[str, Any]
 
     # Temporary variables between steps.
     _use_map: bool
     _sunrise_obstruction: bool
     _sunset_obstruction: bool
 
-    @property
+    @cached_property
     def _entries(self) -> list[ConfigEntry]:
         """Get existing config entries."""
-        if self._existing_entries is None:
-            self._existing_entries = self.hass.config_entries.async_entries(DOMAIN)
-        return self._existing_entries
+        return self.hass.config_entries.async_entries(DOMAIN)
 
-    @property
+    @cached_property
     def _entities(self) -> dict[str, str]:
         """Get existing configured entities."""
-        if self._existing_entities is not None:
-            return self._existing_entities
-
         ent_reg = er.async_get(self.hass)
         existing_entities: dict[str, str] = {}
         for key, domain in {
@@ -142,13 +138,7 @@ class Sun2Flow(ConfigEntryBaseFlow):
                     str, ent_reg.async_get_entity_id(domain, DOMAIN, unique_id)
                 )
                 existing_entities[entity_id] = unique_id
-        self._existing_entities = existing_entities
         return existing_entities
-
-    @property
-    @abstractmethod
-    def options(self) -> dict[str, Any]:
-        """Return mutable copy of options."""
 
     def _any_using_ha_loc(self) -> bool:
         """Determine if a config is using Home Assistant location."""
@@ -550,7 +540,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize config flow."""
-        self._options: dict[str, Any] = {}
+        self.options = {}
 
     @staticmethod
     @callback
@@ -568,14 +558,7 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
     @callback
     def async_supports_options_flow(cls, config_entry: ConfigEntry) -> bool:
         """Return options flow support for this handler."""
-        if config_entry.source == SOURCE_IMPORT:
-            return False
-        return True
-
-    @property
-    def options(self) -> dict[str, Any]:
-        """Return mutable copy of options."""
-        return self._options
+        return config_entry.source != SOURCE_IMPORT
 
     async def async_step_import(self, data: dict[str, Any]) -> ConfigFlowResult:
         """Import config entry from configuration."""
@@ -658,8 +641,12 @@ class Sun2ConfigFlow(ConfigFlow, Sun2Flow, domain=DOMAIN):
         )
 
 
-class Sun2OptionsFlow(OptionsFlowWithConfigEntry, Sun2Flow):
+class Sun2OptionsFlow(OptionsFlow, Sun2Flow):
     """Sun2 integration options flow."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize flow."""
+        self.options = deepcopy(dict(config_entry.options))
 
     async def async_step_done(
         self, _: dict[str, Any] | None = None

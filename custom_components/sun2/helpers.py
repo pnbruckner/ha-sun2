@@ -6,17 +6,14 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
-from functools import (  # pylint: disable=hass-deprecated-import
-    cached_property,
-    lru_cache,
-    partial,
-)
+from functools import lru_cache, partial
 from math import copysign, fabs
 from typing import Any, Self, cast
 
 from astral import LocationInfo, SunDirection
 from astral.location import Location
 from astral.sun import adjust_to_horizon, adjust_to_obscuring_feature
+from propcache.api import cached_property
 
 from homeassistant.components.binary_sensor import (
     DOMAIN as BS_DOMAIN,
@@ -31,14 +28,7 @@ from homeassistant.const import (
     CONF_TIME_ZONE,
 )
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-
-# Config moved from core to core_config in 2024.11
-
-try:
-    from homeassistant.core_config import Config
-except ImportError:
-    from homeassistant.core import Config  # type: ignore[no-redef]
-
+from homeassistant.core_config import Config
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity

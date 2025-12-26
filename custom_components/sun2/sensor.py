@@ -7,13 +7,13 @@ from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, make_dataclass
 from datetime import date, datetime, time, timedelta
-from functools import cached_property  # pylint: disable=hass-deprecated-import
 from itertools import chain
 from math import fabs
 from typing import Any, Generic, TypeVar, cast
 
 from astral import SunDirection
 from astral.sun import SUN_APPARENT_RADIUS
+from propcache.api import cached_property
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
