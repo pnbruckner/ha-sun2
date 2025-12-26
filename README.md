@@ -196,7 +196,7 @@ Would be equivalent to:
   name: Rising at minus 0.267°
 ```
 
-#### Elevation at Time Sensor
+#### Elevation at Time Sensor [^1]
 
 Key | Optional | Description
 -|-|-
@@ -213,7 +213,7 @@ Also in this case, the `sensor` entity will not have `yesterday`, `today` and `t
 
 Besides the sensors described above, the following will also be created automatically. Simply enable or disable these entities as desired.
 
-### Point in Time Sensors
+### Point in Time Sensors [^1] [^2]
 
 Some of these will be enabled by default. The rest will be disabled by default.
 
@@ -230,7 +230,7 @@ Dusk | yes | The time in the evening when the sun is a 6 degrees below the horiz
 Nautical Dusk | no | The time in the evening when the sun is a 12 degrees below the horizon
 Astronomical Dusk | no | The time in the evening when the sun is a 18 degrees below the horizon
 
-### Length of Time Sensors (in hours)
+### Length of Time Sensors (in hours) [^1]
 
 These are all disabled by default.
 
@@ -252,11 +252,11 @@ These are also all disabled by default.
 Type | Description
 -|-
 Azimuth | The sun's azimuth (degrees)
-Rising Azimuth | The sun's azimuth at sunrise (degrees)
-Setting Azimuth | The sun's azimuth at sunset (degrees)
+Rising Azimuth [^1] | The sun's azimuth at sunrise (degrees)
+Setting Azimuth [^1] | The sun's azimuth at sunset (degrees)
 Elevation | The sun's elevation (degrees)
-Minimum Elevation | The sun's elevation at solar midnight (degrees)
-maximum Elevation | The sun's elevation at solar noon (degrees)
+Minimum Elevation [^1] | The sun's elevation at solar midnight (degrees)
+maximum Elevation [^1] | The sun's elevation at solar noon (degrees)
 deCONZ Daylight | Emulation of [deCONZ Daylight Sensor](https://www.home-assistant.io/integrations/deconz/#deconz-daylight-sensor)
 Phase | See [Sun Phase Sensor](#sun-phase-sensor)
 
@@ -341,3 +341,7 @@ sun2:
 All "simple" sensor options (e.g., `dawn`, `daylight`, etc.) will be created automatically.
 Some will be enabled by default, but most will not.
 Simply go to the Settings -> Devices & services page, click on Sun2, then entities, and enable/disable the entities as desired.
+
+[^1]: These sensors usually have `yesterday`, `today` & `tomorrow` attributes that indicate what the state of the sensor was, is or will be, on these days, and usually are "raw" values (i.e., represented in Python types such as a `datetime` instead of a string, and are typically not rounded.)
+
+[^2]: The `yesterday`, `today` & `tomorrow` attributes will be `None`/`null` if the event does not occur on the corresponding day. If the event does not occur today, the main state will show the next time the event does happen, if it does within the next year. If it doesn't happen today or anytime within the next year, the main state will be `unknown`.
