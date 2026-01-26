@@ -56,12 +56,12 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
+                    "location_text": "Locatie",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
-                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "breedtegraad, lengtegraad"
                 }
             },
             "location_name": {
@@ -146,12 +146,12 @@
             "location": {
                 "title": "Opties voor locatie",
                 "data": {
-                    "elevation": "Verhoging boven het maaiveld",
                     "location": "Locatie",
+                    "location_text": "Locatie",
                     "time_zone": "Tijdzone"
                 },
                 "data_description": {
-                    "time_zone": "Zie de kolom \"TZ identifier\" bij https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "breedtegraad, lengtegraad"
                 }
             },
             "remove_entities": {
@@ -184,6 +184,24 @@
     "entity": {
         "binary_sensor": {
             "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "elevation_hor": {
+                "name": "Boven horizon",
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "elevation_neg": {
+                "name": "Boven min {elevation}°",
+                "state_attributes": {
+                    "next_change": {"name": "Volgende wijziging"}
+                }
+            },
+            "elevation_pos": {
+                "name": "Boven {elevation}°",
                 "state_attributes": {
                     "next_change": {"name": "Volgende wijziging"}
                 }
@@ -284,7 +302,9 @@
                     "night_start": "Nachtbegin",
                     "solar_noon": "Middagzon",
                     "sunrise_end": "Einde zonsopkomst",
-                    "sunrise_start": "Start zonsopkomst"
+                    "sunrise_start": "Start zonsopkomst",
+                    "sunset_end": "Einde zonsondergang",
+                    "sunset_start": "Start zonsondergang"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Daglicht"},
@@ -306,6 +326,14 @@
                 }
             },
             "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "elevation_at_time_name": {
+                "name": "Hoogtehoek op {elev_time}",
                 "state_attributes": {
                     "today": {"name": "Vandaag"},
                     "tomorrow": {"name": "Morgen"},
@@ -431,6 +459,38 @@
                     "tomorrow": {"name": "Morgen"},
                     "yesterday": {"name": "Gisteren"}
                 }
+            },
+            "time_at_elevation_rising_neg": {
+                "name": "Opkomst bij min {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "time_at_elevation_rising_pos": {
+                "name": "Opkomst bij {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "time_at_elevation_setting_neg": {
+                "name": "Ondergang bij min {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
+            },
+            "time_at_elevation_setting_pos": {
+                "name": "Ondergang bij {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Vandaag"},
+                    "tomorrow": {"name": "Morgen"},
+                    "yesterday": {"name": "Gisteren"}
+                }
             }
         }
     },
@@ -439,18 +499,6 @@
             "options": {
                 "rising": "Opkomst",
                 "setting": "Ondergang"
-            }
-        },
-        "misc": {
-            "options": {
-                "above_horizon": "Boven horizon",
-                "above_neg_elev": "Boven min {elevation} °",
-                "above_pos_elev": "Boven {elevation} °",
-                "elevation_at": "Hoogtehoek op {elev_time}",
-                "rising_neg_elev": "Opkomst bij min {elevation} °",
-                "rising_pos_elev": "Opkomst bij {elevation} °",
-                "setting_neg_elev": "Ondergang bij min {elevation} °",
-                "setting_pos_elev": "Ondergang bij {elevation} °"
             }
         }
     },

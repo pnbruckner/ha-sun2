@@ -57,10 +57,11 @@
                 "title": "Location Options",
                 "data": {
                     "location": "Location",
+                    "location_text": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
-                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitude, longitude"
                 }
             },
             "location_menu": {
@@ -177,10 +178,11 @@
                 "title": "Location Options",
                 "data": {
                     "location": "Location",
+                    "location_text": "Location",
                     "time_zone": "Time zone"
                 },
                 "data_description": {
-                    "time_zone": "See the \"TZ identifier\" column at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitude, longitude"
                 }
             },
             "location_menu": {
@@ -248,6 +250,24 @@
     "entity": {
         "binary_sensor": {
             "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_hor": {
+                "name": "Above horizon",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_neg": {
+                "name": "Above minus {elevation}°",
+                "state_attributes": {
+                    "next_change": {"name": "Next change"}
+                }
+            },
+            "elevation_pos": {
+                "name": "Above {elevation}°",
                 "state_attributes": {
                     "next_change": {"name": "Next change"}
                 }
@@ -348,7 +368,9 @@
                     "night_start": "Night start",
                     "solar_noon": "Solar noon",
                     "sunrise_end": "Sunrise end",
-                    "sunrise_start": "Sunrise start"
+                    "sunrise_start": "Sunrise start",
+                    "sunset_end": "Sunset end",
+                    "sunset_start": "Sunset start"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Daylight"},
@@ -370,6 +392,14 @@
                 }
             },
             "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "elevation_at_time_name": {
+                "name": "Elevation at {elev_time}",
                 "state_attributes": {
                     "today": {"name": "Today"},
                     "tomorrow": {"name": "Tomorrow"},
@@ -511,6 +541,38 @@
                     "tomorrow": {"name": "Tomorrow"},
                     "yesterday": {"name": "Yesterday"}
                 }
+            },
+            "time_at_elevation_rising_neg": {
+                "name": "Rising at minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_rising_pos": {
+                "name": "Rising at {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_setting_neg": {
+                "name": "Setting at minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
+            },
+            "time_at_elevation_setting_pos": {
+                "name": "Setting at {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "Today"},
+                    "tomorrow": {"name": "Tomorrow"},
+                    "yesterday": {"name": "Yesterday"}
+                }
             }
         }
     },
@@ -519,18 +581,6 @@
             "options": {
                 "rising": "Rising",
                 "setting": "Setting"
-            }
-        },
-        "misc": {
-            "options": {
-                "above_horizon": "Above horizon",
-                "above_neg_elev": "Above minus {elevation} °",
-                "above_pos_elev": "Above {elevation} °",
-                "elevation_at": "Elevation at {elev_time}",
-                "rising_neg_elev": "Rising at minus {elevation} °",
-                "rising_pos_elev": "Rising at {elevation} °",
-                "setting_neg_elev": "Setting at minus {elevation} °",
-                "setting_pos_elev": "Setting at {elevation} °"
             }
         }
     },

@@ -152,7 +152,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if ha_loc_data_changed := new_ha_loc_data != s2data.ha_loc_data:
             s2data.ha_loc_data = new_ha_loc_data
 
-        if not any(key in event.data for key in ("location_name", "language")):
+        if "location_name" not in event.data:
             if ha_loc_data_changed:
                 async_dispatcher_send(hass, SIG_HA_LOC_UPDATED)
             return
@@ -210,6 +210,7 @@ async def entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     config_data = sun2_data(hass).config_data[entry.entry_id]
     if (
         entry.title == config_data.title
+        and entry.pref_disable_polling == config_data.pref_disable_polling
         and entry.options.get(CONF_BINARY_SENSORS, []) == config_data.binary_sensors
         and entry.options.get(CONF_SENSORS, []) == config_data.sensors
     ):
@@ -231,6 +232,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up config entry."""
     sun2_data(hass).config_data[entry.entry_id] = ConfigData(
         entry.title,
+        entry.pref_disable_polling,
         entry.options.get(CONF_BINARY_SENSORS, [])[:],
         entry.options.get(CONF_SENSORS, [])[:],
         await async_get_loc_data(hass, entry.options),

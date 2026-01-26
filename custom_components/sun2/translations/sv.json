@@ -57,10 +57,11 @@
                 "title": "Platsalternativ",
                 "data": {
                     "location": "Plats",
+                    "location_text": "Plats",
                     "time_zone": "Tidszon"
                 },
                 "data_description": {
-                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitud, longitud"
                 }
             },
             "location_menu": {
@@ -177,10 +178,11 @@
                 "title": "Platsalternativ",
                 "data": {
                     "location": "Plats",
+                    "location_text": "Plats",
                     "time_zone": "Tidszon"
                 },
                 "data_description": {
-                    "time_zone": "Kolla i \"TZ identifier\"-kolumnen på https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List."
+                    "location_text": "latitud, longitud"
                 }
             },
             "location_menu": {
@@ -248,6 +250,24 @@
     "entity": {
         "binary_sensor": {
             "elevation": {
+                "state_attributes": {
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            },
+            "elevation_hor": {
+                "name": "Över horisonten",
+                "state_attributes": {
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            },
+            "elevation_neg": {
+                "name": "Över minus {elevation}°",
+                "state_attributes": {
+                    "next_change": {"name": "Nästa ändring"}
+                }
+            },
+            "elevation_pos": {
+                "name": "Över {elevation}°",
                 "state_attributes": {
                     "next_change": {"name": "Nästa ändring"}
                 }
@@ -348,7 +368,9 @@
                     "night_start": "Natt början",
                     "solar_noon": "Sann middag",
                     "sunrise_end": "Soluppgång slut",
-                    "sunrise_start": "Soluppgång början"
+                    "sunrise_start": "Soluppgång början",
+                    "sunset_end": "Solnedgången slut",
+                    "sunset_start": "Solnedgången börjar"
                 },
                 "state_attributes": {
                     "daylight": {"name": "Dagsljus"},
@@ -370,6 +392,14 @@
                 }
             },
             "elevation_at_time": {
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "elevation_at_time_name": {
+                "name": "Solhöjd vid {elev_time}",
                 "state_attributes": {
                     "today": {"name": "I dag"},
                     "tomorrow": {"name": "I morgon"},
@@ -511,6 +541,38 @@
                     "tomorrow": {"name": "I morgon"},
                     "yesterday": {"name": "I går"}
                 }
+            },
+            "time_at_elevation_rising_neg": {
+                "name": "Stigande vid minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "time_at_elevation_rising_pos": {
+                "name": "Stigande vid {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "time_at_elevation_setting_neg": {
+                "name": "Sjunkande vid minus {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
+            },
+            "time_at_elevation_setting_pos": {
+                "name": "Sjunkande vid {elevation}°",
+                "state_attributes": {
+                    "today": {"name": "I dag"},
+                    "tomorrow": {"name": "I morgon"},
+                    "yesterday": {"name": "I går"}
+                }
             }
         }
     },
@@ -519,18 +581,6 @@
             "options": {
                 "rising": "Stigande",
                 "setting": "Sjunkande"
-            }
-        },
-        "misc": {
-            "options": {
-                "above_horizon": "Över horisonten",
-                "above_neg_elev": "Över minus {elevation}°",
-                "above_pos_elev": "Över {elevation}°",
-                "elevation_at": "Solhöjd vid {elev_time}",
-                "rising_neg_elev": "Stigande vid minus {elevation}°",
-                "rising_pos_elev": "Stigande vid {elevation}°",
-                "setting_neg_elev": "Sjunkande vid minus {elevation}°",
-                "setting_pos_elev": "Sjunkande vid {elevation}°"
             }
         }
     },

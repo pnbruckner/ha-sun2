@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-import logging
 from typing import Any, cast
 
 from astral import SunDirection
@@ -35,10 +34,10 @@ from .const import (
     CONF_SUNSET_OBSTRUCTION,
     CONF_TIME_AT_ELEVATION,
     DOMAIN,
+    LOGGER,
 )
-from .helpers import Num, init_translations
+from .helpers import Num
 
-_LOGGER = logging.getLogger(__name__)
 _COERCE_NUM = vol.Any(vol.Coerce(int), vol.Coerce(float))
 
 PACKAGE_MERGE_HINT = "list"
@@ -159,7 +158,7 @@ def obs_elv_from_options(
 
         if isinstance(east_obs_elv, Num) and isinstance(west_obs_elv, Num):
             assert east_obs_elv == west_obs_elv
-            return cast(Num, east_obs_elv)
+            return east_obs_elv
 
         obs_elv: ConfigType = {}
         if isinstance(east_obs_elv, Num):
@@ -178,7 +177,7 @@ def obs_elv_from_options(
             }
         return obs_elv
 
-    return options.get(CONF_ELEVATION, hass.config.elevation)
+    return options.get(CONF_ELEVATION, hass.config.elevation)  # type: ignore[no-any-return]
 
 
 def _obs_elv(
@@ -221,7 +220,7 @@ def options_from_obs_elv(
 
         if CONF_OBS_ELV not in loc_config:
             # TODO: Make this a repair issue???
-            _LOGGER.warning(
+            LOGGER.warning(
                 "New config option %s missing @ data[%s][%s], "
                 "will use system general elevation setting",
                 CONF_OBS_ELV,
@@ -255,7 +254,6 @@ async def async_validate_config(
     hass: HomeAssistant, config: ConfigType
 ) -> ConfigType | None:
     """Validate configuration."""
-    await init_translations(hass)
 
     config = _SUN2_CONFIG_SCHEMA(config)
     if DOMAIN not in config:

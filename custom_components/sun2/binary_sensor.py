@@ -1,9 +1,9 @@
 """Sun2 Binary Sensor."""
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable
 from datetime import datetime
-from typing import cast
 
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
@@ -15,219 +15,114 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_UNIQUE_ID,
 )
-from homeassistant.core import CoreState, callback
-from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.core import CoreState
+from homeassistant.util import dt as dt_util
 
-from .const import ATTR_NEXT_CHANGE, LOGGER, MAX_ERR_BIN, ONE_DAY, ONE_SEC, SUNSET_ELEV
+from .const import ICON_ABOVE, ICON_BELOW, LOGGER, MAX_UPDATE_TIME, ONE_DAY, SUNSET_ELEV
 from .helpers import (
-    Num,
     Sun2Entity,
     Sun2EntityParams,
+    Sun2EntityWithElvAdjs,
     Sun2EntrySetup,
     nearest_second,
-    translate,
 )
 
-ABOVE_ICON = "mdi:white-balance-sunny"
-BELOW_ICON = "mdi:moon-waxing-crescent"
+# Cause Semaphore to be created to make async_update, and anything protected by
+# async_request_call, atomic.
+PARALLEL_UPDATES = 1
 
 
-class Sun2ElevationSensor(Sun2Entity, BinarySensorEntity):
-    """Sun2 Elevation Sensor."""
+class Sun2ElevationBinarySensor(Sun2EntityWithElvAdjs, BinarySensorEntity):
+    """Sun2 Elevation Binary Sensor."""
+
+    _use_nxt_dir_chg: bool = False
 
     def __init__(
-        self, sun2_entity_params: Sun2EntityParams, name: str, threshold: float | str
+        self,
+        sun2_entity_params: Sun2EntityParams,
+        name: str | None,
+        threshold: float | str,
     ) -> None:
         """Initialize sensor."""
-        self.entity_description = BinarySensorEntityDescription(
-            key=CONF_ELEVATION, name=name
-        )
+        self.entity_description = BinarySensorEntityDescription(key=CONF_ELEVATION)
         super().__init__(sun2_entity_params)
-        self._event = "solar_elevation"
 
-        if isinstance(threshold, str):
+        if threshold_is_horizon := isinstance(threshold, str):
+            assert threshold == "horizon"
             self._threshold = SUNSET_ELEV
         else:
             self._threshold = threshold
+        if name:
+            self._attr_name = name
+        elif threshold_is_horizon:
+            self._attr_translation_key = CONF_ELEVATION + "_hor"
+        elif threshold < 0:  # type: ignore[operator]
+            self._attr_translation_key = CONF_ELEVATION + "_neg"
+            self._attr_translation_placeholders = {"elevation": str(-threshold)}  # type: ignore[operator]
+        else:
+            self._attr_translation_key = CONF_ELEVATION + "_pos"
+            self._attr_translation_placeholders = {"elevation": str(threshold)}
+        self._attr_extra_state_attributes = {}
 
-    def _find_nxt_dttm(
-        self, t0_dttm: datetime, t0_elev: Num, t1_dttm: datetime, t1_elev: Num
-    ) -> datetime:
-        """Find time elevation crosses threshold between 2 points on elevation curve."""
-        # Do a binary search for time between t0 & t1 where elevation is
-        # nearest threshold, but also above (or equal to) it if current
-        # elevation is below it (i.e., current state is False), or below it if
-        # current elevation is above (or equal to) it (i.e., current state is
-        # True.)
-
-        slope = 1 if t1_elev > t0_elev else -1
-
-        # Find mid point and throw away fractional seconds since astral package
-        # ignores microseconds.
-        tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-        tn_elev = cast(float, self._astral_event(tn_dttm))
-
-        while not (
-            (
-                self._attr_is_on
-                and tn_elev <= self._threshold
-                or not self._attr_is_on
-                and tn_elev > self._threshold
-            )
-            and abs(tn_elev - self._threshold) <= MAX_ERR_BIN
-        ):
-            if (tn_elev - self._threshold) * slope > 0:
-                if t1_dttm == tn_dttm:
-                    break
-                t1_dttm = tn_dttm
-            else:
-                if t0_dttm == tn_dttm:
-                    break
-                t0_dttm = tn_dttm
-            tn_dttm = nearest_second(t0_dttm + (t1_dttm - t0_dttm) / 2)
-            tn_elev = cast(float, self._astral_event(tn_dttm))
-
-        # Did we go too far?
-        if self._attr_is_on and tn_elev > self._threshold:
-            tn_dttm -= slope * ONE_SEC
-            if cast(float, self._astral_event(tn_dttm)) > self._threshold:
-                raise RuntimeError("Couldn't find next update time")
-        elif not self._attr_is_on and tn_elev <= self._threshold:
-            tn_dttm += slope * ONE_SEC
-            if cast(float, self._astral_event(tn_dttm)) <= self._threshold:
-                raise RuntimeError("Couldn't find next update time")
-
-        return tn_dttm
-
-    def _get_nxt_dttm(self, cur_dttm: datetime) -> datetime | None:
-        """Get next time sensor should change state."""
-        # Find next segment of elevation curve, between a pair of solar noon &
-        # solar midnight, where it crosses the threshold, but in the opposite
-        # direction (i.e., where output should change state.) Note that this
-        # might be today, tomorrow, days away, or never, depending on location,
-        # time of year and specified threshold.
-
-        # Start by finding the next five solar midnight & solar noon "events"
-        # since current time might be anywhere from before today's solar
-        # midnight (if it is this morning) to after tomorrow's solar midnight
-        # (if it is this evening.)
-        date = self._as_tz(cur_dttm).date()
-        evt_dttm1 = cast(datetime, self._astral_event(date, "solar_midnight", False))
-        evt_dttm2 = cast(datetime, self._astral_event(date, "solar_noon", False))
-        evt_dttm3 = cast(
-            datetime, self._astral_event(date + ONE_DAY, "solar_midnight", False)
-        )
-        evt_dttm4 = cast(
-            datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
-        )
-        evt_dttm5 = cast(
-            datetime, self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False)
-        )
-
-        # See if segment we're looking for falls between any of these events.
-        # If not move ahead a day and try again, but don't look more than a
-        # a year ahead.
-        end_date = date + 366 * ONE_DAY
-        while date < end_date:
-            if cur_dttm < evt_dttm1:
-                if self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm1
-                else:
-                    t0_dttm = evt_dttm1
-                    t1_dttm = evt_dttm2
-            elif cur_dttm < evt_dttm2:
-                if not self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm2
-                else:
-                    t0_dttm = evt_dttm2
-                    t1_dttm = evt_dttm3
-            elif cur_dttm < evt_dttm3:
-                if self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm3
-                else:
-                    t0_dttm = evt_dttm3
-                    t1_dttm = evt_dttm4
-            else:  # noqa: PLR5501
-                if not self._attr_is_on:
-                    t0_dttm = cur_dttm
-                    t1_dttm = evt_dttm4
-                else:
-                    t0_dttm = evt_dttm4
-                    t1_dttm = evt_dttm5
-
-            t0_elev = cast(float, self._astral_event(t0_dttm))
-            t1_elev = cast(float, self._astral_event(t1_dttm))
-
-            # Did we find it?
-            # Note, if t1_elev > t0_elev, then we're looking for an elevation
-            # ABOVE threshold. In this case we can't use this range if the
-            # threshold is EQUAL to the elevation at t1, because this range
-            # does NOT include any points with a higher elevation value. For
-            # all other cases it's ok for the threshold to equal the elevation
-            # at t0 or t1.
-            if (
-                t0_elev <= self._threshold < t1_elev
-                or t1_elev <= self._threshold <= t0_elev
-            ):
-                nxt_dttm = self._find_nxt_dttm(t0_dttm, t0_elev, t1_dttm, t1_elev)
-                if nxt_dttm - cur_dttm > ONE_DAY:
-                    if self.hass.state == CoreState.running:
-                        LOGGER.warning(
-                            "%s: Sun elevation will not reach %f again until %s",
-                            self.name,
-                            self._threshold,
-                            self._as_tz(nxt_dttm).date(),
-                        )
-                return nxt_dttm
-
-            # Shift one day ahead.
-            date += ONE_DAY
-            evt_dttm1 = evt_dttm3
-            evt_dttm2 = evt_dttm4
-            evt_dttm3 = evt_dttm5
-            evt_dttm4 = cast(
-                datetime, self._astral_event(date + ONE_DAY, "solar_noon", False)
-            )
-            evt_dttm5 = cast(
-                datetime,
-                self._astral_event(date + 2 * ONE_DAY, "solar_midnight", False),
-            )
-
-        # Didn't find one.
-        return None
-
-    def _update(self, cur_dttm: datetime) -> None:
+    async def _update(self, cur_dttm: datetime, requested: bool) -> None:
         """Update state."""
-        cur_elev = cast(float, self._astral_event(cur_dttm))
-        self._attr_is_on = cur_elev > self._threshold
-        self._attr_icon = ABOVE_ICON if self._attr_is_on else BELOW_ICON
-        LOGGER.debug(
-            "%s: threshold = %f, elevation = %f", self.name, self._threshold, cur_elev
-        )
+        self._attr_is_on = self._get_cur_state(cur_dttm)
+        self._attr_icon = ICON_ABOVE if self._attr_is_on else ICON_BELOW
 
-        nxt_dttm = self._get_nxt_dttm(cur_dttm)
-
-        @callback
-        def schedule_update(_now: datetime) -> None:
-            """Schedule state update."""
-            self._unsub_update = None
-            self.async_schedule_update_ha_state(True)
-
-        if nxt_dttm:
-            self._unsub_update = async_track_point_in_utc_time(
-                self.hass, schedule_update, nxt_dttm
-            )
-            nxt_dttm = self._as_tz(nxt_dttm)
+        if nxt_chg := await self._get_nxt_chg():
+            if nxt_chg - cur_dttm > ONE_DAY and self.hass.state == CoreState.running:
+                LOGGER.warning(
+                    "%s: Sun elevation will not reach %f again until %s",
+                    self._log_name,
+                    self._threshold,
+                    self._as_tz(nxt_chg).date(),
+                )
         elif self.hass.state == CoreState.running:
             LOGGER.error(
                 "%s: Sun elevation never reaches %f at this location",
-                self.name,
+                self._log_name,
                 self._threshold,
             )
-        self._attr_extra_state_attributes = {ATTR_NEXT_CHANGE: nxt_dttm}
+        self._schedule_update(nxt_chg)
+
+    def _get_cur_state(self, cur_dttm: datetime) -> bool:
+        """Get current sensor state."""
+        if self._first_update:
+            if (nxt_chg := self._time_at_elevation(self._threshold)) is None:
+                # Sun doesn't cross threshold today. Base current state on solar
+                # elevation. Since astral package ignores microseconds when determining
+                # solar elevation, round current time to nearest second.
+                cur_elv = self._solar_elevation(nearest_second(cur_dttm))
+                if self._rising:
+                    return cur_elv >= self._threshold - self._ris_elv_adj
+                return cur_elv > self._threshold - self._set_elv_adj
+            # Sun does cross threshold today.
+            if cur_dttm < nxt_chg:
+                # Sun has not yet crossed threshold on current part of the "solar
+                # elevation curve." Set state parameters to be on previous part of
+                # the curve so current state and next change are determined
+                # correctly.
+                self._rising = not self._rising
+                if not self._rising:
+                    self._dt -= ONE_DAY
+        return self._rising
+
+    async def _get_nxt_chg(self) -> datetime | None:
+        """Get next time sun crosses threshold."""
+        # Find next time sun crosses threshold. Note that it's possible that might not
+        # happen today, or even tomorrow, depending on location & time of year. Move to
+        # next part of solar elevation curve, and if that doesn't cross threshold, keep
+        # moving to the next part of the curve until a crossing is found, but don't look
+        # more than one year into the future.
+        start = dt_util.utcnow()
+        for _ in range(365 * 2):
+            self._change_sun_direction()
+            if nxt_chg := self._time_at_elevation(self._threshold):
+                return nxt_chg
+            if dt_util.utcnow() - start > MAX_UPDATE_TIME:
+                await asyncio.sleep(0)
+                start = dt_util.utcnow()
+        return None
 
 
 class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
@@ -241,23 +136,9 @@ class Sun2BinarySensorEntrySetup(Sun2EntrySetup):
                 unique_id = self._uid_prefix + unique_id
             self._sun2_entity_params.unique_id = unique_id
             threshold = config[CONF_ELEVATION]
-            yield Sun2ElevationSensor(
-                self._sun2_entity_params,
-                self._elevation_name(config.get(CONF_NAME), threshold),
-                threshold,
+            yield Sun2ElevationBinarySensor(
+                self._sun2_entity_params, config.get(CONF_NAME), threshold
             )
-
-    def _elevation_name(self, name: str | None, threshold: float | str) -> str:
-        """Return elevation sensor name."""
-        if name:
-            return name
-        if isinstance(threshold, str):
-            return translate(self._hass, "above_horizon")
-        if threshold < 0:
-            return translate(
-                self._hass, "above_neg_elev", {"elevation": str(-threshold)}
-            )
-        return translate(self._hass, "above_pos_elev", {"elevation": str(threshold)})
 
 
 async_setup_entry = Sun2BinarySensorEntrySetup.async_setup_entry
